@@ -1,0 +1,87 @@
+
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/icons/icon-192.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bongo Delicacy - Authentic Bengali Cuisine</title>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" crossorigin="anonymous" />
+    <meta name="theme-color" content="#00838F" />
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Roboto:wght@400;500&family=Caveat:wght@700&display=swap');
+      
+      body {
+        font-family: 'Roboto', sans-serif;
+      }
+      h1, h2, h3, .font-serif {
+        font-family: 'Playfair Display', serif;
+      }
+      .font-script {
+        font-family: 'Caveat', cursive;
+      }
+
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .animate-fade-in {
+        animation: fadeIn 0.8s ease-in-out forwards;
+      }
+       .animate-fade-in-slow {
+        animation: fadeIn 1.2s ease-in-out forwards;
+      }
+      /* Google Maps Autocomplete Styles */
+      .pac-container {
+        background-color: #1f2937; /* bg-gray-800 */
+        font-family: 'Roboto', sans-serif;
+        border-top: 1px solid #374151; /* border-gray-700 */
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+      }
+      .pac-item {
+        border-top: 1px solid #374151;
+        color: #9ca3af; /* text-gray-400 */
+        padding: 8px 12px;
+        cursor: pointer;
+      }
+      .pac-item:hover {
+        background-color: #374151; /* bg-gray-700 */
+      }
+      .pac-item-query {
+        color: #e5e7eb; /* text-gray-200 */
+        font-size: 14px;
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.28.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "pdfjs-dist": "https://esm.sh/pdfjs-dist@4.4.168",
+    "mammoth": "https://esm.sh/mammoth@1.8.0",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2",
+    "webworker": "https://aistudiocdn.com/webworker@^0.8.4",
+    "vite": "https://aistudiocdn.com/vite@^7.2.2",
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.0"
+  }
+}
+</script>
+<!-- REPLACE YOUR_GOOGLE_MAPS_API_KEY WITH YOUR ACTUAL KEY -->
+<script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBvREqIdSDqMZm0K5NRKcORR3D6eDlzEHs&libraries=places&callback=initMap"></script>
+<script>
+  // Placeholder callback to prevent console errors if key is missing/invalid during dev
+  function initMap() { console.log("Google Maps API loaded"); }
+</script>
+
+</head>
+  <body class="bg-gray-900 text-white">
+    <div id="root"></div>
+    <script type="module" src="index.tsx"></script>
+</body>
+</html>

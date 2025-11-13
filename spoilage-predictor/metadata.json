@@ -1,0 +1,7 @@
+{
+  "name": "Food Spoilage Predictor",
+  "description": "An intelligent tool that predicts food wastage by analyzing recipe contents, preparation date, and storage conditions to estimate the spoilage date.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
