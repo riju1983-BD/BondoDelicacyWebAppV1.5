@@ -14,9 +14,9 @@ const terettiLogo = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53M
 
 
 export const brandsData: { [key: string]: BrandData } = {
-  'bjale-jhole': {
-    id: 'bjale-jhole',
-    petpoojaRestId: '317211', // UPDATED with user provided ID
+  'c9ignw2k50': {
+    id: 'c9ignw2k50',
+    petpoojaRestId: 'c9ignw2k50', // UPDATED with user provided ID
     name: 'Banglar Jhale Jhole',
     tagline: 'Authentic Bengali Cuisine from Kolkata.',
     description: 'Experience the authentic flavors of Bengali cuisine, straight from the heart of Kolkata.',

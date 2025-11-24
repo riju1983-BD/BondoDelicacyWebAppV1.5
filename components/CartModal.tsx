@@ -273,18 +273,18 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                         ) : (
                             <div className="space-y-4">
                                 {items.map(item => (
-                                    <div key={item.name} className="flex items-center gap-4">
-                                        <img src={item.image} alt={item.name} className="w-16 h-16 rounded-md object-cover"/>
+                                    <div key={item.itemid} className="flex items-center gap-4">
+                                        <img src={item.item_image_url} alt={item.itemname} className="w-16 h-16 rounded-md object-cover"/>
                                         <div className="flex-grow">
-                                            <p className="font-semibold text-white">{item.name}</p>
+                                            <p className="font-semibold text-white">{item.itemname}</p>
                                             <p className="text-sm text-gray-400">{item.price}</p>
                                         </div>
                                         <div className="flex items-center gap-2">
-                                            <button onClick={() => updateItemQuantity(item.name, item.quantity - 1)} className="text-gray-400 hover:text-white"><Icon type="minus-circle" className="w-6 h-6"/></button>
+                                            <button onClick={() => updateItemQuantity(item.itemname, item.quantity - 1)} className="text-gray-400 hover:text-white"><Icon type="minus-circle" className="w-6 h-6"/></button>
                                             <span className="font-bold text-white w-5 text-center">{item.quantity}</span>
-                                            <button onClick={() => updateItemQuantity(item.name, item.quantity + 1)} className="text-gray-400 hover:text-white"><Icon type="plus-circle" className="w-6 h-6"/></button>
+                                            <button onClick={() => updateItemQuantity(item.itemname, item.quantity + 1)} className="text-gray-400 hover:text-white"><Icon type="plus-circle" className="w-6 h-6"/></button>
                                         </div>
-                                        <button onClick={() => removeItem(item.name)} className="text-red-400 hover:text-red-300"><Icon type="trash" className="w-5 h-5"/></button>
+                                        <button onClick={() => removeItem(item.itemname)} className="text-red-400 hover:text-red-300"><Icon type="trash" className="w-5 h-5"/></button>
                                     </div>
                                 ))}
                             </div>

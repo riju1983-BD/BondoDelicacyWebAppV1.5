@@ -1,9 +1,10 @@
 import React, { createContext, useContext, useState, ReactNode, useMemo } from 'react';
-import { CartItem, MenuItem } from '../types';
+import { CartItem, MenuItem,  } from '../types';
+import { ItemData } from '@/model/menu_list';
 
 interface CartContextType {
   items: CartItem[];
-  addItem: (item: MenuItem) => void;
+  addItem: (item: ItemData) => void;
   removeItem: (itemName: string) => void;
   updateItemQuantity: (itemName: string, quantity: number) => void;
   clearCart: () => void;
@@ -16,12 +17,12 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 export const CartProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [items, setItems] = useState<CartItem[]>([]);
 
-  const addItem = (itemToAdd: MenuItem) => {
+  const addItem = (itemToAdd: ItemData) => {
     setItems(prevItems => {
-      const existingItem = prevItems.find(item => item.name === itemToAdd.name);
+      const existingItem = prevItems.find(item => item.name === itemToAdd.itemname);
       if (existingItem) {
         return prevItems.map(item =>
-          item.name === itemToAdd.name ? { ...item, quantity: item.quantity + 1 } : item
+          item.name === itemToAdd.itemname ? { ...item, quantity: item.quantity + 1 } : item
         );
       }
       return [...prevItems, { ...itemToAdd, quantity: 1 }];

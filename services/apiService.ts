@@ -3,6 +3,25 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { User, Order, Reservation, CartItem, Brand, LoyaltyConfig, BrandData, BrandMenuCategory, DishRecommendation, ChatMessage, PartyLead, Complaint, RestaurantTable, DeliveryAddress } from '../types';
 import { brandsData } from '../data';
 import { supabase } from './supabaseClient';
+import { BASE_URL } from "../src/config";
+
+export async function apiGetCategories(resturent_identifier: string) {
+    const url = `${BASE_URL}/menu/catagory-by-resturent?resturent_identifier=${resturent_identifier}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    return data.data;
+}
+
+export async function apiGetMenu(resturent_identifier: string, category_id: string) {
+    const url = `${BASE_URL}/menu/fetch-menus-by-catagory`;
+    const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resturent_identifier, category_id })
+    });
+    const data = await res.json();
+    return data.data;
+}
 
 // --- CONSTANTS & CONFIG ---
 const PETPOOJA_CONFIG = {

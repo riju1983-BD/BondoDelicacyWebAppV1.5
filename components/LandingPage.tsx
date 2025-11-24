@@ -9,6 +9,20 @@ import { Icon } from './Icon';
 interface LandingPageProps {
     onSelectBrand: (brandId: string) => void;
 }
+ const restaurants = [
+ {
+        id: "c9ignw2k50",
+        petpoojaRestId: "c9ignw2k50",
+        name: "Banglar Jhale Jhole",
+        tagline: "Authentic Bengali Cuisine from Kolkata.",
+        description: "Experience the authentic flavors of Bengali cuisine.",
+        logo: "https://placehold.co/400x200/C62828/FFFFFF.png?text=Banglar+Jhale+Jhole",
+        heroImage: "https://images.unsplash.com/photo-1604329760661-e71dc83f8f26?q=80&w=2070&auto=format&fit=crop",
+        aboutText: "Step into the heart of Bengal with traditional recipes and rich spices.",
+        aboutImage: "https://images.unsplash.com/photo-1596701064049-d822171f11e9?q=80&w=2070&auto=format&fit=crop",
+        theme: { primary: "#C62828", accent: "#FFAB00", textOnPrimary: "#FFFFFF" }
+    }
+]
 
 const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
     const { isAuthenticated, currentUser } = useAuth();
@@ -87,10 +101,11 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
             {/* BRANDS GRID */}
             <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-16 -mt-24 relative z-20">
                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                    {Object.values(brandsData).map((brand) => (
+                    {/* {Object.values(brandsData).map((brand) => (    */}
+                          {restaurants.map((brand) => (
                         <div 
-                            key={brand.id}
-                            onClick={() => onSelectBrand(brand.id)}
+                            key={brand.petpoojaRestId}
+                            onClick={() => onSelectBrand(brand.petpoojaRestId)}
                             className="group relative h-[350px] rounded-2xl overflow-hidden cursor-pointer shadow-2xl transform hover:-translate-y-2 transition-all duration-500"
                         >
                             <div className="absolute inset-0">

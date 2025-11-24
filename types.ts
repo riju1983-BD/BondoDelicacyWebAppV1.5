@@ -1,3 +1,4 @@
+import { ItemData } from "./model/menu_list";
 
 export interface MenuItem {
   id?: string; // Internal or external ID
@@ -11,7 +12,7 @@ export interface MenuItem {
 
 export interface BrandMenuCategory {
   category: string;
-  items: MenuItem[];
+  items: ItemData[];
 }
 
 export interface LoyaltyConfig {
@@ -60,7 +61,7 @@ export interface Reservation {
   status: 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'expired';
 }
 
-export interface CartItem extends MenuItem {
+export interface CartItem extends ItemData {
   quantity: number;
 }
 
@@ -120,7 +121,7 @@ export interface Order {
 
 
 export interface Brand {
-  id: 'bjale-jhole' | 'niraamish' | 'daily-box' | 'teretti';
+  id: 'c9ignw2k50' | 'niraamish' | 'daily-box' | 'teretti';
   name: string;
   description: string;
   logo: string;
