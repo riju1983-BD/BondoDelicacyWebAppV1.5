@@ -171,54 +171,110 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
         return currentUser?.addresses?.find(a => a.id === selectedAddressId);
     };
 
-    const handlePlaceOrder = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!currentUser) {
-            setAuthError("You must be logged in to place an order.");
-            setView('auth');
-            return;
-        }
+const handlePlaceOrder = async (e: React.FormEvent) => {
+  e.preventDefault();
 
-        const deliveryAddress = getFinalDeliveryAddress();
-        if (!deliveryAddress) {
-             // Should theoretically not happen if UI is correct
-             alert("Please select a delivery address.");
-             setView('address');
-             return;
-        }
+  if (!currentUser) {
+    setAuthError("You must be logged in to place an order.");
+    setView("auth");
+    return;
+  }
 
-        setIsProcessing(true);
+  const deliveryAddress = getFinalDeliveryAddress();
+  if (!deliveryAddress) {
+    alert("Please select a delivery address.");
+    setView("address");
+    return;
+  }
 
+  setIsProcessing(true);
+
+  try {
+    // SAFELY CONVERT TO INTEGER (₹ → paise)
+    const payableAmount = Math.round(grandTotal); // rupees
+
+    // STEP 1: Create Razorpay Order on backend
+    const rzpRes = await fetch("http://localhost:3000/api/payment/create-order", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ amount: payableAmount }) // always integer
+    });
+
+    const rzpData = await rzpRes.json();
+    if (!rzpData.success || !rzpData.order?.id) {
+      throw new Error("Unable to initiate payment");
+    }
+
+    const razorpayOrderId = rzpData.order.id;
+
+    // STEP 2: Razorpay Checkout options
+    const options = {
+    //   key: "rzp_test_RkmespFHzFGgtD", // TEST KEY FOR LOCALHOST
+      key: "rzp_test_RhYbMtl8DSmn8I", // TEST KEY FOR LOCALHOST
+      amount: payableAmount * 100, // paise
+      currency: "INR",
+      name: "Your Restaurant",
+      description: "Order Payment",
+      order_id: razorpayOrderId,
+
+      handler: async () => {
         try {
-            const newOrder = await apiCreateOrder(
-                brandId,
-                currentUser.id,
-                items,
-                { name: currentUser.name, email: currentUser.email, phone: currentUser.phone },
-                deliveryAddress,
-                subtotal,
-                loyaltyDiscount
-            );
-            
-            await apiPunchOrder(newOrder);
-            apiBookDelivery(newOrder.id);
-            
-            setLastOrderId(newOrder.id);
-            await refreshCurrentUser(); 
-            setIsProcessing(false);
-            setView('confirmation');
-            clearCart();
-        } catch (err: any) {
-            console.error("Failed to place order:", err);
-            setIsProcessing(false);
-            let errorMessage = "Failed to place order. Please try again.";
-            if (err.message && err.message.includes('delivery_address')) {
-                 errorMessage = "System Error: Database schema missing 'delivery_address' column. Please contact support.";
-            }
-            alert(errorMessage);
+          // STEP 3: Create order in DB
+          const newOrder = await apiCreateOrder(
+            brandId,
+            currentUser.id,
+            items,
+            {
+              name: currentUser.name,
+              email: currentUser.email,
+              phone: currentUser.phone,
+            },
+            deliveryAddress,
+            subtotal,
+            loyaltyDiscount
+          );
+
+          await apiPunchOrder(newOrder);
+          apiBookDelivery(newOrder.id);
+
+          setLastOrderId(newOrder.id);
+          await refreshCurrentUser();
+          clearCart();
+          setView("confirmation");
+        } catch (err) {
+          console.error("Order creation failed:", err);
+          alert("Payment succeeded but order failed. Contact support.");
+        } finally {
+          setIsProcessing(false);
         }
+      },
+
+      prefill: {
+        name: currentUser.name,
+        email: currentUser.email,
+        contact: currentUser.phone,
+      },
+      theme: { color: "#0ea5e9" },
     };
-    
+
+    // STEP 4: Open Razorpay Popup
+    const rzp = new (window as any).Razorpay(options);
+    rzp.open();
+
+    rzp.on("payment.failed", () => {
+      alert("Payment Failed! Please try again.");
+      setIsProcessing(false);
+    });
+
+  } catch (err) {
+    console.error("Payment Init Error:", err);
+    alert("Something went wrong while starting payment.");
+    setIsProcessing(false);
+  }
+};
+
+
+
     const handleClose = () => { onClose(); }
     
     const handleProceed = () => {
@@ -449,19 +505,19 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                                 </div>
                             )}
 
-                            <h3 className="text-lg font-semibold text-white border-b border-gray-700 pb-2 pt-4">Payment Method</h3>
-                            <div className="flex rounded-md shadow-sm">
+                            {/* <h3 className="text-lg font-semibold text-white border-b border-gray-700 pb-2 pt-4">Payment Method</h3> */}
+                            {/* <div className="flex rounded-md shadow-sm">
                                 <button type="button" onClick={() => setPaymentMethod('card')} className={`flex-1 p-3 rounded-l-md ${paymentMethod === 'card' ? 'bg-[var(--primary-color)] text-white' : 'bg-gray-700'}`}>Card</button>
                                 <button type="button" onClick={() => setPaymentMethod('upi')} className={`flex-1 p-3 rounded-r-md ${paymentMethod === 'upi' ? 'bg-[var(--primary-color)] text-white' : 'bg-gray-700'}`}>UPI</button>
                             </div>
-                            
-                            {paymentMethod === 'card' && <div className="space-y-3 p-4 bg-gray-700/50 rounded-md">
+                             */}
+                            {/* {paymentMethod === 'card' && <div className="space-y-3 p-4 bg-gray-700/50 rounded-md">
                                 <input type="text" placeholder="Card Number (e.g., 1234 5678 9012 3456)" required className="w-full bg-gray-700 p-2 rounded-md border border-gray-600"/>
                                 <div className="grid grid-cols-2 gap-3">
                                     <input type="text" placeholder="MM / YY" required className="w-full bg-gray-700 p-2 rounded-md border border-gray-600"/>
                                     <input type="text" placeholder="CVV" required className="w-full bg-gray-700 p-2 rounded-md border border-gray-600"/>
                                 </div>
-                            </div>}
+                            </div>} */}
                             {paymentMethod === 'upi' && <div className="p-4 bg-gray-700/50 rounded-md">
                                 <input type="text" placeholder="UPI ID (e.g., yourname@bank)" required className="w-full bg-gray-700 p-2 rounded-md border border-gray-600"/>
                             </div>}
@@ -523,7 +579,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                         {view === 'auth' && null /* Auth view has its own submit button in form */}
                         {view === 'checkout' && (
                             <button onClick={handlePlaceOrder} disabled={isProcessing} className="w-full flex items-center justify-center gap-2 bg-[var(--primary-color)] text-[var(--text-on-primary-color)] font-bold py-3 rounded-md disabled:bg-gray-500">
-                                {isProcessing ? <Spinner /> : `Pay ₹${grandTotal.toFixed(2)}`}
+                                {isProcessing ? <Spinner /> : `Proceed to Pay ₹${grandTotal.toFixed(2)}`}
                             </button>
                         )}
                     </footer>

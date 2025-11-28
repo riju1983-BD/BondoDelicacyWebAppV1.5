@@ -576,7 +576,7 @@ export const apiUpdateItemAvailability = async (brandId: Brand['id'], itemName: 
     const menu = await apiGetLiveMenu(brandId);
     const newMenu = menu.map(category => ({
         ...category,
-        items: category.items.map(item => item.name === itemName ? { ...item, isAvailable } : item)
+        items: category.items.map(item => item.itemname === itemName ? { ...item, isAvailable } : item)
     }));
     saveMenuToStorage(brandId, newMenu);
     return true;
@@ -600,10 +600,10 @@ export const apiGetDishRecommendation = async (user: User, brandId: Brand['id'])
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const brandName = brandsData[brandId]?.name || 'our restaurant';
     const menu = brandsData[brandId].menu; 
-    const simplifiedMenu = menu.flatMap(cat => cat.items.map(item => item.name)).join(', ');
+    const simplifiedMenu = menu.flatMap(cat => cat.items.map(item => item.itemname)).join(', ');
     const userOrders = await apiGetUserOrders(user.id);
     const orderHistory = userOrders.slice(0, 5).map(order => ({
-        items: order.items.map(item => `${item.quantity}x ${item.name}`).join(', '),
+        items: order.items.map(item => `${item.quantity}x ${item.itemname}`).join(', '),
         rating: order.rating ? `${order.rating}/5 stars` : 'Not rated',
         date: new Date(order.createdAt).toLocaleDateString()
     }));
