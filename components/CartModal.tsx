@@ -6,7 +6,7 @@ import { Icon } from './Icon';
 import { Brand, DeliveryAddress } from '../types';
 import { apiCreateOrder, applyFlatDiscount, apiGetUserValidPoints, apiPunchOrder, apiBookDelivery, apiSaveUserAddress } from '../services/apiService';
 
-const Spinner: React.FC<{className?: string}> = ({ className = "h-5 w-5" }) => (
+const Spinner: React.FC<{ className?: string }> = ({ className = "h-5 w-5" }) => (
     <svg className={`animate-spin ${className}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -32,7 +32,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
     const [isLoginView, setIsLoginView] = useState(true);
     const [authError, setAuthError] = useState('');
     const [authFormData, setAuthFormData] = useState({ name: '', email: '', phone: '', password: '' });
-    
+
     // Address State
     const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
     const [showAddressForm, setShowAddressForm] = useState(false);
@@ -50,6 +50,17 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
     const checkIsBangalore = (address: string) => {
         return address.toLowerCase().includes('bangalore') || address.toLowerCase().includes('bengaluru');
     }
+    const formatOrderDate = () => {
+        const now = new Date();
+        const pad = (n: number) => String(n).padStart(2, "0");
+        return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    };
+
+    const formatOrderTime = () => {
+        const now = new Date();
+        const pad = (n: number) => String(n).padStart(2, "0");
+        return `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+    };
 
     // Google Maps Autocomplete Init
     useEffect(() => {
@@ -68,11 +79,11 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                         fullAddress: address,
                         coordinates: place.geometry?.location ? { lat: place.geometry.location.lat(), lng: place.geometry.location.lng() } : undefined
                     }));
-                    
+
                     const isBangalore = checkIsBangalore(address);
                     setIsAddressServiceable(isBangalore);
                     if (!isBangalore) {
-                         setAddressError("Currently, our culinary delights travel exclusively within Bangalore.");
+                        setAddressError("Currently, our culinary delights travel exclusively within Bangalore.");
                     } else {
                         setAddressError('');
                     }
@@ -110,7 +121,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
         const subtotalCalc = totalPrice;
         const { discountedTotal, discountAmount: flatDiscount } = applyFlatDiscount(subtotalCalc);
         const loyaltyDiscountCalc = Math.min(loyaltyPointsToRedeem, availablePoints, Math.floor(discountedTotal));
-        
+
         const preTaxTotalCalc = discountedTotal - loyaltyDiscountCalc > 0 ? discountedTotal - loyaltyDiscountCalc : 0;
         const gstAmountCalc = preTaxTotalCalc * 0.05;
         const grandTotalCalc = preTaxTotalCalc + gstAmountCalc;
@@ -124,7 +135,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
             grandTotal: grandTotalCalc,
         };
     }, [totalPrice, loyaltyPointsToRedeem, availablePoints]);
-    
+
     useEffect(() => {
         if (!isOpen) {
             setTimeout(() => {
@@ -159,7 +170,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
             setIsProcessing(false);
         }
     };
-    
+
     const handleNavigate = (route: string) => {
         onClose();
         window.location.hash = route;
@@ -171,112 +182,176 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
         return currentUser?.addresses?.find(a => a.id === selectedAddressId);
     };
 
-const handlePlaceOrder = async (e: React.FormEvent) => {
-  e.preventDefault();
+    const handlePlaceOrder = async (e: React.FormEvent) => {
+        e.preventDefault();
 
-  if (!currentUser) {
-    setAuthError("You must be logged in to place an order.");
-    setView("auth");
-    return;
-  }
-
-  const deliveryAddress = getFinalDeliveryAddress();
-  if (!deliveryAddress) {
-    alert("Please select a delivery address.");
-    setView("address");
-    return;
-  }
-
-  setIsProcessing(true);
-
-  try {
-    // SAFELY CONVERT TO INTEGER (₹ → paise)
-    const payableAmount = Math.round(grandTotal); // rupees
-
-    // STEP 1: Create Razorpay Order on backend
-    const rzpRes = await fetch("http://localhost:3000/api/payment/create-order", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ amount: payableAmount }) // always integer
-    });
-
-    const rzpData = await rzpRes.json();
-    if (!rzpData.success || !rzpData.order?.id) {
-      throw new Error("Unable to initiate payment");
-    }
-
-    const razorpayOrderId = rzpData.order.id;
-
-    // STEP 2: Razorpay Checkout options
-    const options = {
-    //   key: "rzp_test_RkmespFHzFGgtD", // TEST KEY FOR LOCALHOST
-      key: "rzp_test_RhYbMtl8DSmn8I", // TEST KEY FOR LOCALHOST
-      amount: payableAmount * 100, // paise
-      currency: "INR",
-      name: "Your Restaurant",
-      description: "Order Payment",
-      order_id: razorpayOrderId,
-
-      handler: async () => {
-        try {
-          // STEP 3: Create order in DB
-          const newOrder = await apiCreateOrder(
-            brandId,
-            currentUser.id,
-            items,
-            {
-              name: currentUser.name,
-              email: currentUser.email,
-              phone: currentUser.phone,
-            },
-            deliveryAddress,
-            subtotal,
-            loyaltyDiscount
-          );
-
-          await apiPunchOrder(newOrder);
-          apiBookDelivery(newOrder.id);
-
-          setLastOrderId(newOrder.id);
-          await refreshCurrentUser();
-          clearCart();
-          setView("confirmation");
-        } catch (err) {
-          console.error("Order creation failed:", err);
-          alert("Payment succeeded but order failed. Contact support.");
-        } finally {
-          setIsProcessing(false);
+        if (!currentUser) {
+            setAuthError("You must be logged in to place an order.");
+            setView("auth");
+            return;
         }
-      },
 
-      prefill: {
-        name: currentUser.name,
-        email: currentUser.email,
-        contact: currentUser.phone,
-      },
-      theme: { color: "#0ea5e9" },
+        const deliveryAddress = getFinalDeliveryAddress();
+        if (!deliveryAddress) {
+            alert("Please select a delivery address.");
+            setView("address");
+            return;
+        }
+
+        setIsProcessing(true);
+
+        try {
+            // 1) Build order data for backend
+            const payload = {
+                orderinfo: {
+                    OrderInfo: {
+                        Restaurant: {
+                            details: { restID: brandId } // if brandId is restID
+                        },
+                        Customer: {
+                            details: {
+                                email: currentUser.email,
+                                name: currentUser.name,
+                                address: `${deliveryAddress.flatNo}, ${deliveryAddress.fullAddress}`,
+                                phone: currentUser.phone,
+                                latitude: deliveryAddress.coordinates?.lat?.toString() ?? "",
+                                longitude: deliveryAddress.coordinates?.lng?.toString() ?? ""
+                            }
+                        },
+                        Order: {
+                            details: {
+                                preorder_date: formatOrderDate(),
+                                preorder_time: formatOrderTime(),
+                                service_charge: "0",
+                                sc_tax_amount: "0",
+                                delivery_charges: "0",
+                                dc_tax_percentage: "0",
+                                dc_tax_amount: "0",
+                                dc_gst_details: [],
+                                packing_charges: "0",
+                                pc_tax_amount: "0",
+                                pc_tax_percentage: "0",
+                                pc_gst_details: [],
+                                order_type: "H",
+                                advanced_order: "N",
+                                urgent_order: false,
+                                urgent_time: 0,
+                                payment_type: "ONLINE",
+                                table_no: "",
+                                no_of_persons: "0",
+                                discount_total: discountAmount.toString(),
+                                discount_type: discountAmount > 0 ? "F" : "",
+                                tax_total: gstAmount.toFixed(2),
+                                total: grandTotal.toFixed(2),
+                                description: "",
+                                created_on: new Date().toISOString(),
+                                enable_delivery: 1,
+                                // min_prep_time: 20,
+                                callback_url: "https://yoursite.com/payment/callback",
+                                collect_cash: "0",
+                                //   otp: "1234"
+                            }
+                        },
+                        OrderItem: {
+                            details: items.map(i => ({
+                                id: i.itemid.toString(),
+                                name: i.itemname,
+                                tax_inclusive: true,
+                                gst_liability: "vendor",
+                                item_tax: [],
+                                item_discount: "0",
+                                price: i.price.toString(),
+                                final_price: (parseFloat(i.price) * Number(i.quantity)).toString(),
+
+                                quantity: i.quantity.toString(),
+                                variation_name: "",
+                                variation_id: "",
+                                AddonItem: { details: [] }
+                            }))
+                        }
+                    },
+                    udid: "",
+                    device_type: "Web"
+                }
+            };
+
+            // 2) Hit backend to create PetPooja + Razorpay order
+            const res = await fetch("http://localhost:3000/api/payment/create-order", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await res.json();
+            if (!data.success) {
+                throw new Error(data.message || "Order creation failed");
+            }
+
+            // Razorpay order returned by backend
+            const razorpayOrder = data.razorpayOrder;
+            const clientorderID = data.clientorderID;
+
+            // 3) Open Razorpay Checkout
+            const rzp = new (window as any).Razorpay({
+                key: "rzp_test_RhYbMtl8DSmn8I",
+                order_id: razorpayOrder.id,
+                amount: razorpayOrder.amount,
+                currency: razorpayOrder.currency,
+                //   name: "Your Restaurant",
+                handler: async (paymentResponse: any) => {
+                    try {
+                        // 4) Now save order in your DB
+                        const newOrder = await apiCreateOrder(
+                            brandId,
+                            currentUser.id,
+                            items,
+                            {
+                                name: currentUser.name,
+                                email: currentUser.email,
+                                phone: currentUser.phone
+                            },
+                            deliveryAddress,
+                            subtotal,
+                            loyaltyDiscount
+                        );
+
+                        await apiPunchOrder(newOrder);
+                        apiBookDelivery(newOrder.id);
+
+                        setLastOrderId(newOrder.id);
+                        await refreshCurrentUser();
+                        clearCart();
+                        setView("confirmation");
+                    } catch (err) {
+                        alert("Payment succeeded but order failed. Contact support.");
+                    } finally {
+                        setIsProcessing(false);
+                    }
+                },
+                prefill: {
+                    name: currentUser.name,
+                    email: currentUser.email,
+                    contact: currentUser.phone
+                },
+                theme: { color: "#0ea5e9" }
+            });
+
+            rzp.open();
+            rzp.on("payment.failed", () => {
+                alert("Payment failed. Please try again.");
+                setIsProcessing(false);
+            });
+
+        } catch (err: any) {
+            alert(err.message || "Payment initiation failed");
+            setIsProcessing(false);
+        }
     };
-
-    // STEP 4: Open Razorpay Popup
-    const rzp = new (window as any).Razorpay(options);
-    rzp.open();
-
-    rzp.on("payment.failed", () => {
-      alert("Payment Failed! Please try again.");
-      setIsProcessing(false);
-    });
-
-  } catch (err) {
-    console.error("Payment Init Error:", err);
-    alert("Something went wrong while starting payment.");
-    setIsProcessing(false);
-  }
-};
 
 
 
     const handleClose = () => { onClose(); }
-    
+
     const handleProceed = () => {
         if (isAuthenticated) {
             setView('address');
@@ -292,9 +367,9 @@ const handlePlaceOrder = async (e: React.FormEvent) => {
         // Final validation check before saving
         const isBangalore = checkIsBangalore(newAddressData.fullAddress);
         if (!isBangalore) {
-              setIsAddressServiceable(false);
-              setAddressError("Currently, our culinary delights travel exclusively within Bangalore.");
-              return;
+            setIsAddressServiceable(false);
+            setAddressError("Currently, our culinary delights travel exclusively within Bangalore.");
+            return;
         }
 
         if (newAddressData.fullAddress) {
@@ -330,17 +405,17 @@ const handlePlaceOrder = async (e: React.FormEvent) => {
                             <div className="space-y-4">
                                 {items.map(item => (
                                     <div key={item.itemid} className="flex items-center gap-4">
-                                        <img src={item.item_image_url} alt={item.itemname} className="w-16 h-16 rounded-md object-cover"/>
+                                        <img src={item.item_image_url} alt={item.itemname} className="w-16 h-16 rounded-md object-cover" />
                                         <div className="flex-grow">
                                             <p className="font-semibold text-white">{item.itemname}</p>
                                             <p className="text-sm text-gray-400">{item.price}</p>
                                         </div>
                                         <div className="flex items-center gap-2">
-                                            <button onClick={() => updateItemQuantity(item.itemname, item.quantity - 1)} className="text-gray-400 hover:text-white"><Icon type="minus-circle" className="w-6 h-6"/></button>
+                                            <button onClick={() => updateItemQuantity(item.itemname, item.quantity - 1)} className="text-gray-400 hover:text-white"><Icon type="minus-circle" className="w-6 h-6" /></button>
                                             <span className="font-bold text-white w-5 text-center">{item.quantity}</span>
-                                            <button onClick={() => updateItemQuantity(item.itemname, item.quantity + 1)} className="text-gray-400 hover:text-white"><Icon type="plus-circle" className="w-6 h-6"/></button>
+                                            <button onClick={() => updateItemQuantity(item.itemname, item.quantity + 1)} className="text-gray-400 hover:text-white"><Icon type="plus-circle" className="w-6 h-6" /></button>
                                         </div>
-                                        <button onClick={() => removeItem(item.itemname)} className="text-red-400 hover:text-red-300"><Icon type="trash" className="w-5 h-5"/></button>
+                                        <button onClick={() => removeItem(item.itemname)} className="text-red-400 hover:text-red-300"><Icon type="trash" className="w-5 h-5" /></button>
                                     </div>
                                 ))}
                             </div>
@@ -349,27 +424,27 @@ const handlePlaceOrder = async (e: React.FormEvent) => {
                 );
             case 'auth':
                 return (
-                     <form onSubmit={handleAuthSubmit} className="space-y-3">
+                    <form onSubmit={handleAuthSubmit} className="space-y-3">
                         <div className="flex rounded-md shadow-sm border border-gray-600">
-                            <button type="button" onClick={() => {setIsLoginView(true); setAuthError('');}} className={`flex-1 p-2 rounded-l-md text-sm ${isLoginView ? 'bg-cyan-600 text-white' : 'bg-gray-700'}`}>Login</button>
-                            <button type="button" onClick={() => {setIsLoginView(false); setAuthError('');}} className={`flex-1 p-2 rounded-r-md text-sm ${!isLoginView ? 'bg-cyan-600 text-white' : 'bg-gray-700'}`}>Register</button>
+                            <button type="button" onClick={() => { setIsLoginView(true); setAuthError(''); }} className={`flex-1 p-2 rounded-l-md text-sm ${isLoginView ? 'bg-cyan-600 text-white' : 'bg-gray-700'}`}>Login</button>
+                            <button type="button" onClick={() => { setIsLoginView(false); setAuthError(''); }} className={`flex-1 p-2 rounded-r-md text-sm ${!isLoginView ? 'bg-cyan-600 text-white' : 'bg-gray-700'}`}>Register</button>
                         </div>
-                        
+
                         {authError && <p className="text-red-400 text-xs text-center">{authError}</p>}
-                        
+
                         {!isLoginView && (
-                             <>
-                                <input type="text" name="name" placeholder="Your Name" required value={authFormData.name} onChange={handleAuthFormChange} className="w-full bg-gray-700 p-2 rounded-md border border-gray-600 text-sm"/>
-                                <input type="tel" name="phone" placeholder="Phone Number" required value={authFormData.phone} onChange={handleAuthFormChange} className="w-full bg-gray-700 p-2 rounded-md border border-gray-600 text-sm"/>
+                            <>
+                                <input type="text" name="name" placeholder="Your Name" required value={authFormData.name} onChange={handleAuthFormChange} className="w-full bg-gray-700 p-2 rounded-md border border-gray-600 text-sm" />
+                                <input type="tel" name="phone" placeholder="Phone Number" required value={authFormData.phone} onChange={handleAuthFormChange} className="w-full bg-gray-700 p-2 rounded-md border border-gray-600 text-sm" />
                             </>
                         )}
-                        <input type="email" name="email" placeholder="Your Email" required value={authFormData.email} onChange={handleAuthFormChange} className="w-full bg-gray-700 p-2 rounded-md border border-gray-600 text-sm"/>
-                        <input type="password" name="password" placeholder="Password" required value={authFormData.password} onChange={handleAuthFormChange} className="w-full bg-gray-700 p-2 rounded-md border border-gray-600 text-sm"/>
-                    
+                        <input type="email" name="email" placeholder="Your Email" required value={authFormData.email} onChange={handleAuthFormChange} className="w-full bg-gray-700 p-2 rounded-md border border-gray-600 text-sm" />
+                        <input type="password" name="password" placeholder="Password" required value={authFormData.password} onChange={handleAuthFormChange} className="w-full bg-gray-700 p-2 rounded-md border border-gray-600 text-sm" />
+
                         <button type="submit" disabled={isProcessing} className="w-full flex justify-center font-bold py-2 px-4 rounded-md bg-cyan-600 hover:bg-cyan-500 disabled:bg-gray-500 transition-colors">
-                            {isProcessing ? <Spinner/> : (isLoginView ? 'Login & Continue' : 'Register & Continue')}
+                            {isProcessing ? <Spinner /> : (isLoginView ? 'Login & Continue' : 'Register & Continue')}
                         </button>
-                     </form>
+                    </form>
                 );
             case 'address':
                 if (!showAddressForm && currentUser?.addresses && currentUser.addresses.length > 0) {
@@ -380,27 +455,27 @@ const handlePlaceOrder = async (e: React.FormEvent) => {
                                 {currentUser.addresses.map(addr => (
                                     <label key={addr.id} className={`block p-4 rounded-lg border cursor-pointer transition-all ${selectedAddressId === addr.id ? 'border-cyan-500 bg-cyan-900/20' : 'border-gray-600 bg-gray-700/50 hover:border-gray-500'}`}>
                                         <div className="flex items-start gap-3">
-                                            <input 
-                                                type="radio" 
-                                                name="selectedAddress" 
-                                                checked={selectedAddressId === addr.id} 
+                                            <input
+                                                type="radio"
+                                                name="selectedAddress"
+                                                checked={selectedAddressId === addr.id}
                                                 onChange={() => setSelectedAddressId(addr.id || null)}
                                                 className="mt-1 text-cyan-600 focus:ring-cyan-500 border-gray-600 bg-gray-700"
                                             />
                                             <div className="flex-grow">
-                                                 <div className="flex justify-between">
-                                                     <p className="font-semibold text-white">{addr.flatNo}</p>
-                                                     {addr.isDefault && <span className="bg-cyan-900/50 text-cyan-300 text-xs px-2 py-0.5 rounded-full">Default</span>}
-                                                 </div>
-                                                 <p className="text-sm text-gray-300 mt-1">{addr.fullAddress}</p>
-                                                 {addr.landmark && <p className="text-xs text-gray-400 mt-1">Landmark: {addr.landmark}</p>}
+                                                <div className="flex justify-between">
+                                                    <p className="font-semibold text-white">{addr.flatNo}</p>
+                                                    {addr.isDefault && <span className="bg-cyan-900/50 text-cyan-300 text-xs px-2 py-0.5 rounded-full">Default</span>}
+                                                </div>
+                                                <p className="text-sm text-gray-300 mt-1">{addr.fullAddress}</p>
+                                                {addr.landmark && <p className="text-xs text-gray-400 mt-1">Landmark: {addr.landmark}</p>}
                                             </div>
                                         </div>
                                     </label>
                                 ))}
                             </div>
                             <button onClick={() => { setShowAddressForm(true); setNewAddressData({ fullAddress: '', flatNo: '', landmark: '' }); }} className="w-full py-3 border-2 border-dashed border-gray-600 text-gray-400 rounded-lg font-semibold hover:border-cyan-500 hover:text-cyan-400 transition-colors flex items-center justify-center gap-2">
-                                <Icon type="plus-circle" className="w-5 h-5"/> Add New Address
+                                <Icon type="plus-circle" className="w-5 h-5" /> Add New Address
                             </button>
                             <button onClick={() => setView('checkout')} disabled={!selectedAddressId} className="w-full font-bold py-3 px-4 rounded-md bg-cyan-600 hover:bg-cyan-500 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors mt-4">
                                 Proceed with Selected Address
@@ -423,7 +498,7 @@ const handlePlaceOrder = async (e: React.FormEvent) => {
                                         value={newAddressData.fullAddress}
                                         onChange={(e) => {
                                             const newVal = e.target.value;
-                                            setNewAddressData({...newAddressData, fullAddress: newVal});
+                                            setNewAddressData({ ...newAddressData, fullAddress: newVal });
                                             // Re-validate Serviceability on manual typing
                                             const isBangalore = checkIsBangalore(newVal);
                                             setIsAddressServiceable(isBangalore);
@@ -445,14 +520,14 @@ const handlePlaceOrder = async (e: React.FormEvent) => {
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-300 mb-1">Flat / House / Block No.</label>
-                                <input type="text" placeholder="e.g., Flat 402, Sunshine Apartments" required value={newAddressData.flatNo} onChange={(e) => setNewAddressData({...newAddressData, flatNo: e.target.value})} className="w-full bg-gray-700 p-3 rounded-md border border-gray-600 focus:ring-2 focus:ring-cyan-500 focus:outline-none text-white"/>
+                                <input type="text" placeholder="e.g., Flat 402, Sunshine Apartments" required value={newAddressData.flatNo} onChange={(e) => setNewAddressData({ ...newAddressData, flatNo: e.target.value })} className="w-full bg-gray-700 p-3 rounded-md border border-gray-600 focus:ring-2 focus:ring-cyan-500 focus:outline-none text-white" />
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-300 mb-1">Landmark (Optional)</label>
-                                 <input type="text" placeholder="e.g., Near City Hospital" value={newAddressData.landmark} onChange={(e) => setNewAddressData({...newAddressData, landmark: e.target.value})} className="w-full bg-gray-700 p-3 rounded-md border border-gray-600 focus:ring-2 focus:ring-cyan-500 focus:outline-none text-white"/>
+                                <input type="text" placeholder="e.g., Near City Hospital" value={newAddressData.landmark} onChange={(e) => setNewAddressData({ ...newAddressData, landmark: e.target.value })} className="w-full bg-gray-700 p-3 rounded-md border border-gray-600 focus:ring-2 focus:ring-cyan-500 focus:outline-none text-white" />
                             </div>
                             <div className="flex items-center gap-2 mt-2">
-                                <input type="checkbox" id="saveAsDefault" checked={saveNewAddressAsDefault} onChange={(e) => setSaveNewAddressAsDefault(e.target.checked)} className="h-4 w-4 rounded border-gray-600 bg-gray-700 text-cyan-600 focus:ring-cyan-600"/>
+                                <input type="checkbox" id="saveAsDefault" checked={saveNewAddressAsDefault} onChange={(e) => setSaveNewAddressAsDefault(e.target.checked)} className="h-4 w-4 rounded border-gray-600 bg-gray-700 text-cyan-600 focus:ring-cyan-600" />
                                 <label htmlFor="saveAsDefault" className="text-sm text-gray-300 cursor-pointer">Save as default address</label>
                             </div>
 
@@ -461,7 +536,7 @@ const handlePlaceOrder = async (e: React.FormEvent) => {
                                     <button type="button" onClick={() => setShowAddressForm(false)} className="flex-1 py-3 font-semibold text-gray-300 bg-gray-700 hover:bg-gray-600 rounded-md transition-colors">Cancel</button>
                                 )}
                                 <button type="submit" disabled={!isAddressServiceable || !newAddressData.fullAddress || !newAddressData.flatNo || isSavingAddress} className="flex-1 font-bold py-3 px-4 rounded-md bg-cyan-600 hover:bg-cyan-500 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors flex justify-center items-center">
-                                    {isSavingAddress ? <Spinner/> : 'Save & Proceed'}
+                                    {isSavingAddress ? <Spinner /> : 'Save & Proceed'}
                                 </button>
                             </div>
                         </form>
@@ -471,9 +546,9 @@ const handlePlaceOrder = async (e: React.FormEvent) => {
             case 'checkout':
                 const finalAddress = getFinalDeliveryAddress();
                 return (
-                     <form onSubmit={handlePlaceOrder}>
+                    <form onSubmit={handlePlaceOrder}>
                         <div className="space-y-4">
-                             <div className="flex justify-between items-center border-b border-gray-700 pb-2">
+                            <div className="flex justify-between items-center border-b border-gray-700 pb-2">
                                 <h3 className="text-lg font-semibold text-white">Delivery To</h3>
                                 <button type="button" onClick={() => setView('address')} className="text-xs text-cyan-400 hover:underline">Change</button>
                             </div>
@@ -519,15 +594,15 @@ const handlePlaceOrder = async (e: React.FormEvent) => {
                                 </div>
                             </div>} */}
                             {paymentMethod === 'upi' && <div className="p-4 bg-gray-700/50 rounded-md">
-                                <input type="text" placeholder="UPI ID (e.g., yourname@bank)" required className="w-full bg-gray-700 p-2 rounded-md border border-gray-600"/>
+                                <input type="text" placeholder="UPI ID (e.g., yourname@bank)" required className="w-full bg-gray-700 p-2 rounded-md border border-gray-600" />
                             </div>}
                         </div>
                     </form>
                 );
             case 'confirmation':
                 return (
-                     <div className="text-center">
-                        <Icon type="check-circle" className="w-16 h-16 text-green-400 mx-auto mb-4"/>
+                    <div className="text-center">
+                        <Icon type="check-circle" className="w-16 h-16 text-green-400 mx-auto mb-4" />
                         <h3 className="text-2xl font-bold text-white">Thank you for your order!</h3>
                         <p className="text-gray-300 mt-2">Your order has been received and is now being prepared.</p>
                         <div className="bg-gray-900/50 p-3 rounded-md text-center mt-6 border border-gray-700">
@@ -557,22 +632,22 @@ const handlePlaceOrder = async (e: React.FormEvent) => {
                 </header>
 
                 <main className="p-6 overflow-y-auto">
-                   {renderContent()}
+                    {renderContent()}
                 </main>
-                
+
                 {itemCount > 0 && view !== 'confirmation' && view !== 'address' && (
                     <footer className="p-4 border-t border-gray-700 bg-gray-900/50">
                         <div className="space-y-1 text-sm mb-4">
                             <div className="flex justify-between text-gray-300"><span>Subtotal</span><span>₹{subtotal.toFixed(2)}</span></div>
                             {discountAmount > 0 && <div className="flex justify-between text-green-400"><span>Flat Discount</span><span className="font-semibold">- ₹{discountAmount.toFixed(2)}</span></div>}
                             {loyaltyDiscount > 0 && <div className="flex justify-between text-yellow-400"><span>Loyalty Points Redeemed</span><span className="font-semibold">- ₹{loyaltyDiscount.toFixed(2)}</span></div>}
-                            
+
                             {(discountAmount > 0 || loyaltyDiscount > 0) &&
                                 <div className="flex justify-between text-gray-300 font-semibold pt-1 border-t border-gray-700/50"><span>Total Before Tax</span><span>₹{preTaxTotal.toFixed(2)}</span></div>
                             }
-                            
+
                             <div className="flex justify-between text-gray-300"><span>GST (5%)</span><span>+ ₹{gstAmount.toFixed(2)}</span></div>
-                            
+
                             <div className="flex justify-between text-white font-bold text-lg border-t border-gray-700 pt-2 mt-2"><span>Grand Total</span><span>₹{grandTotal.toFixed(2)}</span></div>
                         </div>
                         {view === 'cart' && <button onClick={handleProceed} className="w-full bg-[var(--primary-color)] text-[var(--text-on-primary-color)] font-bold py-3 rounded-md">Proceed</button>}
