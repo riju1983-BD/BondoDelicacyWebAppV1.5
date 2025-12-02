@@ -247,7 +247,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                                 created_on: new Date().toISOString(),
                                 enable_delivery: 1,
                                 // min_prep_time: 20,
-                                callback_url: "https://yoursite.com/payment/callback",
+                                callback_url: "https://ethnohistorical-lacrimatory-juliann.ngrok-free.dev/api/petpuja/callback",
                                 collect_cash: "0",
                                 //   otp: "1234"
                             }
@@ -312,7 +312,8 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                             },
                             deliveryAddress,
                             subtotal,
-                            loyaltyDiscount
+                            loyaltyDiscount,
+                            clientorderID 
                         );
 
                         await apiPunchOrder(newOrder);

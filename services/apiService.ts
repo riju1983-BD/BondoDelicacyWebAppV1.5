@@ -255,7 +255,8 @@ export const apiCreateOrder = async (
     customer: Order['customer'], 
     deliveryAddress: DeliveryAddress,
     subtotal: number, 
-    loyaltyPointsToRedeem: number
+    loyaltyPointsToRedeem: number,
+    serverOrderId: string
 ): Promise<Order> => {
     const { discountedTotal, discountAmount } = applyFlatDiscount(subtotal);
     const totalBeforeGst = Math.max(0, discountedTotal - loyaltyPointsToRedeem);
@@ -266,7 +267,7 @@ export const apiCreateOrder = async (
     const internalOrderId = generateOrderId();
 
     const newOrderData = {
-        id: internalOrderId,
+        id: serverOrderId,
         brand_id: brandId,
         user_id: userId,
         items,
