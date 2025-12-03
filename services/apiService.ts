@@ -11,6 +11,26 @@ export async function apiGetCategories(resturent_identifier: string) {
     const data = await res.json();
     return data.data;
 }
+export async function apiGetAdminCategoriesMenu(resturent_identifier: string) {
+  const url = `${BASE_URL}/menu/fetch-admin-menus-with-catagory`;
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ resturent_identifier })
+  });
+
+  const { data } = await res.json();
+
+  // Normalize response for UI
+  return data.map((category: any) => ({
+    category: category.name, // Frontend expects category
+    items: (category.menus || []).map((item: any) => ({
+      name: item.itemname,
+      isAvailable: item.active === "1" // check availability logic
+    }))
+  }));
+}
 
 export async function apiGetMenu(resturent_identifier: string, category_id: string) {
     const url = `${BASE_URL}/menu/fetch-menus-by-catagory`;
@@ -302,6 +322,7 @@ export const apiUpdateOrder = async (orderId: string, updates: Partial<Order>): 
     if (updates.complaint !== undefined) dbUpdates.complaint = updates.complaint;
     if (updates.refundStatus !== undefined) dbUpdates.refund_status = updates.refundStatus;
     if (updates.deliveryInfo !== undefined) dbUpdates.delivery_info = updates.deliveryInfo;
+
     const { data, error } = await supabase.from('orders').update(dbUpdates).eq('id', orderId).select().single();
     if (error) handleSupabaseError(error, 'Update Order');
     return mapDbOrderToType(data);

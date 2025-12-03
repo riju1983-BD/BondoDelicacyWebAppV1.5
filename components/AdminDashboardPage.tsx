@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Icon } from './Icon';
 import { Brand, BrandMenuCategory, LoyaltyConfig, Order, Reservation } from '../types';
-import { apiGetLoyaltyConfig, apiSetLoyaltyConfig, apiGetLiveMenu, apiUpdateItemAvailability, apiGetAllBrands, apiGetComplaints, apiProcessRefundApproval, apiRejectComplaint, apiGetAllActiveReservations, apiUpdateReservation } from '../services/apiService';
+import { apiGetLoyaltyConfig, apiSetLoyaltyConfig, apiGetLiveMenu, apiUpdateItemAvailability, apiGetAllBrands, apiGetComplaints, apiProcessRefundApproval, apiRejectComplaint, apiGetAllActiveReservations, apiUpdateReservation, apiGetAdminCategoriesMenu } from '../services/apiService';
 import { supabase } from '../services/supabaseClient';
 import { brandsData } from '../data';
 
@@ -20,7 +20,7 @@ const AdminDashboardPage: React.FC = () => {
     const [menu, setMenu] = useState<BrandMenuCategory[] | null>(null);
     const [isLoadingMenu, setIsLoadingMenu] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [selectedBrandId, setSelectedBrandId] = useState<Brand['id']>('bjale-jhole');
+    const [selectedBrandId, setSelectedBrandId] = useState<Brand['id']>('c9ignw2k50');
 
     // Loyalty State
     const [loyaltyConfig, setLoyaltyConfig] = useState<LoyaltyConfig>({ rupeesPerPoint: 100 });
@@ -37,7 +37,12 @@ const AdminDashboardPage: React.FC = () => {
     const [reservations, setReservations] = useState<Reservation[]>([]);
     const [isLoadingReservations, setIsLoadingReservations] = useState(false);
     const [processingResId, setProcessingResId] = useState<string | null>(null);
-
+useEffect(() => {
+  const brands = apiGetAllBrands();  // already synchronous in your code
+  if (!selectedBrandId && brands.length > 0) {
+    setSelectedBrandId(brands[0].id); // pick the first brand
+  }
+}, [selectedBrandId]);
     // *** REAL-TIME SETUP ***
     useEffect(() => {
         // Subscribe to 'orders'
@@ -63,11 +68,18 @@ const AdminDashboardPage: React.FC = () => {
     }, [activeTab]);
 
     const fetchMenu = useCallback(async (brandId: Brand['id']) => {
-        setIsLoadingMenu(true); setError(null);
-        try { const liveMenu = await apiGetLiveMenu(brandId); setMenu(liveMenu); }
-        catch (err) { setError(err instanceof Error ? err.message : "Failed to fetch menu"); }
-        finally { setIsLoadingMenu(false); }
+        setIsLoadingMenu(true);
+        setError(null);
+        try {
+            const adminMenu = await apiGetAdminCategoriesMenu(brandId); // <-- use new API
+            setMenu(adminMenu);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Failed to fetch menu");
+        } finally {
+            setIsLoadingMenu(false);
+        }
     }, []);
+
 
     const fetchComplaints = useCallback(async () => {
         setIsLoadingComplaints(true);
@@ -91,7 +103,7 @@ const AdminDashboardPage: React.FC = () => {
     }, [activeTab, selectedBrandId, fetchMenu, fetchComplaints, fetchReservations]);
 
     const handleBrandChange = (e: React.ChangeEvent<HTMLSelectElement>) => { setSelectedBrandId(e.target.value as Brand['id']); setMenu(null); };
-    const handleToggleAvailability = async (itemName: string) => { if (!menu) return; const isCurrentlyAvailable = !!menu.flatMap(c => c.items).find(i => i.name === itemName)?.isAvailable; const updatedMenu = menu.map(category => ({ ...category, items: category.items.map(item => item.name === itemName ? { ...item, isAvailable: !item.isAvailable } : item) })); try { await apiUpdateItemAvailability(selectedBrandId, itemName, !isCurrentlyAvailable); setMenu(updatedMenu); } catch (err) { setError(err instanceof Error ? err.message : "Failed to update item."); } };
+    // const handleToggleAvailability = async (itemName: string) => { if (!menu) return; const isCurrentlyAvailable = !!menu.flatMap(c => c.items).find(i => i.name === itemName)?.isAvailable; const updatedMenu = menu.map(category => ({ ...category, items: category.items.map(item => item.name === itemName ? { ...item, isAvailable: !item.isAvailable } : item) })); try { await apiUpdateItemAvailability(selectedBrandId, itemName, !isCurrentlyAvailable); setMenu(updatedMenu); } catch (err) { setError(err instanceof Error ? err.message : "Failed to update item."); } };
     const handleLoyaltyConfigChange = (e: React.ChangeEvent<HTMLInputElement>) => { const value = parseInt(e.target.value, 10); setLoyaltyConfig({ rupeesPerPoint: isNaN(value) || value < 1 ? 1 : value }); };
     const handleSaveLoyaltyConfig = async () => { setIsSavingLoyalty(true); setLoyaltySuccess(''); await apiSetLoyaltyConfig(loyaltyConfig); setIsSavingLoyalty(false); setLoyaltySuccess('Loyalty settings saved!'); setTimeout(() => setLoyaltySuccess(''), 3000); };
     const handleApproveRefund = async (orderId: string) => { setProcessingComplaintId(orderId); try { await apiProcessRefundApproval(orderId); await fetchComplaints(); } catch (err) { console.error(err); alert("Failed to process refund."); } finally { setProcessingComplaintId(null); } };
@@ -146,13 +158,72 @@ const AdminDashboardPage: React.FC = () => {
                     <button onClick={() => setActiveTab('complaints')} className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === 'complaints' ? 'border-b-2 border-cyan-400 text-cyan-400' : 'text-gray-400'}`}>Complaints</button>
                     <button onClick={() => setActiveTab('loyalty')} className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === 'loyalty' ? 'border-b-2 border-cyan-400 text-cyan-400' : 'text-gray-400'}`}>Loyalty</button>
                 </div>
-
                 {activeTab === 'menu' && (
                     <div className="animate-fade-in">
-                        <div className="mb-4 max-w-xs mx-auto"><select id="brand-select" value={selectedBrandId} onChange={handleBrandChange} className="block w-full rounded-md border-gray-600 bg-gray-800 py-2 px-3 text-white focus:ring-2 focus:ring-cyan-500 sm:text-sm">{apiGetAllBrands().map(brand => (<option key={brand.id} value={brand.id}>{brand.name}</option>))}</select></div>
-                        {isLoadingMenu ? <div className="flex justify-center p-8"><Spinner className="w-8 h-8" /></div> : (menu && <div className="grid md:grid-cols-2 gap-6 max-h-[60vh] overflow-y-auto pr-2">{menu.map(category => (<div key={category.category} className="bg-gray-800 p-4 rounded-lg"><h3 className="text-lg font-semibold text-cyan-400 mb-3">{category.category}</h3><ul className="space-y-2">{category.items.map(item => (<li key={item.name} className="flex items-center justify-between bg-gray-900/50 p-2 rounded-md"><span className="text-sm">{item.name}</span><button onClick={() => handleToggleAvailability(item.name)} className={`px-2 py-1 text-xs font-bold rounded transition-colors ${item.isAvailable ? 'bg-green-900 text-green-300 hover:bg-green-800' : 'bg-red-900 text-red-300 hover:bg-red-800'}`}>{item.isAvailable ? 'In Stock' : 'Unavailable'}</button></li>))}</ul></div>))}</div>)}
+                        <div className="mb-4 max-w-xs mx-auto">
+                            <select
+                                id="brand-select"
+                                value={selectedBrandId}
+                                onChange={handleBrandChange}
+                                className="block w-full rounded-md border-gray-600 bg-gray-800 py-2 px-3 text-white focus:ring-2 focus:ring-cyan-500 sm:text-sm"
+                            >
+                                {(apiGetAllBrands() || []).map(brand => (
+                                    <option key={brand.id} value={brand.id}>
+                                        {brand.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {isLoadingMenu ? (
+                            <div className="flex justify-center p-8">
+                                <Spinner className="w-8 h-8" />
+                            </div>
+                        ) :
+                            Array.isArray(menu) && menu.length > 0 ? (
+                                <div className="grid md:grid-cols-2 gap-6 max-h-[60vh] overflow-y-auto pr-2">
+                                    {menu.map(category => (
+                                        <div
+                                            key={category.category}
+                                            className="bg-gray-800 p-4 rounded-lg"
+                                        >
+                                            <h3 className="text-lg font-semibold text-cyan-400 mb-3">
+                                                {category.category}
+                                            </h3>
+
+                                            <ul className="space-y-2">
+                                                {Array.isArray(category.items) && category.items.map(item => (
+
+                                                    <li
+                                                        key={item.name}
+                                                        className="flex items-center justify-between bg-gray-900/50 p-2 rounded-md"
+                                                    >
+                                                        <span className="text-sm">{item.name}</span>
+
+                                                        <button
+                                                            // onClick={() => handleToggleAvailability(item.name)}
+                                                            className={`px-2 py-1 text-xs font-bold rounded transition-colors ${item.isAvailable
+                                                                ? 'bg-green-900 text-green-300 hover:bg-green-800'
+                                                                : 'bg-red-900 text-red-300 hover:bg-red-800'
+                                                                }`}
+                                                        >
+                                                            {item.isAvailable ? 'In Stock' : 'Unavailable'}
+                                                        </button>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="text-center text-gray-400 py-6">
+                                    No menu data found for this brand.
+                                </p>
+                            )}
                     </div>
                 )}
+
+
 
                 {activeTab === 'reservations' && (
                     <div className="animate-fade-in">

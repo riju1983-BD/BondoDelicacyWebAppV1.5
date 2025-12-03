@@ -104,7 +104,8 @@ const OrderStatusPage: React.FC<OrderStatusPageProps> = ({ orderId, isEmbedded =
     // Mock status updater for demonstration
     useEffect(() => {
         if (foundOrder && foundOrder.status !== 'delivered' && foundOrder.status !== 'cancelled') {
-             const statuses: Order['status'][] = ['received', 'preparing', 'out-for-delivery', 'delivered'];
+             const statuses: Order['status'][] = ['received'];
+            //  const statuses: Order['status'][] = ['received', 'preparing', 'out-for-delivery', 'delivered'];
              const currentIndex = statuses.indexOf(foundOrder.status);
              if (currentIndex < statuses.length - 1) {
                 const timer = setTimeout(async () => {
