@@ -329,23 +329,57 @@ export const apiUpdateOrder = async (orderId: string, updates: Partial<Order>): 
 };
 
 // --- Complaint & Refund API ---
-export const apiRaiseComplaint = async (orderId: string, itemNames: string[], comments: string): Promise<Order> => {
-    const order = await apiGetOrderById(orderId);
-    if (!order) throw new Error("Order not found");
-    const complaint: Complaint = {
-        id: `C-${order.id}-${Math.floor(Math.random() * 1000)}`,
-        itemNames,
-        comments,
-        status: 'pending',
-        createdAt: new Date().toISOString(),
-    };
-    const { data, error } = await supabase.from('orders').update({ complaint: complaint, refund_status: 'none' }).eq('id', orderId).select().single();
-    if (error) handleSupabaseError(error, 'Raise Complaint');
-    return mapDbOrderToType(data);
+export const apiRaiseComplaint = async (
+  orderId: string,
+  itemNames: string[],
+  comments: string
+): Promise<Order> => {
+
+  const order = await apiGetOrderById(orderId);
+  if (!order) throw new Error("Order not found");
+
+  const complaintId = `C-${orderId}-${Date.now()}`;
+
+  // Insert complaint entry
+  const { error: insertError } = await supabase
+    .from("complaints")
+    .insert({
+      id: complaintId,
+      order_id: orderId,
+      user_id: order.userId,               // REQUIRED for RLS policy
+      item_names: itemNames,               // JSONB array
+      comments,
+      status: "PENDING",
+      created_at: new Date().toISOString(),
+      resolved_at: null
+    });
+
+  if (insertError) handleSupabaseError(insertError, "Raise Complaint");
+
+  // Optionally update order table to mark complaint exists
+  const { data: updatedOrder, error: updateError } = await supabase
+    .from("orders")
+    .update({ refund_status: 'pending' }) // or a flag if needed
+    .eq("id", orderId)
+    .select()
+    .single();
+
+  if (updateError) handleSupabaseError(updateError, "Link Complaint to Order");
+
+  // Return updated order object
+  return mapDbOrderToType(updatedOrder);
 };
+
+
+
 
 export const apiGetComplaints = async (): Promise<Order[]> => {
     const { data, error } = await supabase.from('orders').select('*').not('complaint', 'is', null).order('created_at', { ascending: false });
+    if (error) return [];
+    return (data || []).map(mapDbOrderToType);
+};
+export const apiGetOrders = async (): Promise<Order[]> => {
+    const { data, error } = await supabase.from('orders').select('*').order('created_at', { ascending: false });
     if (error) return [];
     return (data || []).map(mapDbOrderToType);
 };

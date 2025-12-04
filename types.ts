@@ -38,10 +38,10 @@ export interface User {
 }
 
 export interface RestaurantTable {
-    id: string;
-    name: string; // e.g., "T1", "Table 5"
-    capacity: number;
-    type: '2-seater' | '4-seater' | '6-seater';
+  id: string;
+  name: string; // e.g., "T1", "Table 5"
+  capacity: number;
+  type: '2-seater' | '4-seater' | '6-seater';
 }
 
 export interface Reservation {
@@ -77,8 +77,8 @@ export interface DeliveryAddress {
   flatNo: string;
   landmark: string;
   coordinates?: {
-      lat: number;
-      lng: number;
+    lat: number;
+    lng: number;
   };
   isDefault?: boolean;
 }
@@ -93,7 +93,7 @@ export interface Complaint {
 }
 
 export interface Order {
-  id:string;
+  id: string;
   brandId: Brand['id'];
   userId: string;
   items: CartItem[];
@@ -110,7 +110,8 @@ export interface Order {
   totalAmount: number;
   pointsEarned?: number;
   createdAt: string;
-  status: 'received' | 'preparing' | 'out-for-delivery' | 'delivered' | 'cancelled';
+  status: 'Order Placed' | 'Accepted' | 'Food Ready' | 'Out For Delivery' | 'Delivered' | 'Cancelled';
+
   rating?: number;
   feedback?: string;
   complaint?: Complaint;
@@ -153,9 +154,9 @@ export interface PredictionResult {
 }
 
 export interface DishRecommendation {
-    dishName: string;
-    reason: string;
-    offer?: string;
+  dishName: string;
+  reason: string;
+  offer?: string;
 }
 
 export interface PartyLead {
