@@ -181,7 +181,6 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
         if (showAddressForm) return newAddressData;
         return currentUser?.addresses?.find(a => a.id === selectedAddressId);
     };
-
     const handlePlaceOrder = async (e: React.FormEvent) => {
         e.preventDefault();
 
@@ -201,13 +200,11 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
         setIsProcessing(true);
 
         try {
-            // 1) Build order data for backend
+            // 1) Build PetPooja + backend payload
             const payload = {
                 orderinfo: {
                     OrderInfo: {
-                        Restaurant: {
-                            details: { restID: brandId } // if brandId is restID
-                        },
+                        Restaurant: { details: { restID: brandId } },
                         Customer: {
                             details: {
                                 email: currentUser.email,
@@ -246,10 +243,8 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                                 description: "",
                                 created_on: new Date().toISOString(),
                                 enable_delivery: 1,
-                                // min_prep_time: 20,
                                 callback_url: "https://ethnohistorical-lacrimatory-juliann.ngrok-free.dev/api/petpuja/callback",
                                 collect_cash: "0",
-                                //   otp: "1234"
                             }
                         },
                         OrderItem: {
@@ -262,7 +257,6 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                                 item_discount: "0",
                                 price: i.price.toString(),
                                 final_price: (parseFloat(i.price) * Number(i.quantity)).toString(),
-
                                 quantity: i.quantity.toString(),
                                 variation_name: "",
                                 variation_id: "",
@@ -275,7 +269,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                 }
             };
 
-            // 2) Hit backend to create PetPooja + Razorpay order
+            // 2) Hit backend → create PetPooja order + Razorpay order
             const res = await fetch("http://localhost:3000/api/payment/create-order", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -283,11 +277,8 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
             });
 
             const data = await res.json();
-            if (!data.success) {
-                throw new Error(data.message || "Order creation failed");
-            }
+            if (!data.success) throw new Error(data.message || "Order creation failed");
 
-            // Razorpay order returned by backend
             const razorpayOrder = data.razorpayOrder;
             const clientorderID = data.clientorderID;
 
@@ -297,10 +288,28 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                 order_id: razorpayOrder.id,
                 amount: razorpayOrder.amount,
                 currency: razorpayOrder.currency,
-                //   name: "Your Restaurant",
+
                 handler: async (paymentResponse: any) => {
                     try {
-                        // 4) Now save order in your DB
+                        // 4) VERIFY PAYMENT WITH BACKEND (important!)
+                        const verifyRes = await fetch("http://localhost:3000/api/payment/verify-payment", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                razorpay_payment_id: paymentResponse.razorpay_payment_id,
+                                razorpay_order_id: paymentResponse.razorpay_order_id,
+                                razorpay_signature: paymentResponse.razorpay_signature,
+                                clientorderID
+                            })
+                        });
+
+                        const verifyData = await verifyRes.json();
+                        if (!verifyData.success) {
+                            alert("Payment verification failed. Contact support.");
+                            return setIsProcessing(false);
+                        }
+
+                        // 5) Now create order in your DB (your existing logic)
                         const newOrder = await apiCreateOrder(
                             brandId,
                             currentUser.id,
@@ -313,7 +322,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                             deliveryAddress,
                             subtotal,
                             loyaltyDiscount,
-                            clientorderID 
+                            clientorderID
                         );
 
                         await apiPunchOrder(newOrder);
@@ -329,6 +338,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                         setIsProcessing(false);
                     }
                 },
+
                 prefill: {
                     name: currentUser.name,
                     email: currentUser.email,

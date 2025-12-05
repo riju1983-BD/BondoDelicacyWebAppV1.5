@@ -2,10 +2,9 @@ import React, { useState, useEffect } from "react";
 import { Order } from "../types";
 import { brandsData } from "../data";
 import { Icon } from "./Icon";
-import { apiGetOrderById } from "../services/apiService";
+import { apiCancelOrder, apiGetOrderById, } from "../services/apiService";
 import { normalizeOrderStatus } from "../model/status";
 
-// FRONTEND ORDER FLOW STEPS
 const steps = ["Order Placed", "Accepted", "Food Ready", "Out For Delivery", "Delivered"];
 
 interface StatusTrackerProps {
@@ -33,30 +32,26 @@ const StatusTracker: React.FC<StatusTrackerProps> = ({ status }) => {
         <React.Fragment key={step}>
           <div className="flex flex-col items-center flex-1">
             <div
-              className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors duration-500 ${
-                index < currentIndex
-                  ? "bg-green-500"
-                  : index === currentIndex
+              className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors duration-500 ${index < currentIndex
+                ? "bg-green-500"
+                : index === currentIndex
                   ? "bg-cyan-500 animate-pulse"
                   : "bg-gray-600"
-              }`}
+                }`}
             >
               <Icon type="check-circle" className="w-5 h-5 text-white" />
             </div>
 
             <p
-              className={`mt-2 text-xs sm:text-sm text-center font-semibold ${
-                index <= currentIndex ? "text-white" : "text-gray-400"
-              }`}
+              className={`mt-2 text-xs sm:text-sm text-center font-semibold ${index <= currentIndex ? "text-white" : "text-gray-400"
+                }`}
             >
               {step}
             </p>
           </div>
 
           {index < steps.length - 1 && (
-            <div
-              className={`flex-1 h-1 mx-2 ${index < currentIndex ? "bg-green-500" : "bg-gray-600"}`}
-            ></div>
+            <div className={`flex-1 h-1 mx-2 ${index < currentIndex ? "bg-green-500" : "bg-gray-600"}`}></div>
           )}
         </React.Fragment>
       ))}
@@ -75,6 +70,11 @@ const OrderStatusPage: React.FC<OrderStatusPageProps> = ({ orderId, isEmbedded =
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelError, setCancelError] = useState<string | null>(null);
+  const [isCancelling, setIsCancelling] = useState(false);
+
   const fetchOrder = async (id: string) => {
     setIsLoading(true);
     setError(null);
@@ -83,7 +83,7 @@ const OrderStatusPage: React.FC<OrderStatusPageProps> = ({ orderId, isEmbedded =
       setFoundOrder(order || null);
       if (!order && !isEmbedded) setError("Order not found.");
     } catch {
-      if (!isEmbedded) setError("Failed to fetch order.");
+      setError("Failed to fetch order.");
     } finally {
       setIsLoading(false);
     }
@@ -103,114 +103,179 @@ const OrderStatusPage: React.FC<OrderStatusPageProps> = ({ orderId, isEmbedded =
 
   const handleTrack = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!trackingId.trim()) return setError("Please enter an order ID.");
+    if (!trackingId.trim()) {
+      setError("Please enter an order ID.");
+      return;
+    }
     fetchOrder(trackingId.trim());
   };
 
   const normalizedStatus = normalizeOrderStatus(foundOrder?.status ?? "");
 
+  // REFUND LOGIC UPDATED
+  const refundPercent =
+    normalizedStatus === "Food Ready"
+      ? 40
+      : ["Order Placed", "Accepted", "pending"].includes(normalizedStatus)
+        ? 60
+        : 0;
+
+  // CANCEL RULE
   const canCancel =
-    foundOrder &&
     normalizedStatus !== "Cancelled" &&
     normalizedStatus !== "Delivered" &&
-    normalizedStatus !== "Out For Delivery";
+    normalizedStatus !== "Out For Delivery" &&
+    refundPercent > 0;
 
-const OrderContent = (
-  <>
-    {error && !isEmbedded && (
-      <div className="p-4 bg-red-900/50 border border-red-600 text-red-200 rounded-md text-center">
-        <p>{error}</p>
-      </div>
-    )}
 
-    {foundOrder && (
-      <div className="space-y-8 bg-gray-900 p-8 rounded-lg border border-gray-700 w-full">
-        {/* ALWAYS SHOW HEADER */}
-        <div className="pb-2">
-          <h2 className="text-xl sm:text-2xl font-serif">
-            Order from {brandsData[foundOrder.brandId]?.name || "Unknown Restaurant"}
-          </h2>
-          <p className="text-gray-400 text-sm font-mono">ID: {foundOrder.id}</p>
+  const handleConfirmCancel = async () => {
+    if (!foundOrder) return;
+
+    setIsCancelling(true);
+    setCancelError(null);
+
+    try {
+      // original order amount from DB
+    const orderAmount = Number(foundOrder.totalAmount || 0);
+
+
+      // calculate refundable amount based on your percentage rules
+      const refundAmount = Math.round((orderAmount * refundPercent) / 100);
+      await apiCancelOrder(foundOrder.id, refundAmount, cancelReason);
+
+      setShowCancelModal(false);
+      fetchOrder(foundOrder.id);
+
+    } catch (err: any) {
+      setCancelError(err.message || "Failed to cancel order");
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
+
+
+
+
+  const OrderContent = (
+    <>
+      {error && !isEmbedded && (
+        <div className="p-4 bg-red-900/50 border border-red-600 text-red-200 rounded-md text-center">
+          <p>{error}</p>
         </div>
+      )}
 
-        {/* IF NOT DELIVERED, SHOW EVERYTHING ELSE */}
-        {normalizedStatus !== "Delivered" && (
-          <>
-            {!isEmbedded && (
-              <div className="py-4 border-y border-gray-700 space-y-2">
-                <h3 className="text-lg font-semibold">Order Summary</h3>
+      {foundOrder && (
+        <div className="bg-gray-900 p-8 border border-gray-700 rounded-lg space-y-10">
+          <header>
+            <h2 className="text-xl sm:text-2xl font-serif">
+              Order from {brandsData[foundOrder.brandId]?.name || "Unknown Restaurant"}
+            </h2>
+            <p className="text-gray-400 text-sm font-mono">ID: {foundOrder.id}</p>
+          </header>
 
-                {foundOrder.items.map((item) => (
-                  <div key={item.name} className="flex justify-between text-sm">
-                    <p className="text-gray-300">
-                      {item.name} <span className="text-gray-400">x{item.quantity}</span>
-                    </p>
-                    <p className="text-gray-400">
-                      ₹{(
-                        parseFloat(item.price.replace(/[^0-9.-]+/g, "")) * item.quantity
-                      ).toFixed(2)}
-                    </p>
-                  </div>
-                ))}
-
-                <div className="flex justify-between font-bold pt-2 border-t border-gray-700/50">
-                  <p>Total Paid</p>
-                  <p>₹{foundOrder.totalAmount.toFixed(2)}</p>
-                </div>
-              </div>
-            )}
-
-            {/* CURRENT STATUS */}
-            <div className="pt-6 border-t border-gray-700">
-              <h3 className="text-lg font-semibold text-center mb-6">Current Status</h3>
+          {normalizedStatus !== "Delivered" && (
+            <div className="border-t border-gray-700 pt-6">
+              <h3 className="text-center text-lg font-semibold mb-6">Current Status</h3>
               <StatusTracker status={normalizedStatus} />
 
               {canCancel && (
-                <div className="flex justify-center mt-6">
-                  <button className="px-6 py-2 bg-red-600 text-white rounded-md hover:bg-red-500 shadow-md">
+                <div className="flex flex-col items-center mt-6 gap-3">
+                  <p className="text-sm text-gray-300 text-center max-w-md">
+                    If you cancel now, you'll receive{" "}
+                    <span className="font-semibold text-cyan-400">{refundPercent}% refund</span>.
+                  </p>
+
+                  <button
+                    className="px-6 py-2 rounded-md bg-red-600 text-white hover:bg-red-500 shadow-md"
+                    onClick={() => {
+                      setCancelReason("");
+                      setCancelError(null);
+                      setShowCancelModal(true);
+                    }}
+                  >
                     Cancel Order
                   </button>
                 </div>
               )}
-            </div>
-          </>
-        )}
-      </div>
-    )}
-  </>
-);
 
+              {!canCancel && normalizedStatus !== "Cancelled" && (
+                <p className="text-xs text-gray-400 mt-4 text-center">
+                  This order can no longer be cancelled at this stage.
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {showCancelModal && foundOrder && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center">
+          <div className="bg-gray-900 border border-gray-700 p-6 rounded-lg w-full max-w-md shadow-xl">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <Icon type="alert-triangle" className="w-5 h-5 text-yellow-400" />
+              Confirm Cancellation
+            </h3>
+
+            <textarea
+              placeholder="Reason for cancellation..."
+              className="w-full h-24 mt-4 bg-gray-800 text-gray-200 border border-gray-700 p-3 rounded-md"
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+            />
+
+            {cancelError && <p className="text-sm text-red-400 mt-2">{cancelError}</p>}
+
+            <div className="flex justify-end gap-3 mt-4">
+              <button
+                className="px-4 py-2 text-sm rounded-md border border-gray-600 text-gray-200 hover:bg-gray-800"
+                disabled={isCancelling}
+                onClick={() => setShowCancelModal(false)}
+              >
+                Keep Order
+              </button>
+
+              <button
+                className="px-4 py-2 text-sm rounded-md bg-red-600 text-white hover:bg-red-500 disabled:opacity-70"
+                disabled={isCancelling}
+                onClick={handleConfirmCancel}
+              >
+                {isCancelling ? "Cancelling..." : "Confirm Cancel"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
 
   if (isEmbedded) return OrderContent;
 
   return (
-    <div className="min-h-screen bg-gray-800 text-white p-8 sm:p-12 lg:p-16 flex items-center justify-center">
-      <div className="w-full max-w-2xl bg-gray-900 rounded-lg p-10 shadow-2xl border border-gray-700">
+    <div className="min-h-screen bg-gray-800 text-white p-8 flex items-center justify-center">
+      <div className="w-full max-w-2xl bg-gray-900 border border-gray-700 p-10 rounded-lg shadow-xl">
         <header className="text-center mb-10">
           <Icon type="credit-card" className="mx-auto h-12 w-12 text-cyan-400" />
           <h1 className="text-4xl font-serif mt-4">Track Your Order</h1>
-          <p className="text-gray-400 mt-2 text-sm">
-            Enter your order ID to see its current status.
-          </p>
+          <p className="text-sm text-gray-400">Enter your order ID to see its status</p>
         </header>
 
-        {/* FORM */}
         <form className="flex gap-2 mb-10" onSubmit={handleTrack}>
           <input
             type="text"
             value={trackingId}
             onChange={(e) => setTrackingId(e.target.value)}
             placeholder="Enter your order ID..."
-            className="flex-grow rounded-md bg-gray-800 py-3 px-4 text-white border border-gray-600 focus:ring-2 focus:ring-cyan-500"
+            className="flex-grow bg-gray-800 border border-gray-600 text-white rounded-md py-3 px-4 focus:ring-2 focus:ring-cyan-500"
             disabled={isLoading}
           />
           <button
             type="submit"
             disabled={isLoading}
-            className="bg-cyan-600 px-6 py-3 rounded-md text-white hover:bg-cyan-500 flex items-center gap-2"
+            className="bg-cyan-600 px-6 py-3 rounded-md text-white hover:bg-cyan-500 disabled:opacity-70"
           >
             {isLoading ? "..." : <Icon type="search" className="w-5 h-5" />}
-            {isLoading ? "Searching" : "Track"}
+            {!isLoading && "Track"}
           </button>
         </form>
 

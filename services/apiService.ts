@@ -299,7 +299,7 @@ export const apiCreateOrder = async (
         gst_amount: gstAmount,
         total_amount: finalTotalAmount,
         points_earned: pointsEarned,
-        status: 'received',
+ 
         created_at: new Date().toISOString(),
     };
 
@@ -369,6 +369,22 @@ export const apiRaiseComplaint = async (
   // Return updated order object
   return mapDbOrderToType(updatedOrder);
 };
+export async function apiCancelOrder(orderId: string, amount: number, reason: string) {
+  const res = await fetch("http://localhost:3000/api/payment/cancel-order", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      clientorderID: orderId,
+      amount,
+      reason
+    }),
+  });
+
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message);
+  return data;
+}
+
 
 
 
