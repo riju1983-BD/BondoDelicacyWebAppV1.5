@@ -51,9 +51,16 @@ const Spinner: React.FC<{ className?: string }> = ({
 );
 
 const AdminDashboardPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<
-    "menu" | "orders" | "loyalty" | "complaints" | "reservations"
-  >("menu");
+ const [activeTab, setActiveTab] = useState<
+  | "menu"
+  | "orders"
+  | "loyalty"
+  | "complaints"
+  | "reservations"
+  | "restaurants"
+  | "addRestaurant"
+>("menu");
+
 
   // Menu State
   const [menu, setMenu] = useState<BrandMenuCategory[] | null>(null);
@@ -97,6 +104,16 @@ const AdminDashboardPage: React.FC = () => {
     }
   }, [selectedBrandId]);
   // *** REAL-TIME SETUP ***
+  // Restaurants State
+const [restaurants, setRestaurants] = useState<any[]>([]);
+const [isLoadingRestaurants, setIsLoadingRestaurants] = useState(false);
+
+// Add Table Modal State
+const [addTableFor, setAddTableFor] = useState<string | null>(null);
+const [tableNumber, setTableNumber] = useState("");
+const [capacity, setCapacity] = useState("");
+const [isSavingTable, setIsSavingTable] = useState(false);
+const [tableError, setTableError] = useState<string | null>(null);
   useEffect(() => {
     // Subscribe to 'orders'
     const orderSubscription = supabase
@@ -161,6 +178,25 @@ const AdminDashboardPage: React.FC = () => {
       setIsLoadingComplaints(false);
     }
   }, []);
+  const fetchRestaurants = useCallback(async () => {
+  setIsLoadingRestaurants(true);
+  setTableError(null);
+  try {
+    const { data, error } = await supabase.from("restaurants").select("*");
+    if (error) {
+      console.error("Failed to fetch restaurants:", error);
+      setTableError("Failed to fetch restaurants");
+      return;
+    }
+    setRestaurants(data || []);
+  } catch (err) {
+    console.error("Failed to fetch restaurants:", err);
+    setTableError("Failed to fetch restaurants");
+  } finally {
+    setIsLoadingRestaurants(false);
+  }
+}, []);
+
   const fetchOrders = useCallback(async () => {
     setIsLoadingOrders(true);
     try {
@@ -183,22 +219,24 @@ const AdminDashboardPage: React.FC = () => {
       setIsLoadingReservations(false);
     }
   }, []);
+useEffect(() => {
+  if (activeTab === "menu") fetchMenu(selectedBrandId);
+  else if (activeTab === "orders") fetchOrders();
+  else if (activeTab === "loyalty")
+    apiGetLoyaltyConfig().then(setLoyaltyConfig);
+  else if (activeTab === "complaints") fetchComplaints();
+  else if (activeTab === "reservations") fetchReservations();
+  else if (activeTab === "restaurants") fetchRestaurants();
+}, [
+  activeTab,
+  selectedBrandId,
+  fetchMenu,
+  fetchOrders,
+  fetchComplaints,
+  fetchReservations,
+  fetchRestaurants,
+]);
 
-  useEffect(() => {
-    if (activeTab === "menu") fetchMenu(selectedBrandId);
-    else if (activeTab === "orders") fetchOrders();
-    else if (activeTab === "loyalty")
-      apiGetLoyaltyConfig().then(setLoyaltyConfig);
-    else if (activeTab === "complaints") fetchComplaints();
-    else if (activeTab === "reservations") fetchReservations();
-  }, [
-    activeTab,
-    selectedBrandId,
-    fetchMenu,
-    fetchOrders,
-    fetchComplaints,
-    fetchReservations,
-  ]);
 
   const handleBrandChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedBrandId(e.target.value as Brand["id"]);
@@ -398,6 +436,28 @@ const AdminDashboardPage: React.FC = () => {
           >
             Loyalty
           </button>
+          <button
+  onClick={() => setActiveTab("restaurants")}
+  className={`flex-shrink-0 py-2 px-4 font-semibold ${
+    activeTab === "restaurants"
+      ? "border-b-2 border-cyan-400 text-cyan-400"
+      : "text-gray-400"
+  }`}
+>
+  All Restaurants
+</button>
+
+<button
+  onClick={() => setActiveTab("addRestaurant")}
+  className={`flex-shrink-0 py-2 px-4 font-semibold ${
+    activeTab === "addRestaurant"
+      ? "border-b-2 border-cyan-400 text-cyan-400"
+      : "text-gray-400"
+  }`}
+>
+  Add Restaurant
+</button>
+
         </div>
         {activeTab === "menu" && (
           <div className="animate-fade-in">
@@ -463,6 +523,65 @@ const AdminDashboardPage: React.FC = () => {
             )}
           </div>
         )}
+{activeTab === "restaurants" && (
+  <div className="animate-fade-in">
+
+
+    {isLoadingRestaurants ? (
+      <div className="flex justify-center p-8">
+        <Spinner className="w-8 h-8" />
+      </div>
+    ) : restaurants.length === 0 ? (
+      <p className="text-center text-gray-400 py-8">
+        No restaurants found.
+      </p>
+    ) : (
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-700">
+          <thead>
+            <tr className="text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+              <th className="px-4 py-3">Name</th>
+              <th className="px-4 py-3">Rest ID</th>
+              <th className="px-4 py-3">Tagline</th>
+              <th className="px-4 py-3 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-700">
+            {restaurants.map((r) => (
+              <tr key={r.rest_id}>
+                <td className="px-4 py-3 text-sm text-white">{r.name}</td>
+                <td className="px-4 py-3 text-xs font-mono text-cyan-400">
+                  {r.rest_id}
+                </td>
+                <td className="px-4 py-3 text-sm text-gray-400">
+                  {r.tagline || "-"}
+                </td>
+                <td className="px-4 py-3 text-right">
+                  <button
+                    onClick={() => {
+                      setAddTableFor(r.rest_id);
+                      setTableNumber("");
+                      setCapacity("");
+                      setTableError(null);
+                    }}
+                    className="inline-flex items-center gap-1 bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-1.5 rounded-md text-xs font-semibold"
+                  >
+                    <Icon type="plus-circle" className="w-4 h-4" />
+                    Add Table
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )}
+
+    {tableError && (
+      <p className="mt-4 text-center text-sm text-red-400">{tableError}</p>
+    )}
+  </div>
+)}
 
         {activeTab === "orders" && (
           <div className="animate-fade-in">
@@ -833,6 +952,102 @@ const AdminDashboardPage: React.FC = () => {
           </button>
         </div>
       </div>
+      {addTableFor && (
+  <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center">
+    <div className="bg-gray-900 border border-gray-700 p-6 rounded-lg w-full max-w-md shadow-xl">
+      <h3 className="text-lg font-semibold mb-4">
+        Add Table for{" "}
+        <span className="font-mono text-cyan-400">{addTableFor}</span>
+      </h3>
+
+      <div className="space-y-3">
+        <div>
+          <label className="block text-sm text-gray-300 mb-1">
+            Table Number
+          </label>
+          <input
+            type="number"
+            className="w-full bg-gray-800 text-gray-200 border border-gray-700 rounded-md p-2"
+            value={tableNumber}
+            onChange={(e) => setTableNumber(e.target.value)}
+          />
+        </div>
+        <div>
+          <label className="block text-sm text-gray-300 mb-1">
+            Capacity
+          </label>
+          <input
+            type="number"
+            className="w-full bg-gray-800 text-gray-200 border border-gray-700 rounded-md p-2"
+            value={capacity}
+            onChange={(e) => setCapacity(e.target.value)}
+          />
+        </div>
+        {tableError && (
+          <p className="text-sm text-red-400">{tableError}</p>
+        )}
+      </div>
+
+      <div className="flex justify-end gap-3 mt-6">
+        <button
+          className="px-4 py-2 text-sm rounded-md border border-gray-600 text-gray-200 hover:bg-gray-800"
+          disabled={isSavingTable}
+          onClick={() => {
+            setAddTableFor(null);
+            setTableNumber("");
+            setCapacity("");
+            setTableError(null);
+          }}
+        >
+          Close
+        </button>
+
+        <button
+          className="px-4 py-2 text-sm rounded-md bg-cyan-600 text-white hover:bg-cyan-500 disabled:opacity-60"
+          disabled={isSavingTable}
+          onClick={async () => {
+            if (!tableNumber || !capacity) {
+              setTableError("Table number and capacity are required.");
+              return;
+            }
+            setIsSavingTable(true);
+            setTableError(null);
+            try {
+              const { error } = await supabase
+                .from("restaurant_tables")
+                .insert([
+                  {
+                    rest_id: addTableFor,
+                    table_number: Number(tableNumber),
+                    capacity: Number(capacity),
+                  },
+                ]);
+
+              if (error) {
+                console.error("Failed to add table:", error);
+                setTableError(error.message || "Failed to add table");
+              } else {
+                // success
+                setAddTableFor(null);
+                setTableNumber("");
+                setCapacity("");
+                await fetchRestaurants(); // refresh list
+              }
+            } catch (e: any) {
+              console.error(e);
+              setTableError(e.message || "Failed to add table");
+            } finally {
+              setIsSavingTable(false);
+            }
+          }}
+        >
+          {isSavingTable ? "Saving..." : "Save Table"}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
       {cancelOrderFor && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center">
           <div className="bg-gray-900 border border-gray-700 p-6 rounded-lg w-full max-w-md shadow-xl">
