@@ -3,7 +3,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { PredictionInputs, PredictionResult, FeedbackItem, Recipe, Ingredient } from '../types';
 
 if (!process.env.API_KEY) {
-  throw new Error("API_KEY environment variable not set");
+  throw new Error("API_KEY environment variable not set3");
 }
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 

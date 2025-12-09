@@ -6,11 +6,12 @@ export async function getMealRecommendation(
   menu: MenuItem[],
   brandName: string
 ): Promise<string> {
-  if (!process.env.API_KEY) {
-    throw new Error("API_KEY environment variable not set");
+  if (!import.meta.env.VITE_API_KEY) {
+    throw new Error("API_KEY environment variable not set1");
   }
 
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_API_KEY });
+
 
   const simplifiedMenu = menu.map(item => item.name).join(', ');
 
@@ -38,11 +39,12 @@ export async function getMealRecommendation(
 }
 
 export async function parseMenuFromText(text: string): Promise<Omit<BrandMenuCategory, 'items'> & { items: Omit<MenuItem, 'image'>[] }[]> {
-  if (!process.env.API_KEY) {
-    throw new Error("API_KEY environment variable not set");
+  console.log("Parsing menu text with Gemini API...",import.meta.env.VITE_API_KEY);
+  if (!import.meta.env.VITE_API_KEY) {
+    throw new Error("API_KEY environment variable not set2");
   }
 
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_API_KEY });
 
   const prompt = `
     You are an expert menu parser for a restaurant. Your task is to extract menu categories, and for each category, a list of items with their name, description, and price. The menu text is unstructured. Do your best to identify these components.
