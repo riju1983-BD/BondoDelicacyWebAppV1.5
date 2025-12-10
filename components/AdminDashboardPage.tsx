@@ -21,6 +21,11 @@ import {
   apiGetAdminCategoriesMenu,
   apiGetOrders,
   apiCancelOrder,
+  apiFetchRestaurantMapping,
+  apiAddRestaurant,
+  apiAddTable,
+  apiGetTables,
+  apiToggleTable,
 } from "../services/apiService";
 import { supabase } from "../services/supabaseClient";
 import { brandsData } from "../data";
@@ -51,15 +56,15 @@ const Spinner: React.FC<{ className?: string }> = ({
 );
 
 const AdminDashboardPage: React.FC = () => {
- const [activeTab, setActiveTab] = useState<
-  | "menu"
-  | "orders"
-  | "loyalty"
-  | "complaints"
-  | "reservations"
-  | "restaurants"
-  | "addRestaurant"
->("menu");
+  const [activeTab, setActiveTab] = useState<
+    | "menu"
+    | "orders"
+    | "loyalty"
+    | "complaints"
+    | "reservations"
+    | "restaurants"
+    | "addRestaurant"
+  >("menu");
 
 
   // Menu State
@@ -68,6 +73,17 @@ const AdminDashboardPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [selectedBrandId, setSelectedBrandId] =
     useState<Brand["id"]>("c9ignw2k50");
+  const [restId, setRestId] = useState("");
+  const [fetchedData, setFetchedData] = useState<any>(null);
+  const [isFetching, setIsFetching] = useState(false);
+
+  const [themePrimary, setThemePrimary] = useState("#000000");
+  const [themeAccent, setThemeAccent] = useState("#FFAB00");
+  const [themeText, setThemeText] = useState("#FFFFFF");
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const DEFAULT_IMAGE = "https://via.placeholder.com/400x300?text=No+Image";
 
   // Loyalty State
   const [loyaltyConfig, setLoyaltyConfig] = useState<LoyaltyConfig>({
@@ -105,15 +121,26 @@ const AdminDashboardPage: React.FC = () => {
   }, [selectedBrandId]);
   // *** REAL-TIME SETUP ***
   // Restaurants State
-const [restaurants, setRestaurants] = useState<any[]>([]);
-const [isLoadingRestaurants, setIsLoadingRestaurants] = useState(false);
+  const [restaurants, setRestaurants] = useState<any[]>([]);
+  const [isLoadingRestaurants, setIsLoadingRestaurants] = useState(false);
 
-// Add Table Modal State
-const [addTableFor, setAddTableFor] = useState<string | null>(null);
-const [tableNumber, setTableNumber] = useState("");
-const [capacity, setCapacity] = useState("");
-const [isSavingTable, setIsSavingTable] = useState(false);
-const [tableError, setTableError] = useState<string | null>(null);
+  // Add Table Modal State
+  const [addTableFor, setAddTableFor] = useState<string | null>(null);
+  const [tableNumber, setTableNumber] = useState("");
+  const [capacity, setCapacity] = useState("");
+  const [isSavingTable, setIsSavingTable] = useState(false);
+  const [tableError, setTableError] = useState<string | null>(null);
+  const [tables, setTables] = useState<any[]>([]);
+  const [showTablesFor, setShowTablesFor] = useState<string | null>(null);
+  const [loadingTables, setLoadingTables] = useState(false);
+
+  async function loadTables(restId: string) {
+    setLoadingTables(true);
+    const res = await apiGetTables(restId);
+    setTables(res.tables || []);
+    setLoadingTables(false);
+  }
+
   useEffect(() => {
     // Subscribe to 'orders'
     const orderSubscription = supabase
@@ -179,23 +206,23 @@ const [tableError, setTableError] = useState<string | null>(null);
     }
   }, []);
   const fetchRestaurants = useCallback(async () => {
-  setIsLoadingRestaurants(true);
-  setTableError(null);
-  try {
-    const { data, error } = await supabase.from("restaurants").select("*");
-    if (error) {
-      console.error("Failed to fetch restaurants:", error);
+    setIsLoadingRestaurants(true);
+    setTableError(null);
+    try {
+      const { data, error } = await supabase.from("restaurants").select("*");
+      if (error) {
+        console.error("Failed to fetch restaurants:", error);
+        setTableError("Failed to fetch restaurants");
+        return;
+      }
+      setRestaurants(data || []);
+    } catch (err) {
+      console.error("Failed to fetch restaurants:", err);
       setTableError("Failed to fetch restaurants");
-      return;
+    } finally {
+      setIsLoadingRestaurants(false);
     }
-    setRestaurants(data || []);
-  } catch (err) {
-    console.error("Failed to fetch restaurants:", err);
-    setTableError("Failed to fetch restaurants");
-  } finally {
-    setIsLoadingRestaurants(false);
-  }
-}, []);
+  }, []);
 
   const fetchOrders = useCallback(async () => {
     setIsLoadingOrders(true);
@@ -219,23 +246,72 @@ const [tableError, setTableError] = useState<string | null>(null);
       setIsLoadingReservations(false);
     }
   }, []);
-useEffect(() => {
-  if (activeTab === "menu") fetchMenu(selectedBrandId);
-  else if (activeTab === "orders") fetchOrders();
-  else if (activeTab === "loyalty")
-    apiGetLoyaltyConfig().then(setLoyaltyConfig);
-  else if (activeTab === "complaints") fetchComplaints();
-  else if (activeTab === "reservations") fetchReservations();
-  else if (activeTab === "restaurants") fetchRestaurants();
-}, [
-  activeTab,
-  selectedBrandId,
-  fetchMenu,
-  fetchOrders,
-  fetchComplaints,
-  fetchReservations,
-  fetchRestaurants,
-]);
+  useEffect(() => {
+    if (activeTab === "menu") fetchMenu(selectedBrandId);
+    else if (activeTab === "orders") fetchOrders();
+    else if (activeTab === "loyalty")
+      apiGetLoyaltyConfig().then(setLoyaltyConfig);
+    else if (activeTab === "complaints") fetchComplaints();
+    else if (activeTab === "reservations") fetchReservations();
+    else if (activeTab === "restaurants") fetchRestaurants();
+  }, [
+    activeTab,
+    selectedBrandId,
+    fetchMenu,
+    fetchOrders,
+    fetchComplaints,
+    fetchReservations,
+    fetchRestaurants,
+  ]);
+
+  const handleFetchRestaurantData = async () => {
+    setIsFetching(true);
+
+    const res = await apiFetchRestaurantMapping(restId);
+
+    if (Array.isArray(res.data) && res.data.length > 0) {
+      setFetchedData(res.data[0].details || res.data[0]); // Use details if present
+    } else if (Array.isArray(res.data?.data) && res.data.data.length > 0) {
+      setFetchedData(res.data.data[0].details || res.data.data[0]);
+    } else {
+      setFetchedData(null);
+    }
+
+    setIsFetching(false);
+  };
+
+  const handleSubmitRestaurant = async () => {
+    if (!fetchedData) return;
+    setIsSubmitting(true);
+
+    const payload = {
+      rest_id: restId,
+      name: fetchedData.restaurantname || "",
+      tagline: fetchedData.tagline || "",
+      description: fetchedData.description || "",
+      address: fetchedData.address || "",
+      city: fetchedData.city || "",
+      logo: fetchedData.logo || fetchedData.images?.[0] || "",
+      hero_image: fetchedData.hero_image || "",
+      about_text: fetchedData.about_text || "",
+      about_image: fetchedData.about_image || "",
+      theme_primary: themePrimary,
+      theme_accent: themeAccent,
+      theme_text_on_primary: themeText,
+    };
+
+    const res = await apiAddRestaurant(payload);
+
+    if (!res.error) {
+      setFetchedData(null);
+      setRestId("");
+      setActiveTab("restaurants");
+      fetchRestaurants();
+    }
+
+    setIsSubmitting(false);
+  };
+
 
 
   const handleBrandChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -388,75 +464,68 @@ useEffect(() => {
         <div className="flex border-b border-gray-700 mb-6 overflow-x-auto">
           <button
             onClick={() => setActiveTab("menu")}
-            className={`flex-shrink-0 py-2 px-4 font-semibold ${
-              activeTab === "menu"
-                ? "border-b-2 border-cyan-400 text-cyan-400"
-                : "text-gray-400"
-            }`}
+            className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "menu"
+              ? "border-b-2 border-cyan-400 text-cyan-400"
+              : "text-gray-400"
+              }`}
           >
             Live Menu
           </button>
           <button
             onClick={() => setActiveTab("orders")}
-            className={`flex-shrink-0 py-2 px-4 font-semibold ${
-              activeTab === "orders"
-                ? "border-b-2 border-cyan-400 text-cyan-400"
-                : "text-gray-400"
-            }`}
+            className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "orders"
+              ? "border-b-2 border-cyan-400 text-cyan-400"
+              : "text-gray-400"
+              }`}
           >
             Orders
           </button>
           <button
             onClick={() => setActiveTab("reservations")}
-            className={`flex-shrink-0 py-2 px-4 font-semibold ${
-              activeTab === "reservations"
-                ? "border-b-2 border-cyan-400 text-cyan-400"
-                : "text-gray-400"
-            }`}
+            className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "reservations"
+              ? "border-b-2 border-cyan-400 text-cyan-400"
+              : "text-gray-400"
+              }`}
           >
             Reservations ({reservations.length})
           </button>
           <button
             onClick={() => setActiveTab("complaints")}
-            className={`flex-shrink-0 py-2 px-4 font-semibold ${
-              activeTab === "complaints"
-                ? "border-b-2 border-cyan-400 text-cyan-400"
-                : "text-gray-400"
-            }`}
+            className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "complaints"
+              ? "border-b-2 border-cyan-400 text-cyan-400"
+              : "text-gray-400"
+              }`}
           >
             Complaints
           </button>
           <button
             onClick={() => setActiveTab("loyalty")}
-            className={`flex-shrink-0 py-2 px-4 font-semibold ${
-              activeTab === "loyalty"
-                ? "border-b-2 border-cyan-400 text-cyan-400"
-                : "text-gray-400"
-            }`}
+            className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "loyalty"
+              ? "border-b-2 border-cyan-400 text-cyan-400"
+              : "text-gray-400"
+              }`}
           >
             Loyalty
           </button>
           <button
-  onClick={() => setActiveTab("restaurants")}
-  className={`flex-shrink-0 py-2 px-4 font-semibold ${
-    activeTab === "restaurants"
-      ? "border-b-2 border-cyan-400 text-cyan-400"
-      : "text-gray-400"
-  }`}
->
-  All Restaurants
-</button>
+            onClick={() => setActiveTab("restaurants")}
+            className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "restaurants"
+              ? "border-b-2 border-cyan-400 text-cyan-400"
+              : "text-gray-400"
+              }`}
+          >
+            All Restaurants
+          </button>
 
-<button
-  onClick={() => setActiveTab("addRestaurant")}
-  className={`flex-shrink-0 py-2 px-4 font-semibold ${
-    activeTab === "addRestaurant"
-      ? "border-b-2 border-cyan-400 text-cyan-400"
-      : "text-gray-400"
-  }`}
->
-  Add Restaurant
-</button>
+          <button
+            onClick={() => setActiveTab("addRestaurant")}
+            className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "addRestaurant"
+              ? "border-b-2 border-cyan-400 text-cyan-400"
+              : "text-gray-400"
+              }`}
+          >
+            Add Restaurant
+          </button>
 
         </div>
         {activeTab === "menu" && (
@@ -502,11 +571,10 @@ useEffect(() => {
 
                             <button
                               // onClick={() => handleToggleAvailability(item.name)}
-                              className={`px-2 py-1 text-xs font-bold rounded transition-colors ${
-                                item.isAvailable
-                                  ? "bg-green-900 text-green-300 hover:bg-green-800"
-                                  : "bg-red-900 text-red-300 hover:bg-red-800"
-                              }`}
+                              className={`px-2 py-1 text-xs font-bold rounded transition-colors ${item.isAvailable
+                                ? "bg-green-900 text-green-300 hover:bg-green-800"
+                                : "bg-red-900 text-red-300 hover:bg-red-800"
+                                }`}
                             >
                               {item.isAvailable ? "In Stock" : "Unavailable"}
                             </button>
@@ -523,65 +591,169 @@ useEffect(() => {
             )}
           </div>
         )}
-{activeTab === "restaurants" && (
-  <div className="animate-fade-in">
+        {activeTab === "addRestaurant" && (
+          <div className="animate-fade-in max-w-2xl mx-auto space-y-6">
+
+            <h2 className="text-2xl font-semibold text-center">Add Restaurant</h2>
+
+            {/* STEP 1: ENTER REST ID */}
+            <div className="space-y-2">
+              <label className="text-gray-300 text-sm">PetPuja Restaurant ID</label>
+              <input
+                type="text"
+                value={restId}
+                onChange={(e) => {
+                  setRestId(e.target.value);
+                  setFetchedData(null);
+                }}
+                placeholder="e.g. c9ignw2k50"
+                className="w-full bg-gray-800 text-gray-200 border border-gray-700 rounded-md p-3"
+              />
+
+              <button
+                onClick={handleFetchRestaurantData}
+                disabled={!restId || isFetching}
+                className="bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-md disabled:opacity-60 flex items-center gap-2"
+              >
+                {isFetching ? <Spinner className="w-4 h-4" /> : null}
+                Fetch Data
+              </button>
+            </div>
+
+            {/* STEP 2: SHOW AUTO-FETCHED DATA */}
+            {fetchedData && (
+              <div className="bg-gray-900 border border-gray-700 rounded-md p-5 space-y-3">
+                <h3 className="text-lg font-semibold text-cyan-400">Fetched Details</h3>
+
+                <p><span className="text-gray-400">Name:</span> {fetchedData.restaurantname}</p>
+                <p><span className="text-gray-400">Address:</span> {fetchedData.address}</p>
+                <p><span className="text-gray-400">City:</span> {fetchedData.city}</p>
+
+                <img
+                  src={
+                    fetchedData.logo ||
+                    fetchedData.images?.[0] ||
+                    DEFAULT_IMAGE
+                  }
+                  alt="Restaurant Logo"
+                  className="w-40 h-40 object-cover border border-gray-700 rounded"
+                />
+              </div>
+            )}
 
 
-    {isLoadingRestaurants ? (
-      <div className="flex justify-center p-8">
-        <Spinner className="w-8 h-8" />
-      </div>
-    ) : restaurants.length === 0 ? (
-      <p className="text-center text-gray-400 py-8">
-        No restaurants found.
-      </p>
-    ) : (
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-700">
-          <thead>
-            <tr className="text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-              <th className="px-4 py-3">Name</th>
-              <th className="px-4 py-3">Rest ID</th>
-              <th className="px-4 py-3">Tagline</th>
-              <th className="px-4 py-3 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-700">
-            {restaurants.map((r) => (
-              <tr key={r.rest_id}>
-                <td className="px-4 py-3 text-sm text-white">{r.name}</td>
-                <td className="px-4 py-3 text-xs font-mono text-cyan-400">
-                  {r.rest_id}
-                </td>
-                <td className="px-4 py-3 text-sm text-gray-400">
-                  {r.tagline || "-"}
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <button
-                    onClick={() => {
-                      setAddTableFor(r.rest_id);
-                      setTableNumber("");
-                      setCapacity("");
-                      setTableError(null);
-                    }}
-                    className="inline-flex items-center gap-1 bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-1.5 rounded-md text-xs font-semibold"
-                  >
-                    <Icon type="plus-circle" className="w-4 h-4" />
-                    Add Table
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    )}
+            {/* STEP 3: THEME INPUTS */}
+            <div className="bg-gray-900 border border-gray-700 p-5 rounded-md space-y-4">
+              <h3 className="text-lg font-semibold text-cyan-400">Theme Configuration</h3>
 
-    {tableError && (
-      <p className="mt-4 text-center text-sm text-red-400">{tableError}</p>
-    )}
-  </div>
-)}
+              <input
+                type="color"
+                value={themePrimary}
+                onChange={(e) => setThemePrimary(e.target.value)}
+                className="w-full h-10 cursor-pointer"
+              />
+              <label className="text-gray-400 text-sm">Primary Color</label>
+
+              <input
+                type="color"
+                value={themeAccent}
+                onChange={(e) => setThemeAccent(e.target.value)}
+                className="w-full h-10 cursor-pointer"
+              />
+              <label className="text-gray-400 text-sm">Accent Color</label>
+
+              <input
+                type="color"
+                value={themeText}
+                onChange={(e) => setThemeText(e.target.value)}
+                className="w-full h-10 cursor-pointer"
+              />
+              <label className="text-gray-400 text-sm">Text Color On Primary</label>
+            </div>
+
+            {/* STEP 4: SUBMIT */}
+            <button
+              disabled={!fetchedData || isSubmitting}
+              onClick={handleSubmitRestaurant}
+              className="w-full bg-green-600 hover:bg-green-500 text-white px-4 py-3 rounded-md font-semibold disabled:opacity-50 flex justify-center gap-2"
+            >
+              {isSubmitting ? <Spinner className="w-5 h-5" /> : null}
+              Save Restaurant
+            </button>
+
+          </div>
+        )}
+
+        {activeTab === "restaurants" && (
+          <div className="animate-fade-in">
+
+
+            {isLoadingRestaurants ? (
+              <div className="flex justify-center p-8">
+                <Spinner className="w-8 h-8" />
+              </div>
+            ) : restaurants.length === 0 ? (
+              <p className="text-center text-gray-400 py-8">
+                No restaurants found.
+              </p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-700">
+                  <thead>
+                    <tr className="text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                      <th className="px-4 py-3">Name</th>
+                      <th className="px-4 py-3">Rest ID</th>
+                      <th className="px-4 py-3">Tagline</th>
+                      <th className="px-4 py-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-700">
+                    {restaurants.map((r) => (
+                      <tr key={r.rest_id}>
+                        <td className="px-4 py-3 text-sm text-white">{r.name}</td>
+                        <td className="px-4 py-3 text-xs font-mono text-cyan-400">
+                          {r.rest_id}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-400">
+                          {r.tagline || "-"}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <button
+                            onClick={() => {
+                              setAddTableFor(r.rest_id);
+                              setTableNumber("");
+                              setCapacity("");
+                              setTableError(null);
+                            }}
+                            className="inline-flex items-center gap-1 bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-1.5 rounded-md text-xs font-semibold"
+                          >
+                            <Icon type="plus-circle" className="w-4 h-4" />
+                            Add Table
+                          </button>   <button
+                            onClick={() => {
+                              setShowTablesFor(r.rest_id);
+                              loadTables(r.rest_id);
+                            }}
+                            className="inline-flex items-center gap-1 bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-1.5 rounded-md text-xs font-semibold"
+                          >
+                            <Icon type="plus-circle" className="w-4 h-4" />
+                            View Tables
+                          </button>
+
+
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {tableError && (
+              <p className="mt-4 text-center text-sm text-red-400">{tableError}</p>
+            )}
+          </div>
+        )}
 
         {activeTab === "orders" && (
           <div className="animate-fade-in">
@@ -788,11 +960,10 @@ useEffect(() => {
             <div className="flex justify-center gap-4 mb-6">
               <button
                 onClick={() => setComplaintFilter("active")}
-                className={`px-4 py-2 rounded-full font-semibold text-sm ${
-                  complaintFilter === "active"
-                    ? "bg-red-600 text-white"
-                    : "bg-gray-800 text-gray-400 hover:bg-gray-700"
-                }`}
+                className={`px-4 py-2 rounded-full font-semibold text-sm ${complaintFilter === "active"
+                  ? "bg-red-600 text-white"
+                  : "bg-gray-800 text-gray-400 hover:bg-gray-700"
+                  }`}
               >
                 Active (
                 {
@@ -803,11 +974,10 @@ useEffect(() => {
               </button>
               <button
                 onClick={() => setComplaintFilter("resolved")}
-                className={`px-4 py-2 rounded-full font-semibold text-sm ${
-                  complaintFilter === "resolved"
-                    ? "bg-green-600 text-white"
-                    : "bg-gray-800 text-gray-400 hover:bg-gray-700"
-                }`}
+                className={`px-4 py-2 rounded-full font-semibold text-sm ${complaintFilter === "resolved"
+                  ? "bg-green-600 text-white"
+                  : "bg-gray-800 text-gray-400 hover:bg-gray-700"
+                  }`}
               >
                 Resolved
               </button>
@@ -838,13 +1008,12 @@ useEffect(() => {
                           </span>
                         </p>
                         <span
-                          className={`px-2 py-0.5 text-xs font-bold rounded-full capitalize ${
-                            order.complaint?.status === "pending"
-                              ? "bg-yellow-900 text-yellow-300"
-                              : order.complaint?.status === "approved"
+                          className={`px-2 py-0.5 text-xs font-bold rounded-full capitalize ${order.complaint?.status === "pending"
+                            ? "bg-yellow-900 text-yellow-300"
+                            : order.complaint?.status === "approved"
                               ? "bg-green-900 text-green-300"
                               : "bg-red-900 text-red-300"
-                          }`}
+                            }`}
                         >
                           {order.complaint?.status}
                         </span>
@@ -953,100 +1122,144 @@ useEffect(() => {
         </div>
       </div>
       {addTableFor && (
-  <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center">
-    <div className="bg-gray-900 border border-gray-700 p-6 rounded-lg w-full max-w-md shadow-xl">
-      <h3 className="text-lg font-semibold mb-4">
-        Add Table for{" "}
-        <span className="font-mono text-cyan-400">{addTableFor}</span>
-      </h3>
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center">
+          <div className="bg-gray-900 border border-gray-700 p-6 rounded-lg w-full max-w-md shadow-xl">
+            <h3 className="text-lg font-semibold mb-4">
+              Add Table for{" "}
+              <span className="font-mono text-cyan-400">{addTableFor}</span>
+            </h3>
 
-      <div className="space-y-3">
-        <div>
-          <label className="block text-sm text-gray-300 mb-1">
-            Table Number
-          </label>
-          <input
-            type="number"
-            className="w-full bg-gray-800 text-gray-200 border border-gray-700 rounded-md p-2"
-            value={tableNumber}
-            onChange={(e) => setTableNumber(e.target.value)}
-          />
-        </div>
-        <div>
-          <label className="block text-sm text-gray-300 mb-1">
-            Capacity
-          </label>
-          <input
-            type="number"
-            className="w-full bg-gray-800 text-gray-200 border border-gray-700 rounded-md p-2"
-            value={capacity}
-            onChange={(e) => setCapacity(e.target.value)}
-          />
-        </div>
-        {tableError && (
-          <p className="text-sm text-red-400">{tableError}</p>
-        )}
-      </div>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm text-gray-300 mb-1">
+                  Table Number
+                </label>
+                <input
+                  type="number"
+                  className="w-full bg-gray-800 text-gray-200 border border-gray-700 rounded-md p-2"
+                  value={tableNumber}
+                  onChange={(e) => setTableNumber(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-300 mb-1">
+                  Capacity
+                </label>
+                <input
+                  type="number"
+                  className="w-full bg-gray-800 text-gray-200 border border-gray-700 rounded-md p-2"
+                  value={capacity}
+                  onChange={(e) => setCapacity(e.target.value)}
+                />
+              </div>
+              {tableError && (
+                <p className="text-sm text-red-400">{tableError}</p>
+              )}
+            </div>
 
-      <div className="flex justify-end gap-3 mt-6">
-        <button
-          className="px-4 py-2 text-sm rounded-md border border-gray-600 text-gray-200 hover:bg-gray-800"
-          disabled={isSavingTable}
-          onClick={() => {
-            setAddTableFor(null);
-            setTableNumber("");
-            setCapacity("");
-            setTableError(null);
-          }}
-        >
-          Close
-        </button>
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                className="px-4 py-2 text-sm rounded-md border border-gray-600 text-gray-200 hover:bg-gray-800"
+                disabled={isSavingTable}
+                onClick={() => {
+                  setAddTableFor(null);
+                  setTableNumber("");
+                  setCapacity("");
+                  setTableError(null);
+                }}
+              >
+                Close
+              </button>
+              <button
+                className="px-4 py-2 text-sm rounded-md bg-cyan-600 text-white hover:bg-cyan-500 disabled:opacity-60"
+                disabled={isSavingTable}
+                onClick={async () => {
+                  if (!tableNumber || !capacity) {
+                    setTableError("Table number and capacity are required.");
+                    return;
+                  }
 
-        <button
-          className="px-4 py-2 text-sm rounded-md bg-cyan-600 text-white hover:bg-cyan-500 disabled:opacity-60"
-          disabled={isSavingTable}
-          onClick={async () => {
-            if (!tableNumber || !capacity) {
-              setTableError("Table number and capacity are required.");
-              return;
-            }
-            setIsSavingTable(true);
-            setTableError(null);
-            try {
-              const { error } = await supabase
-                .from("restaurant_tables")
-                .insert([
-                  {
-                    rest_id: addTableFor,
+                  setIsSavingTable(true);
+                  setTableError(null);
+
+                  const tableName = `Table ${tableNumber}`;
+
+                  const res = await apiAddTable(addTableFor!, {
                     table_number: Number(tableNumber),
                     capacity: Number(capacity),
-                  },
-                ]);
+                    table_name: tableName,  // 🔥 passes table_name properly
+                  });
 
-              if (error) {
-                console.error("Failed to add table:", error);
-                setTableError(error.message || "Failed to add table");
-              } else {
-                // success
-                setAddTableFor(null);
-                setTableNumber("");
-                setCapacity("");
-                await fetchRestaurants(); // refresh list
-              }
-            } catch (e: any) {
-              console.error(e);
-              setTableError(e.message || "Failed to add table");
-            } finally {
-              setIsSavingTable(false);
-            }
-          }}
-        >
-          {isSavingTable ? "Saving..." : "Save Table"}
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+                  if (res.error) {
+                    setTableError(res.error);
+                  } else {
+                    setAddTableFor(null);
+                    setTableNumber("");
+                    setCapacity("");
+                    await fetchRestaurants(); // reload restaurants
+                  }
+
+                  setIsSavingTable(false);
+                }}
+              >
+                {isSavingTable ? "Saving..." : "Save Table"}
+              </button>
+
+
+            </div>
+          </div>
+        </div>
+      )}
+      {showTablesFor && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center">
+          <div className="bg-gray-900 border border-gray-700 p-6 rounded-lg w-full max-w-md shadow-xl">
+
+            <h3 className="text-lg font-semibold flex items-center justify-between mb-4">
+              Tables for <span className="font-mono text-cyan-400">{showTablesFor}</span>
+              <button
+                className="text-gray-400 hover:text-white"
+                onClick={() => {
+                  setShowTablesFor(null)
+                  setTables([])
+                }}
+              >
+                ✕
+              </button>
+            </h3>
+
+            {loadingTables ? (
+              <p className="text-gray-400 text-sm">Loading tables...</p>
+            ) : tables.length === 0 ? (
+              <p className="text-gray-400 text-sm">No tables found.</p>
+            ) : (
+              <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                {tables.map((t) => (
+                  <div
+                    key={t.id}
+                    className="flex justify-between bg-gray-800 border border-gray-700 px-3 py-2 rounded"
+                  >
+                    <span className="text-sm">{t.table_name} ({t.capacity} seats)</span>
+
+                    <button
+                      className={`px-2 py-1 rounded text-xs text-white ${t.is_active ? "bg-green-600 hover:bg-green-500"
+                        : "bg-red-600 hover:bg-red-500"
+                        }`}
+                      onClick={async () => {
+                        await apiToggleTable(t.id, !t.is_active)
+                        loadTables(showTablesFor!)
+                      }}
+                    >
+                      {t.is_active ? "Active" : "Inactive"}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+          </div>
+        </div>
+      )}
+
 
       {cancelOrderFor && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center">

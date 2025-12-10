@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { getMealRecommendation } from '../services/geminiService';
+// import { getMealRecommendation } from '../services/geminiService';
 import { BrandData, BrandMenuCategory, CartItem, MenuItem, RestaurantTable } from '../types';
 import { Icon } from './Icon';
 import { useCart } from '../context/CartContext';
 import CartModal from './CartModal';
 import { useAuth } from '../context/AuthContext';
-import { apiCreateReservation, apiGetAvailableTables, apiSendReservationOTP, apiVerifyReservationOTP, apiGetMenu, apiGetCategories } from '../services/apiService';
+import { apiCreateReservation, apiGetAvailableTables, apiSendReservationOTP, apiVerifyReservationOTP, apiGetMenu, apiGetCategories, getMealRecommendation } from '../services/apiService';
 import { ItemData } from '@/model/menu_list';
-
+import { supabase } from '../services/supabaseClient';
+import { BASE_URL } from "../src/config";
 const ShimmerCard: React.FC = () => (
     <div className="animate-pulse bg-gray-900 rounded-lg overflow-hidden shadow-md">
         <div className="h-48 bg-gray-700 w-full"></div>
@@ -126,18 +127,40 @@ const TableMap: React.FC<{ tables: RestaurantTable[]; selectedTableId: string | 
 
         return (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-4">
-                {tables.map(table => (
-                    <button key={table.id} type="button" onClick={() => onSelect(table.id)}
-                        className={`p-4 rounded-lg border-2 flex flex-col items-center justify-center transition-all ${selectedTableId === table.id
-                            ? 'border-[var(--accent-color)] bg-[var(--primary-color)]/20'
-                            : 'border-gray-600 bg-gray-800 hover:border-gray-500'}`}
-                    >
-                        <Icon type="users" className={`w-8 h-8 mb-2 ${selectedTableId === table.id ? 'text-[var(--accent-color)]' : 'text-gray-500'}`} />
-                        <span className="font-semibold text-white">{table.name}</span>
-                        <span className="text-xs text-gray-400">{table.capacity} Seats</span>
-                    </button>
-                ))}
+                {tables.map(table => {
+                    const isBooked = table._status === "booked";
+                    const isSelected = selectedTableId === table.id && !isBooked;
+
+                    return (
+                        <button
+                            key={table.id}
+                            type="button"
+                            disabled={isBooked}
+                            onClick={() => !isBooked && onSelect(table.id)}
+                            className={`p-4 rounded-lg border-2 flex flex-col items-center justify-center transition-all
+          ${isBooked ? 'opacity-50 cursor-not-allowed border-red-500 bg-red-900/20' : ''}
+          ${isSelected ? 'border-[var(--accent-color)] bg-[var(--primary-color)]/20' : ''}
+          ${!isSelected && !isBooked ? 'border-gray-600 bg-gray-800 hover:border-gray-500' : ''}
+        `}
+                        >
+                            <Icon
+                                type="users"
+                                className={`w-8 h-8 mb-2 ${isBooked ? 'text-red-500' :
+                                    isSelected ? 'text-[var(--accent-color)]' : 'text-gray-500'}`}
+                            />
+                            <span className="font-semibold text-white">{table.name}</span>
+                            <span className="text-xs text-gray-400">{table.capacity} Seats</span>
+
+                            {isBooked && (
+                                <span className="mt-1 text-xs text-red-400 font-semibold">
+                                    Booked
+                                </span>
+                            )}
+                        </button>
+                    );
+                })}
             </div>
+
         );
     };
 
@@ -275,21 +298,31 @@ const BrandPage: React.FC<BrandPageProps> = ({ brandData, onBack }) => {
 
     const fetchTables = async () => {
         if (!resForm.date || !resForm.time) {
-            setResError('Please select date and time first.');
+            setResError("Please select date and time first.");
             return;
         }
+
         setIsLoadingTables(true);
-        setResError('');
+        setResError("");
+
         try {
-            const tables = await apiGetAvailableTables(brandData.id, resForm.date, resForm.time, resForm.guests);
-            setAvailableTables(tables);
+            const tables = await apiGetAvailableTables(
+                brandData.id,
+                resForm.date,
+                resForm.time,
+                resForm.guests
+            );
+
+            setAvailableTables(tables);   // ⬅️ now flat array with statuses
             setResStep(2);
         } catch {
-            setResError('Failed to load tables. Please try again.');
+            setResError("Could not load tables.");
         } finally {
             setIsLoadingTables(false);
         }
     };
+
+
 
     const sendOtp = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -308,18 +341,26 @@ const BrandPage: React.FC<BrandPageProps> = ({ brandData, onBack }) => {
 
     const confirmBooking = async () => {
         if (isBooking) return;
+
         setIsBooking(true);
         setResError('');
+
         try {
             const valid = await apiVerifyReservationOTP(resForm.phone, otp);
             if (!valid) {
                 setResError("Invalid OTP");
                 return;
             }
-            const res = await apiCreateReservation(brandData.id, currentUser?.id, resForm);
-            setLastReservationId(res.bookingId);
+
+            const reservation = await apiCreateReservation(brandData.id, currentUser?.id, resForm);
+            setLastReservationId(reservation.bookingId);
+
+            // Refresh available table list after booking
+            await fetchTables();
+
             setResStep(4);
-        } catch (e) {
+
+        } catch {
             setResError("Booking failed. Please try again.");
         } finally {
             setIsBooking(false);

@@ -4,6 +4,39 @@ import { User, Order, Reservation, CartItem, Brand, LoyaltyConfig, BrandData, Br
 import { brandsData } from '../data';
 import { supabase } from './supabaseClient';
 import { BASE_URL } from "../src/config";
+export const apiFetchRestaurantMapping = async (rest_id: string) => {
+    const res = await fetch(`${BASE_URL}/resturents/restaurant-by-mappingId?resturent_identifier=${rest_id}`);
+    return res.json();
+};
+
+export const apiAddRestaurant = async (payload: any) => {
+    const res = await fetch(`${BASE_URL}/resturents/add`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
+    return res.json();
+};
+export async function apiAddTable(
+    restId: string,
+    payload: { table_number: number; capacity: number; table_name: string }
+) {
+    try {
+        const res = await fetch(
+            `http://localhost:3000/api/resturents/${restId}/addTable`,
+            {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+            }
+        );
+
+        return await res.json();
+    } catch (err: any) {
+        return { error: err.message };
+    }
+}
+
 
 export async function apiGetCategories(resturent_identifier: string) {
     const url = `${BASE_URL}/menu/catagory-by-resturent?resturent_identifier=${resturent_identifier}`;
@@ -12,25 +45,43 @@ export async function apiGetCategories(resturent_identifier: string) {
     return data.data;
 }
 export async function apiGetAdminCategoriesMenu(resturent_identifier: string) {
-  const url = `${BASE_URL}/menu/fetch-admin-menus-with-catagory`;
+    const url = `${BASE_URL}/menu/fetch-admin-menus-with-catagory`;
 
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ resturent_identifier })
-  });
+    const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ resturent_identifier })
+    });
 
-  const { data } = await res.json();
+    const { data } = await res.json();
 
-  // Normalize response for UI
-  return data.map((category: any) => ({
-    category: category.name, // Frontend expects category
-    items: (category.menus || []).map((item: any) => ({
-      name: item.itemname,
-      isAvailable: item.active === "1" // check availability logic
-    }))
-  }));
+    // Normalize response for UI
+    return data.map((category: any) => ({
+        category: category.name, // Frontend expects category
+        items: (category.menus || []).map((item: any) => ({
+            name: item.itemname,
+            isAvailable: item.active === "1" // check availability logic
+        }))
+    }));
 }
+export async function apiGetTables(restId: string) {
+    const res = await fetch(`${BASE_URL}/resturents/${restId}/tables`);
+    return res.json();
+}
+
+export async function apiToggleTable(tableId: string, newState: boolean) {
+    const res = await fetch(
+        `${BASE_URL}/resturents/table/${tableId}/toggleStatus`,
+        {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ is_active: newState }),
+        }
+    );
+
+    return res.json();
+}
+
 
 export async function apiGetMenu(resturent_identifier: string, category_id: string) {
     const url = `${BASE_URL}/menu/fetch-menus-by-catagory`;
@@ -46,9 +97,9 @@ export async function apiGetMenu(resturent_identifier: string, category_id: stri
 // --- CONSTANTS & CONFIG ---
 const PETPOOJA_CONFIG = {
     BASE_URL: 'https://api.petpooja.com/v1',
-    API_KEY: 'YOUR_REAL_PETPOOJA_API_KEY',        
-    APP_SECRET: 'YOUR_REAL_PETPOOJA_APP_SECRET',  
-    ACCESS_TOKEN: 'YOUR_REAL_PETPOOJA_ACCESS_TOKEN' 
+    API_KEY: 'YOUR_REAL_PETPOOJA_API_KEY',
+    APP_SECRET: 'YOUR_REAL_PETPOOJA_APP_SECRET',
+    ACCESS_TOKEN: 'YOUR_REAL_PETPOOJA_ACCESS_TOKEN'
 };
 
 const STATIC_TABLE_INVENTORY: RestaurantTable[] = [
@@ -82,7 +133,7 @@ const handleSupabaseError = (error: any, context: string) => {
 
 // --- Petpooja API Helper ---
 const callPetpoojaAPI = async (endpoint: string, method: 'GET' | 'POST', body?: any) => {
-    return null; 
+    return null;
 };
 
 
@@ -98,7 +149,7 @@ export const apiGetLoyaltyConfig = async (): Promise<LoyaltyConfig> => {
     const { data, error } = await supabase.from('loyalty_config').select('*').maybeSingle();
     if (error) {
         console.warn("Failed to fetch loyalty config from Supabase.", error.message);
-        return { rupeesPerPoint: 100 }; 
+        return { rupeesPerPoint: 100 };
     }
     if (!data) return { rupeesPerPoint: 100 };
     return { rupeesPerPoint: data.rupees_per_point };
@@ -202,9 +253,9 @@ export const apiGetUserById = async (userId: string): Promise<User | null> => {
     return {
         id: profile.id,
         name: profile.name,
-        email: profile.email || "", 
+        email: profile.email || "",
         phone: profile.phone,
-        passwordHash: "", 
+        passwordHash: "",
         isAdmin: isAdmin,
         loyaltyPoints: profile.loyalty_points || [],
         dob: profile.dob,
@@ -227,8 +278,8 @@ export const apiUpdateUser = async (userId: string, updates: Partial<User>): Pro
         const { error } = await supabase.from('profiles').update(dbUpdates).eq('id', userId);
         if (error) handleSupabaseError(error, 'Update User');
     }
-    
-    return apiGetUserById(userId) as Promise<User>; 
+
+    return apiGetUserById(userId) as Promise<User>;
 };
 
 
@@ -256,7 +307,7 @@ const mapDbOrderToType = (dbOrder: any): Order => ({
     status: dbOrder.status,
     rating: dbOrder.rating,
     feedback: dbOrder.feedback,
-    complaint: dbOrder.complaint, 
+    complaint: dbOrder.complaint,
     refundStatus: dbOrder.refund_status,
     deliveryInfo: dbOrder.delivery_info,
     externalOrderId: dbOrder.external_order_id
@@ -269,12 +320,12 @@ export const apiGetOrderById = async (orderId: string): Promise<Order | undefine
 }
 
 export const apiCreateOrder = async (
-    brandId: Brand['id'], 
-    userId: string, 
-    items: CartItem[], 
-    customer: Order['customer'], 
+    brandId: Brand['id'],
+    userId: string,
+    items: CartItem[],
+    customer: Order['customer'],
     deliveryAddress: DeliveryAddress,
-    subtotal: number, 
+    subtotal: number,
     loyaltyPointsToRedeem: number,
     serverOrderId: string
 ): Promise<Order> => {
@@ -299,7 +350,7 @@ export const apiCreateOrder = async (
         gst_amount: gstAmount,
         total_amount: finalTotalAmount,
         points_earned: pointsEarned,
- 
+
         created_at: new Date().toISOString(),
     };
 
@@ -330,59 +381,59 @@ export const apiUpdateOrder = async (orderId: string, updates: Partial<Order>): 
 
 // --- Complaint & Refund API ---
 export const apiRaiseComplaint = async (
-  orderId: string,
-  itemNames: string[],
-  comments: string
+    orderId: string,
+    itemNames: string[],
+    comments: string
 ): Promise<Order> => {
 
-  const order = await apiGetOrderById(orderId);
-  if (!order) throw new Error("Order not found");
+    const order = await apiGetOrderById(orderId);
+    if (!order) throw new Error("Order not found");
 
-  const complaintId = `C-${orderId}-${Date.now()}`;
+    const complaintId = `C-${orderId}-${Date.now()}`;
 
-  // Insert complaint entry
-  const { error: insertError } = await supabase
-    .from("complaints")
-    .insert({
-      id: complaintId,
-      order_id: orderId,
-      user_id: order.userId,               // REQUIRED for RLS policy
-      item_names: itemNames,               // JSONB array
-      comments,
-      status: "PENDING",
-      created_at: new Date().toISOString(),
-      resolved_at: null
-    });
+    // Insert complaint entry
+    const { error: insertError } = await supabase
+        .from("complaints")
+        .insert({
+            id: complaintId,
+            order_id: orderId,
+            user_id: order.userId,               // REQUIRED for RLS policy
+            item_names: itemNames,               // JSONB array
+            comments,
+            status: "PENDING",
+            created_at: new Date().toISOString(),
+            resolved_at: null
+        });
 
-  if (insertError) handleSupabaseError(insertError, "Raise Complaint");
+    if (insertError) handleSupabaseError(insertError, "Raise Complaint");
 
-  // Optionally update order table to mark complaint exists
-  const { data: updatedOrder, error: updateError } = await supabase
-    .from("orders")
-    .update({ refund_status: 'pending' }) // or a flag if needed
-    .eq("id", orderId)
-    .select()
-    .single();
+    // Optionally update order table to mark complaint exists
+    const { data: updatedOrder, error: updateError } = await supabase
+        .from("orders")
+        .update({ refund_status: 'pending' }) // or a flag if needed
+        .eq("id", orderId)
+        .select()
+        .single();
 
-  if (updateError) handleSupabaseError(updateError, "Link Complaint to Order");
+    if (updateError) handleSupabaseError(updateError, "Link Complaint to Order");
 
-  // Return updated order object
-  return mapDbOrderToType(updatedOrder);
+    // Return updated order object
+    return mapDbOrderToType(updatedOrder);
 };
 export async function apiCancelOrder(orderId: string, amount: number, reason: string) {
-  const res = await fetch("http://localhost:3000/api/payment/cancel-order", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      clientorderID: orderId,
-      amount,
-      reason
-    }),
-  });
+    const res = await fetch("http://localhost:3000/api/payment/cancel-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            clientorderID: orderId,
+            amount,
+            reason
+        }),
+    });
 
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.message);
-  return data;
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message);
+    return data;
 }
 
 
@@ -410,12 +461,12 @@ export const apiProcessRefundApproval = async (orderId: string): Promise<Order> 
 };
 
 export const apiRejectComplaint = async (orderId: string): Promise<Order> => {
-     const order = await apiGetOrderById(orderId);
-     if (!order || !order.complaint) throw new Error("Invalid order");
-     const updatedComplaint = { ...order.complaint, status: 'rejected', resolvedAt: new Date().toISOString() };
-     const { data, error } = await supabase.from('orders').update({ complaint: updatedComplaint }).eq('id', orderId).select().single();
-     if (error) handleSupabaseError(error, 'Reject Complaint');
-     return mapDbOrderToType(data);
+    const order = await apiGetOrderById(orderId);
+    if (!order || !order.complaint) throw new Error("Invalid order");
+    const updatedComplaint = { ...order.complaint, status: 'rejected', resolvedAt: new Date().toISOString() };
+    const { data, error } = await supabase.from('orders').update({ complaint: updatedComplaint }).eq('id', orderId).select().single();
+    if (error) handleSupabaseError(error, 'Reject Complaint');
+    return mapDbOrderToType(data);
 };
 
 // --- Reservation API ---
@@ -479,7 +530,7 @@ export const apiGetAllActiveReservations = async (): Promise<Reservation[]> => {
         .in('status', ['confirmed', 'pending'])
         .order('date', { ascending: true })
         .order('time', { ascending: true });
-        
+
     if (error) {
         console.error("Error fetching active reservations:", error);
         return [];
@@ -503,44 +554,31 @@ const mapDbReservation = (data: any): Reservation => ({
     createdAt: data.created_at,
     status: data.status as Reservation['status']
 });
+export const apiGetAvailableTables = async (
+  brandId: string,
+  date: string,
+  time: string,
+  guests: number
+) => {
+  const url = `${BASE_URL}/reservation/tables/${brandId}?date=${date}&time=${time}&guests=${guests}`;
 
-export const apiGetAvailableTables = async (brandId: string, date: string, time: string, guests: number): Promise<RestaurantTable[]> => {
-    const capableTables = STATIC_TABLE_INVENTORY.filter(t => t.capacity >= guests);
-    if (capableTables.length === 0) return [];
-    const bestFitCapacity = Math.min(...capableTables.map(t => t.capacity));
-    const suitableTables = capableTables.filter(t => t.capacity === bestFitCapacity);
-    try {
-        // Direct Supabase query instead of RPC for simpler setup
-        const { data: occupied, error } = await supabase
-            .from('reservations')
-            .select('table_id, time')
-            .eq('brand_id', brandId)
-            .eq('date', date)
-            .in('status', ['confirmed', 'pending']);
+  const res = await fetch(url);
 
-        if (error) throw error;
+  if (!res.ok) {
+    const msg = await res.json();
+    throw new Error(msg.error || "Failed to load tables");
+  }
 
-        // Simple time conflict check (occupies table for 60 mins)
-        const reqTimeVal = parseInt(time.replace(':', ''));
-        const blockedTableIds = new Set<string>();
-        
-        if (occupied && Array.isArray(occupied)) {
-            occupied.forEach((res: any) => {
-                const resTimeVal = parseInt(res.time.replace(':', ''));
-                 // Block if within 60 minutes of another booking
-                 if (Math.abs(reqTimeVal - resTimeVal) < 60) {
-                     blockedTableIds.add(res.table_id);
-                }
-            });
-        }
-        
-        return suitableTables.filter(t => !blockedTableIds.has(t.id));
-    } catch (e) {
-        console.error("Error checking table availability:", e);
-        // Fallback: return all suitable tables if DB check fails (e.g. network error)
-        return suitableTables; 
-    }
+  const data = await res.json();
+
+  // Backend returns { booked: [], available: [] }
+  // Combine them but mark status so UI can highlight
+  return [
+    ...data.available.map((t: any) => ({ ...t, _status: "available" })),
+    ...data.booked.map((t: any) => ({ ...t, _status: "booked" }))
+  ];
 };
+
 
 export const apiSendReservationOTP = async (contact: string): Promise<boolean> => {
     await simulateDelay(1000);
@@ -555,7 +593,7 @@ export const apiVerifyReservationOTP = async (contact: string, otp: string): Pro
 
 const generateDailyBookingId = async (dateStr: string): Promise<string> => {
     const datePart = dateStr.replace(/-/g, '');
-    
+
     // Find the highest current booking_id for today
     const { data } = await supabase
         .from('reservations')
@@ -582,56 +620,59 @@ const generateDailyBookingId = async (dateStr: string): Promise<string> => {
 };
 
 export const apiCreateReservation = async (
-    brandId: Brand['id'],
-    userId: string | undefined,
-    form: { name: string; email: string; phone: string; date: string; time: string; guests: number; requests: string; tableId?: string }
-): Promise<Reservation> => {
-    const cleanPhone = form.phone.trim();
+  brandId: string,
+  userId: string | undefined,
+  form: { name: string; email: string; phone: string; date: string; time: string; guests: number; requests: string; tableId?: string }
+) => {
+  const payload = {
+    customer_id: userId || null,   // ✔ backend expects customer_id
+    name: form.name,
+    phone: form.phone.trim(),
+    email: form.email || null,
+    date: form.date,
+    time: form.time,
+    guests: form.guests,
+    tableId: form.tableId,         // ✔ backend expects tableId (not table_id)
+    requests: form.requests || null
+  };
 
-    // (Duplicate check removed in previous step as per instructions, keeping it removed)
+  const res = await fetch(`${BASE_URL}/reservation/${brandId}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
 
-    let finalUserId = userId || null;
-    if (!finalUserId && cleanPhone) {
-        const { data: userProfile } = await supabase.from('profiles').select('id').eq('phone', cleanPhone).maybeSingle();
-        if (userProfile) finalUserId = userProfile.id;
-    }
+  if (!res.ok) {
+    const msg = await res.json();
+    throw new Error(msg.error || "Reservation failed");
+  }
 
-    const bookingId = await generateDailyBookingId(form.date);
-    const newReservation = {
-        booking_id: bookingId,
-        brand_id: brandId,
-        user_id: finalUserId,
-        table_id: form.tableId || null,
-        name: form.name,
-        email: form.email,
-        phone: cleanPhone,
-        date: form.date,
-        time: form.time,
-        guests: form.guests,
-        requests: form.requests,
-        status: 'confirmed'
-    };
-    
-    const { data, error } = await supabase.from('reservations').insert(newReservation).select().single();
-    
-    if (error) {
-        if (error.code === '23505') {
-             throw new Error("This slot was just booked by someone else. Please try another time.");
-        }
-        handleSupabaseError(error, 'Create Reservation');
-    }
-
-    // Ensure we return the booking_id we just generated, even if the DB select didn't return it immediately
-    // (This handles cases where RLS might hide the new row from the immediate select)
-    return mapDbReservation({ ...data, booking_id: bookingId });
+  return await res.json();
 };
+
+
+
 
 export const apiUpdateReservation = async (resId: string, updates: Partial<Reservation>): Promise<Reservation> => {
-     const { data, error } = await supabase.from('reservations').update(updates).eq('id', resId).select().single();
-     if (error) handleSupabaseError(error, 'Update Reservation');
-     return mapDbReservation(data);
+    const { data, error } = await supabase.from('reservations').update(updates).eq('id', resId).select().single();
+    if (error) handleSupabaseError(error, 'Update Reservation');
+    return mapDbReservation(data);
 };
+export async function getMealRecommendation(preferences: string, menu: any[], brandName: string) {
+  const res = await fetch(`${BASE_URL}/ai/recommend`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ preferences, menu, brandName }),
+  });
 
+  if (!res.ok) {
+    const err = await res.json().catch(() => null);
+    throw new Error(err?.error || "Failed to get recommendation");
+  }
+
+  const data = await res.json();
+  return data.recommendation;
+}
 // --- Menu & Other ---
 const saveMenuToStorage = (brandId: Brand['id'], menu: BrandMenuCategory[]) => {
     localStorage.setItem(`petpooja-menu-${brandId}`, JSON.stringify(menu));
@@ -662,16 +703,16 @@ export const apiGetAllBrands = (): Brand[] => {
 };
 export const apiPunchOrder = async (order: Order): Promise<{ success: boolean; message: string }> => { return { success: true, message: "Order processing initiated." }; };
 export const apiBookDelivery = async (orderId: string): Promise<boolean> => {
-    await simulateDelay(2000); 
+    await simulateDelay(2000);
     const mockRider = { riderName: "Rajesh Kumar", riderPhone: "9876543210", etaMinutes: 25 };
     await apiUpdateOrder(orderId, { deliveryInfo: mockRider });
     return true;
 };
 export const apiGetDishRecommendation = async (user: User, brandId: Brand['id']): Promise<DishRecommendation> => {
-     if (!process.env.API_KEY) throw new Error("API_KEY not set");
+    if (!process.env.API_KEY) throw new Error("API_KEY not set");
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const brandName = brandsData[brandId]?.name || 'our restaurant';
-    const menu = brandsData[brandId].menu; 
+    const menu = brandsData[brandId].menu;
     const simplifiedMenu = menu.flatMap(cat => cat.items.map(item => item.itemname)).join(', ');
     const userOrders = await apiGetUserOrders(user.id);
     const orderHistory = userOrders.slice(0, 5).map(order => ({
@@ -683,6 +724,6 @@ export const apiGetDishRecommendation = async (user: User, brandId: Brand['id'])
     const response = await ai.models.generateContent({ model: "gemini-2.5-flash", contents: prompt, config: { responseMimeType: "application/json" } });
     return JSON.parse(response.text.trim());
 };
-export const apiHelpBuddyChat = async (history: {role: string, parts: string}[], message: string): Promise<{role: "model", parts: string}> => {
-      return { role: "model", parts: "I'm a mock AI buddy. I can't truly chat yet without more backend setup!" };
+export const apiHelpBuddyChat = async (history: { role: string, parts: string }[], message: string): Promise<{ role: "model", parts: string }> => {
+    return { role: "model", parts: "I'm a mock AI buddy. I can't truly chat yet without more backend setup!" };
 };
