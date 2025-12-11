@@ -43,26 +43,34 @@ const ChefRecommenderModal: React.FC<{ isOpen: boolean; onClose: () => void; bra
         const [recommendation, setRecommendation] = useState('');
         const [isLoading, setIsLoading] = useState(false);
         const [error, setError] = useState('');
+        const [menu, setMenu] = useState<any[]>([]);
+        const [brandName, setBrandName] = useState<string>("");
 
         const handleGetRecommendation = async () => {
             if (!preferences.trim()) {
-                setError('Please tell us what you are in the mood for!');
+                setError("Please tell us what you are in the mood for!");
                 return;
             }
+
             setIsLoading(true);
-            setError('');
-            setRecommendation('');
+            setError("");
 
             try {
-                const allItems = menuData.flatMap(cat => cat.items);
-                const result = await getMealRecommendation(preferences, allItems, brandData.name);
-                setRecommendation(result);
+                const result = await getMealRecommendation("c9ignw2k50", preferences);
+
+                // result = { brandName, menu, recommendation }
+
+                setRecommendation(result.recommendation);   // only store recommendation object
+                setMenu(result.menu);                       // if you want menu
+                setBrandName(result.brandName);             // if you want brand name
+
             } catch (err) {
-                setError(err instanceof Error ? err.message : 'An unexpected error occurred.');
+                setError(err instanceof Error ? err.message : "Unexpected error");
             } finally {
                 setIsLoading(false);
             }
         };
+
 
         if (!isOpen) return null;
 
@@ -96,6 +104,8 @@ const ChefRecommenderModal: React.FC<{ isOpen: boolean; onClose: () => void; bra
                                 <p className="text-white">{recommendation}</p>
                             </div>
                         )}
+
+
                     </div>
                 </div>
             </div>

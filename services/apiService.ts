@@ -658,11 +658,14 @@ export const apiUpdateReservation = async (resId: string, updates: Partial<Reser
     if (error) handleSupabaseError(error, 'Update Reservation');
     return mapDbReservation(data);
 };
-export async function getMealRecommendation(preferences: string, menu: any[], brandName: string) {
+export async function getMealRecommendation(resturent_identifier: string, preferences: string) {
   const res = await fetch(`${BASE_URL}/ai/recommend`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ preferences, menu, brandName }),
+    body: JSON.stringify({
+      resturent_identifier,
+      preferences
+    }),
   });
 
   if (!res.ok) {
@@ -671,8 +674,9 @@ export async function getMealRecommendation(preferences: string, menu: any[], br
   }
 
   const data = await res.json();
-  return data.recommendation;
+  return data; // includes brandName, menu, recommendation
 }
+
 // --- Menu & Other ---
 const saveMenuToStorage = (brandId: Brand['id'], menu: BrandMenuCategory[]) => {
     localStorage.setItem(`petpooja-menu-${brandId}`, JSON.stringify(menu));
