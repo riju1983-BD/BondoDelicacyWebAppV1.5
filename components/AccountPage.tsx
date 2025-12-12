@@ -5,7 +5,7 @@ import { Order, LoyaltyConfig, Brand, DishRecommendation, User, Complaint, Reser
 import { brandsData } from '../data';
 import { Icon } from './Icon';
 import OrderStatusPage from './OrderStatusPage';
-import { apiGetUserOrders, apiUpdateOrder, apiGetUserValidPoints, apiGetLoyaltyConfig, apiGetAllBrands, apiGetDishRecommendation, apiUpdateUser, apiRaiseComplaint, apiGetUserReservations } from '../services/apiService';
+import { apiGetUserOrders, apiUpdateOrder, apiGetUserValidPoints, apiGetLoyaltyConfig, apiGetAllBrands, apiGetDishRecommendation, apiUpdateUser, apiRaiseComplaint, apiGetUserReservations, apiGetUserAIRecommendation } from '../services/apiService';
 import { normalizeOrderStatus } from '../model/status';
 
 const Spinner: React.FC<{ className?: string }> = ({ className = "h-5 w-5" }) => (
@@ -77,7 +77,32 @@ const AccountPage: React.FC = () => {
     const handleSaveRating = async (orderId: string, rating: number, feedback: string) => { try { const updatedOrder = await apiUpdateOrder(orderId, { rating, feedback }); setUserOrders(prev => prev.map(o => o.id === orderId ? updatedOrder : o)); } catch (error) { console.error(error); } };
     const handleSaveComplaint = async (orderId: string, itemNames: string[], comments: string) => { try { const updatedOrder = await apiRaiseComplaint(orderId, itemNames, comments); setUserOrders(prev => prev.map(o => o.id === orderId ? updatedOrder : o)); } catch (error) { console.error(error); } };
     const handleNavigate = (route: string) => window.location.hash = route;
-    const handleGetRecommendation = async () => { if (!currentUser || !selectedBrandId) return; setIsLoadingRecommendation(true); setRecommendation(null); setRecommendationError(''); try { const result = await apiGetDishRecommendation(currentUser, selectedBrandId as Brand['id']); setRecommendation(result); } catch (err) { setRecommendationError(err instanceof Error ? err.message : 'Error.'); } finally { setIsLoadingRecommendation(false); } };
+    const handleGetRecommendation = async () => {
+        if (!currentUser || !selectedBrandId) return;
+
+        setIsLoadingRecommendation(true);
+        setRecommendation(null);
+        setRecommendationError("");
+
+        try {
+            const result = await apiGetUserAIRecommendation(
+                currentUser.id,
+                selectedBrandId
+            );
+
+            setRecommendation({
+                dishName: "Chef's Picks",
+                reason: result.recommendation,
+                offer: null
+            });
+
+        } catch (err: any) {
+            setRecommendationError(err.message || "Something went wrong");
+        } finally {
+            setIsLoadingRecommendation(false);
+        }
+    };
+
     const handleProfileChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => { const { name, value } = e.target; if (name.includes('.')) { const [parent, child] = name.split('.'); setProfileData(prev => ({ ...prev, [parent]: { ...(prev as any)[parent], [child]: value } })); } else { setProfileData(prev => ({ ...prev, [name]: value })); } };
     const handleSaveProfile = async () => { if (!currentUser) return; setProfileMessage({ type: '', text: '' }); try { await apiUpdateUser(currentUser.id, profileData); await refreshCurrentUser(); setIsEditingProfile(false); setProfileMessage({ type: 'success', text: 'Updated!' }); } catch (err) { setProfileMessage({ type: 'error', text: 'Failed.' }); } setTimeout(() => setProfileMessage({ type: '', text: '' }), 4000); };
 
@@ -132,7 +157,18 @@ const AccountPage: React.FC = () => {
                                     <div><label className="text-sm font-medium text-gray-300">Get a recommendation for:</label><select value={selectedBrandId} onChange={(e) => setSelectedBrandId(e.target.value as Brand['id'])} className="block w-full rounded-md border-gray-600 bg-gray-800 py-2 px-3 text-white mt-1">{brands.map(brand => (<option key={brand.id} value={brand.id}>{brand.name}</option>))}</select></div>
                                     <button onClick={handleGetRecommendation} disabled={isLoadingRecommendation} className="w-full flex justify-center items-center gap-2 font-bold py-2 px-4 rounded-md bg-cyan-600 hover:bg-cyan-500 disabled:bg-gray-500 transition-colors">{isLoadingRecommendation ? <Spinner /> : <Icon type="chef-hat" className="w-5 h-5" />} Ask the Chef!</button>
                                 </div>
-                                {recommendation && (<div className="mt-6 p-4 bg-gray-800 rounded-md border border-cyan-700/50 animate-fade-in"><h3 className="text-xl font-semibold text-cyan-300">{recommendation.dishName}</h3><p className="mt-2 text-gray-300">{recommendation.reason}</p>{recommendation.offer && (<div className="mt-3 pt-3 border-t border-gray-700 text-yellow-400 font-semibold"><p>🎉 Special Offer: {recommendation.offer}</p></div>)}</div>)}
+                                {recommendation && (
+                                    <div className="mt-6 p-4 bg-gray-800 rounded-md border border-cyan-700/50 animate-fade-in">
+                                        <h3 className="text-xl font-semibold text-cyan-300">{recommendation.dishName}</h3>
+                                        <p className="mt-2 text-gray-300">{recommendation.reason}</p>
+                                        {recommendation.offer && (
+                                            <div className="mt-3 pt-3 border-t border-gray-700 text-yellow-400 font-semibold">
+                                                <p>🎉 Special Offer: {recommendation.offer}</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
                             </div>
                         )}
                         {/* Orders Tabs */}

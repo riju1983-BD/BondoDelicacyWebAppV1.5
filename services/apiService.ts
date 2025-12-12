@@ -590,6 +590,22 @@ export const apiVerifyReservationOTP = async (contact: string, otp: string): Pro
     await simulateDelay(500);
     return otp === '1234';
 };
+// apiService.ts
+
+export async function apiGetUserAIRecommendation(userId: string, restaurantId: string) {
+    const res = await fetch(`http://localhost:3000/api/ai/user-recommendations`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, restaurantId })
+    });
+
+    if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to fetch AI recommendation");
+    }
+
+    return res.json();
+}
 
 const generateDailyBookingId = async (dateStr: string): Promise<string> => {
     const datePart = dateStr.replace(/-/g, '');
