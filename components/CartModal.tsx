@@ -4,7 +4,7 @@ import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { Icon } from './Icon';
 import { Brand, DeliveryAddress } from '../types';
-import { apiCreateOrder, applyFlatDiscount, apiGetUserValidPoints, apiPunchOrder, apiBookDelivery, apiSaveUserAddress } from '../services/apiService';
+import { apiCreateOrder, applyFlatDiscount, apiGetUserValidPoints, apiPunchOrder, apiBookDelivery, apiSaveUserAddress, apiCancelOrderOnPaymentFailed } from '../services/apiService';
 
 const Spinner: React.FC<{ className?: string }> = ({ className = "h-5 w-5" }) => (
     <svg className={`animate-spin ${className}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -202,6 +202,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
         try {
             // 1) Build PetPooja + backend payload
             const payload = {
+                userId: currentUser.id,
                 orderinfo: {
                     OrderInfo: {
                         Restaurant: { details: { restID: brandId } },
@@ -338,6 +339,23 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                         setIsProcessing(false);
                     }
                 },
+                modal: {
+                    ondismiss: async () => {
+                        setIsProcessing(false);
+
+                        try {
+                            await apiCancelOrderOnPaymentFailed(
+                                brandId,
+                                clientorderID,
+                                "Payment cancelled by user"
+                            );
+                        } catch (err) {
+                            console.error("Payment-failed cancel error", err);
+                        }
+
+                        alert("Payment cancelled. You can try again.");
+                    }
+                },
 
                 prefill: {
                     name: currentUser.name,
@@ -348,10 +366,21 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
             });
 
             rzp.open();
-            rzp.on("payment.failed", () => {
+            rzp.on("payment.failed", async () => {
+                try {
+                    await apiCancelOrderOnPaymentFailed(
+                        brandId,
+                        clientorderID,
+                        "Payment failed"
+                    );
+                } catch (err) {
+                    console.error("Payment-failed cancel error", err);
+                }
+
                 alert("Payment failed. Please try again.");
                 setIsProcessing(false);
             });
+
 
         } catch (err: any) {
             alert(err.message || "Payment initiation failed");

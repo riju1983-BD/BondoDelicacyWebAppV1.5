@@ -95,12 +95,13 @@ export async function apiGetMenu(resturent_identifier: string, category_id: stri
 }
 
 // --- CONSTANTS & CONFIG ---
-const PETPOOJA_CONFIG = {
-    BASE_URL: 'https://api.petpooja.com/v1',
-    API_KEY: 'YOUR_REAL_PETPOOJA_API_KEY',
-    APP_SECRET: 'YOUR_REAL_PETPOOJA_APP_SECRET',
-    ACCESS_TOKEN: 'YOUR_REAL_PETPOOJA_ACCESS_TOKEN'
-};
+// const PETPOOJA_CONFIG = {
+//     BASE_URL: 'https://qle1yy2ydc.execute-api.ap-southeast-1.amazonaws.com/V1/',
+//     API_KEY: 'mvf2jq1cx7uw3hrdop8b59isnte064ky',
+//     APP_SECRET: '55c5d7e4cc8929c52375335be12efbdbf4bc0384',
+//     ACCESS_TOKEN: '1ae75251701a8331088e83e165d77e00587b578f'
+
+// };
 
 const STATIC_TABLE_INVENTORY: RestaurantTable[] = [
     { id: 't1', name: 'T1', capacity: 2, type: '2-seater' },
@@ -136,6 +137,32 @@ const callPetpoojaAPI = async (endpoint: string, method: 'GET' | 'POST', body?: 
     return null;
 };
 
+export const apiCancelOrderOnPaymentFailed = async (
+    restID: string,
+    clientorderID: string,
+    cancelReason = "Payment failed or cancelled by user"
+) => {
+    const res = await fetch(
+        `${BASE_URL}/payment/cancel-order-onpaymentfailed`,
+        {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                restID,
+                clientorderID,
+                cancelReason
+            })
+        }
+    );
+
+    const data = await res.json();
+
+    if (!res.ok || !data.success) {
+        throw new Error(data.message || "Payment-failed cancellation failed");
+    }
+
+    return data;
+};
 
 // --- Email Service ---
 const sendEmail = async (to: string, subject: string, htmlContent: string, textContent: string) => {
@@ -555,28 +582,28 @@ const mapDbReservation = (data: any): Reservation => ({
     status: data.status as Reservation['status']
 });
 export const apiGetAvailableTables = async (
-  brandId: string,
-  date: string,
-  time: string,
-  guests: number
+    brandId: string,
+    date: string,
+    time: string,
+    guests: number
 ) => {
-  const url = `${BASE_URL}/reservation/tables/${brandId}?date=${date}&time=${time}&guests=${guests}`;
+    const url = `${BASE_URL}/reservation/tables/${brandId}?date=${date}&time=${time}&guests=${guests}`;
 
-  const res = await fetch(url);
+    const res = await fetch(url);
 
-  if (!res.ok) {
-    const msg = await res.json();
-    throw new Error(msg.error || "Failed to load tables");
-  }
+    if (!res.ok) {
+        const msg = await res.json();
+        throw new Error(msg.error || "Failed to load tables");
+    }
 
-  const data = await res.json();
+    const data = await res.json();
 
-  // Backend returns { booked: [], available: [] }
-  // Combine them but mark status so UI can highlight
-  return [
-    ...data.available.map((t: any) => ({ ...t, _status: "available" })),
-    ...data.booked.map((t: any) => ({ ...t, _status: "booked" }))
-  ];
+    // Backend returns { booked: [], available: [] }
+    // Combine them but mark status so UI can highlight
+    return [
+        ...data.available.map((t: any) => ({ ...t, _status: "available" })),
+        ...data.booked.map((t: any) => ({ ...t, _status: "booked" }))
+    ];
 };
 
 
@@ -636,34 +663,34 @@ const generateDailyBookingId = async (dateStr: string): Promise<string> => {
 };
 
 export const apiCreateReservation = async (
-  brandId: string,
-  userId: string | undefined,
-  form: { name: string; email: string; phone: string; date: string; time: string; guests: number; requests: string; tableId?: string }
+    brandId: string,
+    userId: string | undefined,
+    form: { name: string; email: string; phone: string; date: string; time: string; guests: number; requests: string; tableId?: string }
 ) => {
-  const payload = {
-    customer_id: userId || null,   // ✔ backend expects customer_id
-    name: form.name,
-    phone: form.phone.trim(),
-    email: form.email || null,
-    date: form.date,
-    time: form.time,
-    guests: form.guests,
-    tableId: form.tableId,         // ✔ backend expects tableId (not table_id)
-    requests: form.requests || null
-  };
+    const payload = {
+        customer_id: userId || null,   // ✔ backend expects customer_id
+        name: form.name,
+        phone: form.phone.trim(),
+        email: form.email || null,
+        date: form.date,
+        time: form.time,
+        guests: form.guests,
+        tableId: form.tableId,         // ✔ backend expects tableId (not table_id)
+        requests: form.requests || null
+    };
 
-  const res = await fetch(`${BASE_URL}/reservation/${brandId}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
+    const res = await fetch(`${BASE_URL}/reservation/${brandId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
 
-  if (!res.ok) {
-    const msg = await res.json();
-    throw new Error(msg.error || "Reservation failed");
-  }
+    if (!res.ok) {
+        const msg = await res.json();
+        throw new Error(msg.error || "Reservation failed");
+    }
 
-  return await res.json();
+    return await res.json();
 };
 
 
@@ -675,22 +702,22 @@ export const apiUpdateReservation = async (resId: string, updates: Partial<Reser
     return mapDbReservation(data);
 };
 export async function getMealRecommendation(resturent_identifier: string, preferences: string) {
-  const res = await fetch(`${BASE_URL}/ai/recommend`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      resturent_identifier,
-      preferences
-    }),
-  });
+    const res = await fetch(`${BASE_URL}/ai/recommend`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            resturent_identifier,
+            preferences
+        }),
+    });
 
-  if (!res.ok) {
-    const err = await res.json().catch(() => null);
-    throw new Error(err?.error || "Failed to get recommendation");
-  }
+    if (!res.ok) {
+        const err = await res.json().catch(() => null);
+        throw new Error(err?.error || "Failed to get recommendation");
+    }
 
-  const data = await res.json();
-  return data; // includes brandName, menu, recommendation
+    const data = await res.json();
+    return data; // includes brandName, menu, recommendation
 }
 
 // --- Menu & Other ---
