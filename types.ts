@@ -175,8 +175,12 @@ export interface PartyLead {
 
 export interface ChatMessage {
   id: string;
-  role: 'user' | 'bot' | 'system';
+  role: 'user' | 'bot' | 'model';
   content: string;
-  quote?: PartyLead;
-  isQuoteActioned?: boolean;
+  timestamp?: string; // ✅ Add this line
+  metadata?: {
+    categoriesCount?: number;
+    itemsCount?: number;
+    error?: boolean;
+  };
 }

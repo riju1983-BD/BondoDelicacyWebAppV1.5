@@ -771,6 +771,205 @@ export const apiGetDishRecommendation = async (user: User, brandId: Brand['id'])
     const response = await ai.models.generateContent({ model: "gemini-2.5-flash", contents: prompt, config: { responseMimeType: "application/json" } });
     return JSON.parse(response.text.trim());
 };
-export const apiHelpBuddyChat = async (history: { role: string, parts: string }[], message: string): Promise<{ role: "model", parts: string }> => {
-    return { role: "model", parts: "I'm a mock AI buddy. I can't truly chat yet without more backend setup!" };
+// --- Help Buddy Chat API ---
+
+export interface HelpBuddyChatHistoryItem {
+    role: 'user' | 'bot' | 'model';
+    parts: string;
+    content?: string;
+}
+
+export interface HelpBuddyChatResponse {
+    role: 'model';
+    parts: string;
+    metadata: {
+        menuContext: {
+            categoriesCount: number;
+            itemsCount: number;
+            lastUpdated: string;
+            hasError: boolean;
+        };
+        userId: string | null;
+        model: string;
+        timestamp: string;
+    };
+}
+
+export interface HelpBuddyChatRequest {
+    history: HelpBuddyChatHistoryItem[];
+    userMessage: string;
+    restaurantId: string;
+    userId?: string;
+}
+
+/**
+ * Get current user ID from Supabase session
+ */
+const getCurrentUserId = async (): Promise<string | undefined> => {
+    try {
+        const { data: { user } } = await supabase.auth.getUser();
+        return user?.id;
+    } catch (error) {
+        console.warn('Failed to get user ID:', error);
+        return undefined;
+    }
+};
+
+/**
+ * Get restaurant ID from context (you can customize this based on your app logic)
+ */
+const getCurrentRestaurantId = (): string => {
+    // Option 1: From localStorage
+    const storedRestId = localStorage.getItem('selectedRestaurantId');
+    if (storedRestId) return storedRestId;
+
+    // Option 2: Default to Bongo Delicacy
+    return 'c9ignw2k50';
+    
+    // Option 3: You could also get it from URL params, Redux store, or Context
+};
+
+/**
+ * Help Buddy Chat API - Send message and get AI response
+ * @param history - Conversation history
+ * @param userMessage - Current user message
+ * @param restaurantId - Optional restaurant ID (defaults to current)
+ * @param userId - Optional user ID (defaults to current user or guest)
+ */
+export const apiHelpBuddyChat = async (
+    history: HelpBuddyChatHistoryItem[],
+    userMessage: string,
+    restaurantId?: string,
+    userId?: string
+): Promise<HelpBuddyChatResponse> => {
+    try {
+        // Get restaurant ID (parameter > current context > default)
+        const restId = restaurantId || getCurrentRestaurantId();
+        
+        // Get user ID (parameter > current user > undefined for guest)
+        let currentUserId = userId;
+        if (!currentUserId) {
+            currentUserId = await getCurrentUserId();
+        }
+
+        console.log('🤖 Sending Help Buddy request:', {
+            restaurantId: restId,
+            userId: currentUserId || 'Guest',
+            messageLength: userMessage.length,
+            historyLength: history.length
+        });
+
+        // Prepare request body
+        const requestBody: HelpBuddyChatRequest = {
+            history: history.map(msg => ({
+                role: msg.role,
+                parts: msg.parts || msg.content || '',
+                content: msg.content || msg.parts || ''
+            })),
+            userMessage: userMessage.trim(),
+            restaurantId: restId,
+            ...(currentUserId && { userId: currentUserId })
+        };
+
+        // Make API request
+        const response = await fetch(`http://localhost:3000/api/ai/help-buddy/chat`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestBody),
+        });
+
+        // Handle response
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            const errorMessage = errorData.message || `Request failed with status ${response.status}`;
+            
+            console.error('❌ Help Buddy API Error:', {
+                status: response.status,
+                message: errorMessage
+            });
+
+            // Handle specific error codes
+            if (response.status === 400) {
+                throw new Error(`Invalid request: ${errorMessage}`);
+            } else if (response.status === 500) {
+                throw new Error('Server error. Please try again later.');
+            } else if (response.status === 429) {
+                throw new Error('Too many requests. Please wait a moment.');
+            }
+            
+            throw new Error(errorMessage);
+        }
+
+        const data = await response.json();
+
+        if (!data.success || !data.data) {
+            throw new Error(data.message || 'Failed to get response from Help Buddy');
+        }
+
+        console.log('✅ Help Buddy response received:', {
+            responseLength: data.data.parts.length,
+            categoriesCount: data.data.metadata.menuContext.categoriesCount,
+            itemsCount: data.data.metadata.menuContext.itemsCount,
+            hasError: data.data.metadata.menuContext.hasError
+        });
+
+        return data.data;
+
+    } catch (error: any) {
+        console.error('❌ Help Buddy Chat Error:', error);
+
+        // Network error
+        if (error.message?.includes('fetch')) {
+            throw new Error('Network error. Please check your connection and try again.');
+        }
+
+        // Timeout error
+        if (error.message?.includes('timeout')) {
+            throw new Error('Request timed out. Please try again.');
+        }
+
+        // Re-throw with original message
+        throw new Error(error.message || 'Failed to get response from Help Buddy');
+    }
+};
+
+/**
+ * Clear Help Buddy conversation history (optional utility)
+ */
+export const apiClearHelpBuddyHistory = (): void => {
+    try {
+        localStorage.removeItem('helpBuddyHistory');
+        console.log('✅ Help Buddy history cleared');
+    } catch (error) {
+        console.warn('Failed to clear Help Buddy history:', error);
+    }
+};
+
+/**
+ * Save Help Buddy conversation history (optional utility)
+ */
+export const apiSaveHelpBuddyHistory = (messages: ChatMessage[]): void => {
+    try {
+        localStorage.setItem('helpBuddyHistory', JSON.stringify(messages));
+        console.log('✅ Help Buddy history saved');
+    } catch (error) {
+        console.warn('Failed to save Help Buddy history:', error);
+    }
+};
+
+/**
+ * Load Help Buddy conversation history (optional utility)
+ */
+export const apiLoadHelpBuddyHistory = (): ChatMessage[] => {
+    try {
+        const stored = localStorage.getItem('helpBuddyHistory');
+        if (stored) {
+            return JSON.parse(stored);
+        }
+    } catch (error) {
+        console.warn('Failed to load Help Buddy history:', error);
+    }
+    return [];
 };
