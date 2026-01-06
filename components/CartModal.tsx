@@ -205,7 +205,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                 userId: currentUser.id,
                 orderinfo: {
                     OrderInfo: {
-                        Restaurant: { details: { restID: brandId } },
+                        Restaurant: { details: { restID: brandId, } },
                         Customer: {
                             details: {
                                 email: currentUser.email,
@@ -244,7 +244,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                                 description: "",
                                 created_on: new Date().toISOString(),
                                 enable_delivery: 1,
-                                callback_url: "https://ethnohistorical-lacrimatory-juliann.ngrok-free.dev/api/petpuja/callback",
+                                callback_url: "https://cherish-rollable-anahi.ngrok-free.dev/api/petpuja/callback",
                                 collect_cash: "0",
                             }
                         },

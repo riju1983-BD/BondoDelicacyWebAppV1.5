@@ -333,10 +333,40 @@ const AdminDashboardPage: React.FC = () => {
     setLoyaltySuccess("Loyalty settings saved!");
     setTimeout(() => setLoyaltySuccess(""), 3000);
   };
-  const handleApproveRefund = async (orderId: string) => {
-    setProcessingComplaintId(orderId);
+  const calculateComplaintRefundAmount = (
+    order: Order,
+    requestedAmount?: number
+  ) => {
+    const totalAmount = Number(order.totalAmount || 0);
+
+    if (totalAmount <= 0) return 0;
+
+    // If no specific amount requested, default to full refund
+    if (requestedAmount === undefined || requestedAmount === null) {
+      return totalAmount;
+    }
+
+    const amount = Number(requestedAmount);
+
+    if (isNaN(amount) || amount <= 0) {
+      return 0;
+    }
+
+    // 🔒 HARD GUARANTEE: refund never exceeds order total
+    return Math.min(amount, totalAmount);
+  };
+
+  const handleApproveRefund = async (order: Order) => {
+    setProcessingComplaintId(order.id);
     try {
-      await apiProcessRefundApproval(orderId);
+      const refundAmount = calculateComplaintRefundAmount(order);
+
+      await apiProcessRefundApproval(
+        order.id,
+        refundAmount,
+        "Approved complaint refund"
+      );
+
       await fetchComplaints();
     } catch (err) {
       console.error(err);
@@ -345,6 +375,7 @@ const AdminDashboardPage: React.FC = () => {
       setProcessingComplaintId(null);
     }
   };
+
   const handleRejectComplaint = async (orderId: string) => {
     if (!window.confirm("Reject this complaint?")) return;
     setProcessingComplaintId(orderId);
@@ -1050,17 +1081,18 @@ const AdminDashboardPage: React.FC = () => {
                     {order.complaint?.status === "pending" && (
                       <div className="flex flex-col justify-center gap-2 min-w-[150px]">
                         <button
-                          onClick={() => handleApproveRefund(order.id)}
+                          onClick={() => handleApproveRefund(order)}
                           disabled={!!processingComplaintId}
-                          className="bg-green-600 hover:bg-green-500 text-white font-semibold py-2 px-4 rounded-md text-sm disabled:bg-gray-600 transition-colors flex items-center justify-center gap-2"
+                          className="bg-green-600 hover:bg-green-500 text-white font-semibold py-2 px-4 rounded-md text-sm flex items-center justify-center gap-2"
                         >
                           {processingComplaintId === order.id ? (
                             <Spinner className="w-4 h-4" />
                           ) : (
                             <Icon type="check-circle" className="w-4 h-4" />
-                          )}{" "}
+                          )}
                           Approve Refund
                         </button>
+
                         <button
                           onClick={() => handleRejectComplaint(order.id)}
                           disabled={!!processingComplaintId}

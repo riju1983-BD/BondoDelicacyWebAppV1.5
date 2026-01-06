@@ -478,15 +478,28 @@ export const apiGetOrders = async (): Promise<Order[]> => {
     return (data || []).map(mapDbOrderToType);
 };
 
-export const apiProcessRefundApproval = async (orderId: string): Promise<Order> => {
-    const order = await apiGetOrderById(orderId);
-    if (!order || !order.complaint) throw new Error("Invalid order");
-    const updatedComplaint = { ...order.complaint, status: 'approved', resolvedAt: new Date().toISOString() };
-    const { data, error } = await supabase.from('orders').update({ complaint: updatedComplaint, refund_status: 'processed' }).eq('id', orderId).select().single();
-    if (error) handleSupabaseError(error, 'Process Refund');
-    return mapDbOrderToType(data);
-};
+export async function apiProcessRefundApproval(
+  orderId: string,
+  refundAmount: number,
+  reason?: string
+) {
+  const res = await fetch("/api/complaints/refund", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      orderId,
+      refundAmount,
+      reason,
+    }),
+  });
 
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.message || "Refund failed");
+  }
+
+  return res.json();
+}
 export const apiRejectComplaint = async (orderId: string): Promise<Order> => {
     const order = await apiGetOrderById(orderId);
     if (!order || !order.complaint) throw new Error("Invalid order");
