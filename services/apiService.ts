@@ -103,15 +103,15 @@ export async function apiGetMenu(resturent_identifier: string, category_id: stri
 
 // };
 
-const STATIC_TABLE_INVENTORY: RestaurantTable[] = [
-    { id: 't1', name: 'T1', capacity: 2, type: '2-seater' },
-    { id: 't2', name: 'T2', capacity: 2, type: '2-seater' },
-    { id: 't3', name: 'T3', capacity: 2, type: '2-seater' },
-    { id: 't4', name: 'T4', capacity: 2, type: '2-seater' },
-    { id: 't5', name: 'T5', capacity: 4, type: '4-seater' },
-    { id: 't6', name: 'T6', capacity: 4, type: '4-seater' },
-    { id: 't7', name: 'T7', capacity: 6, type: '6-seater' },
-];
+// const STATIC_TABLE_INVENTORY: RestaurantTable[] = [
+//     { id: 't1', name: 'T1', capacity: 2, type: '2-seater' },
+//     { id: 't2', name: 'T2', capacity: 2, type: '2-seater' },
+//     { id: 't3', name: 'T3', capacity: 2, type: '2-seater' },
+//     { id: 't4', name: 'T4', capacity: 2, type: '2-seater' },
+//     { id: 't5', name: 'T5', capacity: 4, type: '4-seater' },
+//     { id: 't6', name: 'T6', capacity: 4, type: '4-seater' },
+//     { id: 't7', name: 'T7', capacity: 6, type: '6-seater' },
+// ];
 
 // --- Utils ---
 const simulateDelay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -408,45 +408,58 @@ export const apiUpdateOrder = async (orderId: string, updates: Partial<Order>): 
 
 // --- Complaint & Refund API ---
 export const apiRaiseComplaint = async (
-    orderId: string,
-    itemNames: string[],
-    comments: string
+  orderId: string,
+  itemNames: string[],
+  comments: string
 ): Promise<Order> => {
 
-    const order = await apiGetOrderById(orderId);
-    if (!order) throw new Error("Order not found");
+  const order = await apiGetOrderById(orderId);
+  if (!order) throw new Error("Order not found");
 
-    const complaintId = `C-${orderId}-${Date.now()}`;
+  const complaintId = `C-${orderId}-${Date.now()}`;
+  const now = new Date().toISOString();
 
-    // Insert complaint entry
-    const { error: insertError } = await supabase
-        .from("complaints")
-        .insert({
-            id: complaintId,
-            order_id: orderId,
-            user_id: order.userId,               // REQUIRED for RLS policy
-            item_names: itemNames,               // JSONB array
-            comments,
-            status: "PENDING",
-            created_at: new Date().toISOString(),
-            resolved_at: null
-        });
+  // 1️⃣ Insert into complaints table (DB format)
+  const { error: insertError } = await supabase
+    .from("complaints")
+    .insert({
+      id: complaintId,
+      order_id: orderId,
+      user_id: order.userId,
+      item_names: itemNames,
+      comments,
+      status: "pending",
+      created_at: now,
+    });
 
-    if (insertError) handleSupabaseError(insertError, "Raise Complaint");
+  if (insertError) throw insertError;
 
-    // Optionally update order table to mark complaint exists
-    const { data: updatedOrder, error: updateError } = await supabase
-        .from("orders")
-        .update({ refund_status: 'pending' }) // or a flag if needed
-        .eq("id", orderId)
-        .select()
-        .single();
+  // 2️⃣ Update orders.complaint (frontend snapshot format)
+  const { data: updatedOrder, error: updateError } = await supabase
+    .from("orders")
+    .update({
+      complaint: {
+        id: complaintId,
+        itemNames,
+        comments,
+        status: "pending",
+        createdAt: now,
+        totalAmount: Number(order.totalAmount || 0), // ✅ ADDED
+      },
+      refund_status: "pending",
+    })
+    .eq("id", orderId)
+    .select()
+    .single();
 
-    if (updateError) handleSupabaseError(updateError, "Link Complaint to Order");
+  if (updateError) throw updateError;
+  if (!updatedOrder) throw new Error("Order update blocked (RLS)");
 
-    // Return updated order object
-    return mapDbOrderToType(updatedOrder);
+  return mapDbOrderToType(updatedOrder);
 };
+
+
+
 export async function apiCancelOrder(orderId: string, amount: number, reason: string) {
     const res = await fetch("http://localhost:3000/api/payment/cancel-order", {
         method: "POST",
@@ -483,7 +496,7 @@ export async function apiProcessRefundApproval(
   refundAmount: number,
   reason?: string
 ) {
-  const res = await fetch("/api/complaints/refund", {
+  const res = await fetch("http://localhost:3000/api/complaints/refund", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -602,21 +615,20 @@ export const apiGetAvailableTables = async (
 ) => {
     const url = `${BASE_URL}/reservation/tables/${brandId}?date=${date}&time=${time}&guests=${guests}`;
 
-    const res = await fetch(url);
+     const res = await fetch(url);
 
-    if (!res.ok) {
-        const msg = await res.json();
-        throw new Error(msg.error || "Failed to load tables");
-    }
+  if (!res.ok) {
+    const msg = await res.json();
+    throw new Error(msg.error || "Failed to load tables");
+  }
 
-    const data = await res.json();
+  const data = await res.json();
 
-    // Backend returns { booked: [], available: [] }
-    // Combine them but mark status so UI can highlight
-    return [
-        ...data.available.map((t: any) => ({ ...t, _status: "available" })),
-        ...data.booked.map((t: any) => ({ ...t, _status: "booked" }))
-    ];
+  if (!Array.isArray(data)) {
+    throw new Error("Invalid table response");
+  }
+
+  return data;
 };
 
 
@@ -676,35 +688,45 @@ const generateDailyBookingId = async (dateStr: string): Promise<string> => {
 };
 
 export const apiCreateReservation = async (
-    brandId: string,
-    userId: string | undefined,
-    form: { name: string; email: string; phone: string; date: string; time: string; guests: number; requests: string; tableId?: string }
+  brandId: string,
+  userId: string | undefined,
+  form: {
+    name: string;
+    email: string;
+    phone: string;
+    date: string;
+    time: string;
+    guests: number;
+    requests: string;
+    tableId?: string;
+  }
 ) => {
-    const payload = {
-        customer_id: userId || null,   // ✔ backend expects customer_id
-        name: form.name,
-        phone: form.phone.trim(),
-        email: form.email || null,
-        date: form.date,
-        time: form.time,
-        guests: form.guests,
-        tableId: form.tableId,         // ✔ backend expects tableId (not table_id)
-        requests: form.requests || null
-    };
+  const payload = {
+    user_id: userId || null,   // ✅ match backend
+    name: form.name,
+    phone: form.phone.trim(),
+    email: form.email || null,
+    date: form.date,
+    time: form.time,
+    guests: form.guests,
+    tableId: form.tableId,     // ✅ backend expects tableId
+    requests: form.requests || null,
+  };
 
-    const res = await fetch(`${BASE_URL}/reservation/${brandId}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-    });
+  const res = await fetch(`${BASE_URL}/reservation/${brandId}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
 
-    if (!res.ok) {
-        const msg = await res.json();
-        throw new Error(msg.error || "Reservation failed");
-    }
+  if (!res.ok) {
+    const msg = await res.json();
+    throw new Error(msg.error || "Reservation failed");
+  }
 
-    return await res.json();
+  return await res.json(); // contains booking_id from backend
 };
+
 
 
 

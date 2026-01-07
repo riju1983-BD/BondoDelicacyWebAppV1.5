@@ -108,7 +108,10 @@ const AdminDashboardPage: React.FC = () => {
   const [cancelReason, setCancelReason] = useState("");
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
-
+const [refundOrder, setRefundOrder] = useState<Order | null>(null);
+const [refundAmount, setRefundAmount] = useState<number>(0);
+const [refundError, setRefundError] = useState<string | null>(null);
+const [isRefunding, setIsRefunding] = useState(false);
   // Reservations State
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [isLoadingReservations, setIsLoadingReservations] = useState(false);
@@ -355,26 +358,49 @@ const AdminDashboardPage: React.FC = () => {
     // 🔒 HARD GUARANTEE: refund never exceeds order total
     return Math.min(amount, totalAmount);
   };
+const handleApproveRefund = (order: Order) => {
+  const total =
+    Number(order.complaint?.totalAmount) || Number(order.totalAmount) || 0;
 
-  const handleApproveRefund = async (order: Order) => {
-    setProcessingComplaintId(order.id);
-    try {
-      const refundAmount = calculateComplaintRefundAmount(order);
+  setRefundOrder(order);
+  setRefundAmount(total);
+  setRefundError(null);
+};
+const handleConfirmRefund = async () => {
+  if (!refundOrder) return;
 
-      await apiProcessRefundApproval(
-        order.id,
-        refundAmount,
-        "Approved complaint refund"
-      );
+  const maxAmount =
+    Number(refundOrder.complaint?.totalAmount) ||
+    Number(refundOrder.totalAmount) ||
+    0;
 
-      await fetchComplaints();
-    } catch (err) {
-      console.error(err);
-      alert("Failed to process refund.");
-    } finally {
-      setProcessingComplaintId(null);
-    }
-  };
+  if (refundAmount <= 0) {
+    setRefundError("Refund amount must be greater than 0");
+    return;
+  }
+
+  if (refundAmount > maxAmount) {
+    setRefundError("Refund amount cannot exceed order value");
+    return;
+  }
+
+  setIsRefunding(true);
+  try {
+    await apiProcessRefundApproval(
+      refundOrder.id,
+      refundAmount,
+      "Approved complaint refund"
+    );
+    setRefundOrder(null);
+    await fetchComplaints();
+  } catch (e) {
+    setRefundError("Refund failed. Please try again.");
+  } finally {
+    setIsRefunding(false);
+  }
+};
+
+
 
   const handleRejectComplaint = async (orderId: string) => {
     if (!window.confirm("Reject this complaint?")) return;
@@ -495,69 +521,75 @@ const AdminDashboardPage: React.FC = () => {
         <div className="flex border-b border-gray-700 mb-6 overflow-x-auto">
           <button
             onClick={() => setActiveTab("menu")}
-            className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "menu"
-              ? "border-b-2 border-cyan-400 text-cyan-400"
-              : "text-gray-400"
-              }`}
+            className={`flex-shrink-0 py-2 px-4 font-semibold ${
+              activeTab === "menu"
+                ? "border-b-2 border-cyan-400 text-cyan-400"
+                : "text-gray-400"
+            }`}
           >
             Live Menu
           </button>
           <button
             onClick={() => setActiveTab("orders")}
-            className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "orders"
-              ? "border-b-2 border-cyan-400 text-cyan-400"
-              : "text-gray-400"
-              }`}
+            className={`flex-shrink-0 py-2 px-4 font-semibold ${
+              activeTab === "orders"
+                ? "border-b-2 border-cyan-400 text-cyan-400"
+                : "text-gray-400"
+            }`}
           >
             Orders
           </button>
           <button
             onClick={() => setActiveTab("reservations")}
-            className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "reservations"
-              ? "border-b-2 border-cyan-400 text-cyan-400"
-              : "text-gray-400"
-              }`}
+            className={`flex-shrink-0 py-2 px-4 font-semibold ${
+              activeTab === "reservations"
+                ? "border-b-2 border-cyan-400 text-cyan-400"
+                : "text-gray-400"
+            }`}
           >
             Reservations ({reservations.length})
           </button>
           <button
             onClick={() => setActiveTab("complaints")}
-            className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "complaints"
-              ? "border-b-2 border-cyan-400 text-cyan-400"
-              : "text-gray-400"
-              }`}
+            className={`flex-shrink-0 py-2 px-4 font-semibold ${
+              activeTab === "complaints"
+                ? "border-b-2 border-cyan-400 text-cyan-400"
+                : "text-gray-400"
+            }`}
           >
             Complaints
           </button>
           <button
             onClick={() => setActiveTab("loyalty")}
-            className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "loyalty"
-              ? "border-b-2 border-cyan-400 text-cyan-400"
-              : "text-gray-400"
-              }`}
+            className={`flex-shrink-0 py-2 px-4 font-semibold ${
+              activeTab === "loyalty"
+                ? "border-b-2 border-cyan-400 text-cyan-400"
+                : "text-gray-400"
+            }`}
           >
             Loyalty
           </button>
           <button
             onClick={() => setActiveTab("restaurants")}
-            className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "restaurants"
-              ? "border-b-2 border-cyan-400 text-cyan-400"
-              : "text-gray-400"
-              }`}
+            className={`flex-shrink-0 py-2 px-4 font-semibold ${
+              activeTab === "restaurants"
+                ? "border-b-2 border-cyan-400 text-cyan-400"
+                : "text-gray-400"
+            }`}
           >
             All Restaurants
           </button>
 
           <button
             onClick={() => setActiveTab("addRestaurant")}
-            className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "addRestaurant"
-              ? "border-b-2 border-cyan-400 text-cyan-400"
-              : "text-gray-400"
-              }`}
+            className={`flex-shrink-0 py-2 px-4 font-semibold ${
+              activeTab === "addRestaurant"
+                ? "border-b-2 border-cyan-400 text-cyan-400"
+                : "text-gray-400"
+            }`}
           >
             Add Restaurant
           </button>
-
         </div>
         {activeTab === "menu" && (
           <div className="animate-fade-in">
@@ -602,10 +634,11 @@ const AdminDashboardPage: React.FC = () => {
 
                             <button
                               // onClick={() => handleToggleAvailability(item.name)}
-                              className={`px-2 py-1 text-xs font-bold rounded transition-colors ${item.isAvailable
-                                ? "bg-green-900 text-green-300 hover:bg-green-800"
-                                : "bg-red-900 text-red-300 hover:bg-red-800"
-                                }`}
+                              className={`px-2 py-1 text-xs font-bold rounded transition-colors ${
+                                item.isAvailable
+                                  ? "bg-green-900 text-green-300 hover:bg-green-800"
+                                  : "bg-red-900 text-red-300 hover:bg-red-800"
+                              }`}
                             >
                               {item.isAvailable ? "In Stock" : "Unavailable"}
                             </button>
@@ -624,12 +657,15 @@ const AdminDashboardPage: React.FC = () => {
         )}
         {activeTab === "addRestaurant" && (
           <div className="animate-fade-in max-w-2xl mx-auto space-y-6">
-
-            <h2 className="text-2xl font-semibold text-center">Add Restaurant</h2>
+            <h2 className="text-2xl font-semibold text-center">
+              Add Restaurant
+            </h2>
 
             {/* STEP 1: ENTER REST ID */}
             <div className="space-y-2">
-              <label className="text-gray-300 text-sm">PetPuja Restaurant ID</label>
+              <label className="text-gray-300 text-sm">
+                PetPuja Restaurant ID
+              </label>
               <input
                 type="text"
                 value={restId}
@@ -654,17 +690,26 @@ const AdminDashboardPage: React.FC = () => {
             {/* STEP 2: SHOW AUTO-FETCHED DATA */}
             {fetchedData && (
               <div className="bg-gray-900 border border-gray-700 rounded-md p-5 space-y-3">
-                <h3 className="text-lg font-semibold text-cyan-400">Fetched Details</h3>
+                <h3 className="text-lg font-semibold text-cyan-400">
+                  Fetched Details
+                </h3>
 
-                <p><span className="text-gray-400">Name:</span> {fetchedData.restaurantname}</p>
-                <p><span className="text-gray-400">Address:</span> {fetchedData.address}</p>
-                <p><span className="text-gray-400">City:</span> {fetchedData.city}</p>
+                <p>
+                  <span className="text-gray-400">Name:</span>{" "}
+                  {fetchedData.restaurantname}
+                </p>
+                <p>
+                  <span className="text-gray-400">Address:</span>{" "}
+                  {fetchedData.address}
+                </p>
+                <p>
+                  <span className="text-gray-400">City:</span>{" "}
+                  {fetchedData.city}
+                </p>
 
                 <img
                   src={
-                    fetchedData.logo ||
-                    fetchedData.images?.[0] ||
-                    DEFAULT_IMAGE
+                    fetchedData.logo || fetchedData.images?.[0] || DEFAULT_IMAGE
                   }
                   alt="Restaurant Logo"
                   className="w-40 h-40 object-cover border border-gray-700 rounded"
@@ -672,10 +717,11 @@ const AdminDashboardPage: React.FC = () => {
               </div>
             )}
 
-
             {/* STEP 3: THEME INPUTS */}
             <div className="bg-gray-900 border border-gray-700 p-5 rounded-md space-y-4">
-              <h3 className="text-lg font-semibold text-cyan-400">Theme Configuration</h3>
+              <h3 className="text-lg font-semibold text-cyan-400">
+                Theme Configuration
+              </h3>
 
               <input
                 type="color"
@@ -699,7 +745,9 @@ const AdminDashboardPage: React.FC = () => {
                 onChange={(e) => setThemeText(e.target.value)}
                 className="w-full h-10 cursor-pointer"
               />
-              <label className="text-gray-400 text-sm">Text Color On Primary</label>
+              <label className="text-gray-400 text-sm">
+                Text Color On Primary
+              </label>
             </div>
 
             {/* STEP 4: SUBMIT */}
@@ -711,14 +759,11 @@ const AdminDashboardPage: React.FC = () => {
               {isSubmitting ? <Spinner className="w-5 h-5" /> : null}
               Save Restaurant
             </button>
-
           </div>
         )}
 
         {activeTab === "restaurants" && (
           <div className="animate-fade-in">
-
-
             {isLoadingRestaurants ? (
               <div className="flex justify-center p-8">
                 <Spinner className="w-8 h-8" />
@@ -741,7 +786,9 @@ const AdminDashboardPage: React.FC = () => {
                   <tbody className="divide-y divide-gray-700">
                     {restaurants.map((r) => (
                       <tr key={r.rest_id}>
-                        <td className="px-4 py-3 text-sm text-white">{r.name}</td>
+                        <td className="px-4 py-3 text-sm text-white">
+                          {r.name}
+                        </td>
                         <td className="px-4 py-3 text-xs font-mono text-cyan-400">
                           {r.rest_id}
                         </td>
@@ -760,7 +807,8 @@ const AdminDashboardPage: React.FC = () => {
                           >
                             <Icon type="plus-circle" className="w-4 h-4" />
                             Add Table
-                          </button>   <button
+                          </button>{" "}
+                          <button
                             onClick={() => {
                               setShowTablesFor(r.rest_id);
                               loadTables(r.rest_id);
@@ -770,8 +818,6 @@ const AdminDashboardPage: React.FC = () => {
                             <Icon type="plus-circle" className="w-4 h-4" />
                             View Tables
                           </button>
-
-
                         </td>
                       </tr>
                     ))}
@@ -781,7 +827,9 @@ const AdminDashboardPage: React.FC = () => {
             )}
 
             {tableError && (
-              <p className="mt-4 text-center text-sm text-red-400">{tableError}</p>
+              <p className="mt-4 text-center text-sm text-red-400">
+                {tableError}
+              </p>
             )}
           </div>
         )}
@@ -991,10 +1039,11 @@ const AdminDashboardPage: React.FC = () => {
             <div className="flex justify-center gap-4 mb-6">
               <button
                 onClick={() => setComplaintFilter("active")}
-                className={`px-4 py-2 rounded-full font-semibold text-sm ${complaintFilter === "active"
-                  ? "bg-red-600 text-white"
-                  : "bg-gray-800 text-gray-400 hover:bg-gray-700"
-                  }`}
+                className={`px-4 py-2 rounded-full font-semibold text-sm ${
+                  complaintFilter === "active"
+                    ? "bg-red-600 text-white"
+                    : "bg-gray-800 text-gray-400 hover:bg-gray-700"
+                }`}
               >
                 Active (
                 {
@@ -1005,10 +1054,11 @@ const AdminDashboardPage: React.FC = () => {
               </button>
               <button
                 onClick={() => setComplaintFilter("resolved")}
-                className={`px-4 py-2 rounded-full font-semibold text-sm ${complaintFilter === "resolved"
-                  ? "bg-green-600 text-white"
-                  : "bg-gray-800 text-gray-400 hover:bg-gray-700"
-                  }`}
+                className={`px-4 py-2 rounded-full font-semibold text-sm ${
+                  complaintFilter === "resolved"
+                    ? "bg-green-600 text-white"
+                    : "bg-gray-800 text-gray-400 hover:bg-gray-700"
+                }`}
               >
                 Resolved
               </button>
@@ -1039,12 +1089,13 @@ const AdminDashboardPage: React.FC = () => {
                           </span>
                         </p>
                         <span
-                          className={`px-2 py-0.5 text-xs font-bold rounded-full capitalize ${order.complaint?.status === "pending"
-                            ? "bg-yellow-900 text-yellow-300"
-                            : order.complaint?.status === "approved"
+                          className={`px-2 py-0.5 text-xs font-bold rounded-full capitalize ${
+                            order.complaint?.status === "pending"
+                              ? "bg-yellow-900 text-yellow-300"
+                              : order.complaint?.status === "approved"
                               ? "bg-green-900 text-green-300"
                               : "bg-red-900 text-red-300"
-                            }`}
+                          }`}
                         >
                           {order.complaint?.status}
                         </span>
@@ -1219,7 +1270,7 @@ const AdminDashboardPage: React.FC = () => {
                   const res = await apiAddTable(addTableFor!, {
                     table_number: Number(tableNumber),
                     capacity: Number(capacity),
-                    table_name: tableName,  // 🔥 passes table_name properly
+                    table_name: tableName, // 🔥 passes table_name properly
                   });
 
                   if (res.error) {
@@ -1236,8 +1287,6 @@ const AdminDashboardPage: React.FC = () => {
               >
                 {isSavingTable ? "Saving..." : "Save Table"}
               </button>
-
-
             </div>
           </div>
         </div>
@@ -1245,14 +1294,14 @@ const AdminDashboardPage: React.FC = () => {
       {showTablesFor && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center">
           <div className="bg-gray-900 border border-gray-700 p-6 rounded-lg w-full max-w-md shadow-xl">
-
             <h3 className="text-lg font-semibold flex items-center justify-between mb-4">
-              Tables for <span className="font-mono text-cyan-400">{showTablesFor}</span>
+              Tables for{" "}
+              <span className="font-mono text-cyan-400">{showTablesFor}</span>
               <button
                 className="text-gray-400 hover:text-white"
                 onClick={() => {
-                  setShowTablesFor(null)
-                  setTables([])
+                  setShowTablesFor(null);
+                  setTables([]);
                 }}
               >
                 ✕
@@ -1270,15 +1319,19 @@ const AdminDashboardPage: React.FC = () => {
                     key={t.id}
                     className="flex justify-between bg-gray-800 border border-gray-700 px-3 py-2 rounded"
                   >
-                    <span className="text-sm">{t.table_name} ({t.capacity} seats)</span>
+                    <span className="text-sm">
+                      {t.table_name} ({t.capacity} seats)
+                    </span>
 
                     <button
-                      className={`px-2 py-1 rounded text-xs text-white ${t.is_active ? "bg-green-600 hover:bg-green-500"
-                        : "bg-red-600 hover:bg-red-500"
-                        }`}
+                      className={`px-2 py-1 rounded text-xs text-white ${
+                        t.is_active
+                          ? "bg-green-600 hover:bg-green-500"
+                          : "bg-red-600 hover:bg-red-500"
+                      }`}
                       onClick={async () => {
-                        await apiToggleTable(t.id, !t.is_active)
-                        loadTables(showTablesFor!)
+                        await apiToggleTable(t.id, !t.is_active);
+                        loadTables(showTablesFor!);
                       }}
                     >
                       {t.is_active ? "Active" : "Inactive"}
@@ -1287,11 +1340,9 @@ const AdminDashboardPage: React.FC = () => {
                 ))}
               </div>
             )}
-
           </div>
         </div>
       )}
-
 
       {cancelOrderFor && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center">
@@ -1330,6 +1381,63 @@ const AdminDashboardPage: React.FC = () => {
                 onClick={handleConfirmCancel}
               >
                 {isCancelling ? "Cancelling..." : "Confirm Cancel"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {refundOrder && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center">
+          <div className="bg-gray-900 border border-gray-700 p-6 rounded-lg w-full max-w-md shadow-xl">
+            <h3 className="text-lg font-semibold mb-3">Approve Refund</h3>
+
+            <p className="text-sm text-gray-400 mb-1">Order ID:</p>
+            <p className="font-mono text-cyan-400 mb-3">{refundOrder.id}</p>
+
+            <p className="text-sm text-gray-400 mb-1">Order Value:</p>
+            <p className="text-white font-bold mb-4">
+              ₹{refundOrder.complaint?.totalAmount}
+            </p>
+
+            <label className="block text-sm text-gray-300 mb-1">
+              Refund Amount
+            </label>
+
+            <input
+              type="number"
+              min={0}
+              max={refundOrder.complaint?.totalAmount}
+              value={refundAmount}
+              onChange={(e) => {
+                const value = Number(e.target.value);
+                setRefundAmount(value);
+                setRefundError(
+                  value > Number(refundOrder.complaint?.totalAmount)
+                    ? "Refund cannot exceed order value"
+                    : null
+                );
+              }}
+              className="w-full bg-gray-800 text-white border border-gray-700 rounded-md p-2"
+            />
+
+            {refundError && (
+              <p className="text-sm text-red-400 mt-2">{refundError}</p>
+            )}
+
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                onClick={() => setRefundOrder(null)}
+                className="px-4 py-2 rounded-md border border-gray-600 text-gray-300"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={handleConfirmRefund}
+                disabled={isRefunding}
+                className="px-4 py-2 rounded-md bg-green-600 text-white disabled:opacity-60"
+              >
+                {isRefunding ? "Processing..." : "Confirm Refund"}
               </button>
             </div>
           </div>

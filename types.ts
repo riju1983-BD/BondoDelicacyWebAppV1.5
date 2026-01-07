@@ -39,9 +39,9 @@ export interface User {
 
 export interface RestaurantTable {
   id: string;
-  name: string; // e.g., "T1", "Table 5"
+  name: string;
   capacity: number;
-  type: '2-seater' | '4-seater' | '6-seater';
+  _status: "available" | "booked";
 }
 
 export interface Reservation {
@@ -90,6 +90,7 @@ export interface Complaint {
   status: 'pending' | 'approved' | 'rejected';
   createdAt: string;
   resolvedAt?: string;
+  totalAmount: number;
 }
 
 export interface Order {

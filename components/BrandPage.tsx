@@ -306,31 +306,37 @@ const BrandPage: React.FC<BrandPageProps> = ({ brandData, onBack }) => {
         setResForm(prev => ({ ...prev, [name]: name === 'guests' ? parseInt(value) : value }));
     };
 
-    const fetchTables = async () => {
-        if (!resForm.date || !resForm.time) {
-            setResError("Please select date and time first.");
-            return;
-        }
+   const fetchTables = async () => {
+     if (!resForm.date || !resForm.time) {
+       setResError("Please select date and time first.");
+       return;
+     }
 
-        setIsLoadingTables(true);
-        setResError("");
+     setIsLoadingTables(true);
+     setResError("");
 
-        try {
-            const tables = await apiGetAvailableTables(
-                brandData.id,
-                resForm.date,
-                resForm.time,
-                resForm.guests
-            );
+     try {
+       const tables = await apiGetAvailableTables(
+         brandData.id,
+         resForm.date,
+         resForm.time,
+         resForm.guests
+       );
 
-            setAvailableTables(tables);   // ⬅️ now flat array with statuses
-            setResStep(2);
-        } catch {
-            setResError("Could not load tables.");
-        } finally {
-            setIsLoadingTables(false);
-        }
-    };
+       setAvailableTables(tables); // flat array with _status
+       setResStep(2);
+     } catch (err: unknown) {
+       console.error("fetchTables error:", err);
+
+       if (err instanceof Error) {
+         setResError(err.message);
+       } else {
+         setResError("Could not load tables.");
+       }
+     } finally {
+       setIsLoadingTables(false);
+     }
+   };
 
 
 
