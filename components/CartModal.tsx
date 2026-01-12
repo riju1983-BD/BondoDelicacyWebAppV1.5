@@ -11,6 +11,8 @@ import {
   apiBookDelivery,
   apiSaveUserAddress,
   apiCancelOrderOnPaymentFailed,
+  apiCheckServiceAvailability,
+  apiBookRider,
 } from "../services/apiService";
 
 const Spinner: React.FC<{ className?: string }> = ({
@@ -45,8 +47,11 @@ interface CartModalProps {
 }
 
 type View = "cart" | "auth" | "address" | "checkout" | "confirmation";
+const RESTAURANT_LAT = 12.9716; // example
+const RESTAURANT_LNG = 77.5946;
 
 const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
+  const [deliveryCharge, setDeliveryCharge] = useState(0);
   const {
     items,
     removeItem,
@@ -112,6 +117,19 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
       now.getSeconds()
     )}`;
   };
+  const getCurrentDateTime = () => {
+    const d = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+
+    return (
+      d.getFullYear() + "-" +
+      pad(d.getMonth() + 1) + "-" +
+      pad(d.getDate()) + " " +
+      pad(d.getHours()) + ":" +
+      pad(d.getMinutes()) + ":" +
+      pad(d.getSeconds())
+    );
+  };
 
   // Google Maps Autocomplete Init
   useEffect(() => {
@@ -131,30 +149,49 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
         }
       );
 
-      autocomplete.addListener("place_changed", () => {
+      autocomplete.addListener("place_changed", async () => {
         const place = autocomplete.getPlace();
-        if (place.formatted_address) {
-          const address = place.formatted_address;
-          setNewAddressData((prev) => ({
-            ...prev,
-            fullAddress: address,
-            coordinates: place.geometry?.location
-              ? {
-                  lat: place.geometry.location.lat(),
-                  lng: place.geometry.location.lng(),
-                }
-              : undefined,
-          }));
+        if (!place.geometry?.location) return;
 
-          const isBangalore = checkIsBangalore(address);
-          setIsAddressServiceable(isBangalore);
-          if (!isBangalore) {
-            setAddressError(
-              "Currently, our culinary delights travel exclusively within Bangalore."
-            );
-          } else {
-            setAddressError("");
+        const dropLat = place.geometry.location.lat();
+        const dropLng = place.geometry.location.lng();
+
+        // Save address + coordinates
+        setNewAddressData((prev) => ({
+          ...prev,
+          fullAddress: place.formatted_address,
+          coordinates: { lat: dropLat, lng: dropLng },
+        }));
+
+        try {
+          const serviceResp = await apiCheckServiceAvailability(
+            RESTAURANT_LAT,
+            RESTAURANT_LNG,
+            dropLat,
+            dropLng
+          );
+
+          if (!serviceResp.serviceable.locationServiceable) {
+            setIsAddressServiceable(false);
+            setAddressError("Delivery not available for this location.");
+            return;
           }
+
+          if (!serviceResp.serviceable.riderServiceable) {
+            setIsAddressServiceable(false);
+            setAddressError("No delivery partners available right now.");
+            return;
+          }
+
+          // ✅ SERVICEABLE
+          setIsAddressServiceable(true);
+          setAddressError("");
+
+          // ✅ SAVE DELIVERY CHARGE
+          setDeliveryCharge(serviceResp.payouts.total);
+        } catch {
+          setIsAddressServiceable(false);
+          setAddressError("Delivery service unavailable.");
         }
       });
     }
@@ -209,7 +246,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
         ? discountedTotal - loyaltyDiscountCalc
         : 0;
     const gstAmountCalc = preTaxTotalCalc * 0.05;
-    const grandTotalCalc = preTaxTotalCalc + gstAmountCalc;
+    const grandTotalCalc = preTaxTotalCalc + gstAmountCalc + deliveryCharge;
 
     return {
       subtotal: subtotalCalc,
@@ -219,7 +256,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
       gstAmount: gstAmountCalc,
       grandTotal: grandTotalCalc,
     };
-  }, [totalPrice, loyaltyPointsToRedeem, availablePoints]);
+  }, [totalPrice, loyaltyPointsToRedeem, availablePoints, deliveryCharge]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -334,7 +371,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                 tax_total: gstAmount.toFixed(2),
                 total: grandTotal.toFixed(2),
                 description: "",
-                created_on: new Date().toISOString(),
+                created_on: getCurrentDateTime(),
                 enable_delivery: 1,
                 callback_url:
                   "https://cherish-rollable-anahi.ngrok-free.dev/api/petpuja/callback",
@@ -345,7 +382,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
               details: items.map((i) => ({
                 id: i.itemid.toString(),
                 name: i.itemname,
-                tax_inclusive: true,
+                tax_inclusive: i.tax_inclusive,
                 gst_liability: "vendor",
                 item_tax: [],
                 item_discount: "0",
@@ -432,6 +469,19 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
             await refreshCurrentUser();
             clearCart();
             setView("confirmation");
+            apiBookRider({
+              order_id: clientorderID,
+              resturent_lat: RESTAURANT_LAT,
+              resturent_lang: RESTAURANT_LNG,
+              resturent_name: "Bangalir Jhale Jhole",
+              resturent_number: "9876543210",
+              resturent_address: "Bangalore Anty Address",
+              resturent_city: "Bangalore",
+            }).catch((err) => {
+              console.error("Rider booking failed", err);
+            });
+            apiBookDelivery(clientorderID)
+
           } catch (err) {
             alert("Payment succeeded but order creation failed.");
           } finally {
@@ -515,6 +565,24 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
       setView("auth");
     }
   };
+  const checkServiceabilityForAddress = async (address: DeliveryAddress) => {
+    if (!address.coordinates) return;
+
+    const { lat, lng } = address.coordinates;
+
+    const serviceResp = await apiCheckServiceAvailability(
+      RESTAURANT_LAT,
+      RESTAURANT_LNG,
+      lat,
+      lng
+    );
+
+    // ONLY responsibility: set delivery charge
+    if (serviceResp?.payouts?.total != null) {
+      setDeliveryCharge(Number(serviceResp.payouts.total));
+    }
+  };
+
 
   const handleAddNewAddressSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -541,6 +609,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
         setSelectedAddressId(savedAddress.id || null);
         setShowAddressForm(false);
         setView("checkout");
+
       } catch (error) {
         console.error("Failed to save address:", error);
         setAddressError("Failed to save address. Please try again.");
@@ -617,9 +686,8 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                   setIsLoginView(true);
                   setAuthError("");
                 }}
-                className={`flex-1 p-2 rounded-l-md text-sm ${
-                  isLoginView ? "bg-cyan-600 text-white" : "bg-gray-700"
-                }`}
+                className={`flex-1 p-2 rounded-l-md text-sm ${isLoginView ? "bg-cyan-600 text-white" : "bg-gray-700"
+                  }`}
               >
                 Login
               </button>
@@ -629,9 +697,8 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                   setIsLoginView(false);
                   setAuthError("");
                 }}
-                className={`flex-1 p-2 rounded-r-md text-sm ${
-                  !isLoginView ? "bg-cyan-600 text-white" : "bg-gray-700"
-                }`}
+                className={`flex-1 p-2 rounded-r-md text-sm ${!isLoginView ? "bg-cyan-600 text-white" : "bg-gray-700"
+                  }`}
               >
                 Register
               </button>
@@ -710,11 +777,10 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                 {currentUser.addresses.map((addr) => (
                   <label
                     key={addr.id}
-                    className={`block p-4 rounded-lg border cursor-pointer transition-all ${
-                      selectedAddressId === addr.id
+                    className={`block p-4 rounded-lg border cursor-pointer transition-all ${selectedAddressId === addr.id
                         ? "border-cyan-500 bg-cyan-900/20"
                         : "border-gray-600 bg-gray-700/50 hover:border-gray-500"
-                    }`}
+                      }`}
                   >
                     <div className="flex items-start gap-3">
                       <input
@@ -762,11 +828,28 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                 <Icon type="plus-circle" className="w-5 h-5" /> Add New Address
               </button>
               <button
-                onClick={() => setView("checkout")}
-                disabled={!selectedAddressId}
-                className="w-full font-bold py-3 px-4 rounded-md bg-cyan-600 hover:bg-cyan-500 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors mt-4"
+                disabled={!selectedAddressId || isProcessing}
+                onClick={async () => {
+                  if (!selectedAddressId || !currentUser) return;
+
+                  const selectedAddress = currentUser.addresses?.find(
+                    (a) => a.id === selectedAddressId
+                  );
+
+                  setIsProcessing(true);
+
+                  try {
+                    if (selectedAddress) {
+                      await checkServiceabilityForAddress(selectedAddress);
+                    }
+                    setView("checkout");
+                  } finally {
+                    setIsProcessing(false);
+                  }
+                }}
+                className="w-full font-bold py-3 px-4 rounded-md bg-cyan-600 hover:bg-cyan-500 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors mt-4 flex justify-center items-center"
               >
-                Proceed with Selected Address
+                {isProcessing ? <Spinner /> : "Proceed with Selected Address"}
               </button>
             </div>
           );
@@ -809,11 +892,10 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                         setAddressError("");
                       }
                     }}
-                    className={`w-full bg-gray-700 p-3 pl-10 rounded-md border ${
-                      !isAddressServiceable
+                    className={`w-full bg-gray-700 p-3 pl-10 rounded-md border ${!isAddressServiceable
                         ? "border-red-500 focus:ring-red-500"
                         : "border-gray-600 focus:ring-cyan-500"
-                    } focus:ring-2 focus:outline-none text-white`}
+                      } focus:ring-2 focus:outline-none text-white`}
                   />
                 </div>
                 {!isAddressServiceable && (
@@ -1096,7 +1178,10 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                 <span>GST (5%)</span>
                 <span>+ ₹{gstAmount.toFixed(2)}</span>
               </div>
-
+              <div className="flex justify-between text-gray-300">
+                <span>Delivery Charges</span>
+                <span>₹{deliveryCharge.toFixed(2)}</span>
+              </div>
               <div className="flex justify-between text-white font-bold text-lg border-t border-gray-700 pt-2 mt-2">
                 <span>Grand Total</span>
                 <span>₹{grandTotal.toFixed(2)}</span>
@@ -1112,7 +1197,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
             )}
             {
               view === "auth" &&
-                null /* Auth view has its own submit button in form */
+              null /* Auth view has its own submit button in form */
             }
             {view === "checkout" && (
               <button

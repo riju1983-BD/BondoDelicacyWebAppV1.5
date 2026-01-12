@@ -108,10 +108,10 @@ const AdminDashboardPage: React.FC = () => {
   const [cancelReason, setCancelReason] = useState("");
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
-const [refundOrder, setRefundOrder] = useState<Order | null>(null);
-const [refundAmount, setRefundAmount] = useState<number>(0);
-const [refundError, setRefundError] = useState<string | null>(null);
-const [isRefunding, setIsRefunding] = useState(false);
+  const [refundOrder, setRefundOrder] = useState<Order | null>(null);
+  const [refundAmount, setRefundAmount] = useState<number>(0);
+  const [refundError, setRefundError] = useState<string | null>(null);
+  const [isRefunding, setIsRefunding] = useState(false);
   // Reservations State
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [isLoadingReservations, setIsLoadingReservations] = useState(false);
@@ -282,6 +282,25 @@ const [isRefunding, setIsRefunding] = useState(false);
 
     setIsFetching(false);
   };
+  const StarRating: React.FC<{ value: number }> = ({ value }) => {
+    const fullStars = Math.floor(value);
+
+    return (
+      <div className="flex gap-0.5">
+        {[1, 2, 3, 4, 5].map((i) => (
+          <svg
+            key={i}
+            className={`w-4 h-4 ${i <= fullStars ? "text-yellow-400" : "text-gray-600"
+              }`}
+            fill="currentColor"
+            viewBox="0 0 20 20"
+          >
+            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.966a1 1 0 00.95.69h4.174c.969 0 1.371 1.24.588 1.81l-3.377 2.455a1 1 0 00-.364 1.118l1.286 3.966c.3.921-.755 1.688-1.538 1.118l-3.377-2.455a1 1 0 00-1.175 0l-3.377 2.455c-.783.57-1.838-.197-1.538-1.118l1.286-3.966a1 1 0 00-.364-1.118L2.002 9.393c-.783-.57-.38-1.81.588-1.81h4.174a1 1 0 00.95-.69l1.286-3.966z" />
+          </svg>
+        ))}
+      </div>
+    );
+  };
 
   const handleSubmitRestaurant = async () => {
     if (!fetchedData) return;
@@ -358,47 +377,47 @@ const [isRefunding, setIsRefunding] = useState(false);
     // 🔒 HARD GUARANTEE: refund never exceeds order total
     return Math.min(amount, totalAmount);
   };
-const handleApproveRefund = (order: Order) => {
-  const total =
-    Number(order.complaint?.totalAmount) || Number(order.totalAmount) || 0;
+  const handleApproveRefund = (order: Order) => {
+    const total =
+      Number(order.complaint?.totalAmount) || Number(order.totalAmount) || 0;
 
-  setRefundOrder(order);
-  setRefundAmount(total);
-  setRefundError(null);
-};
-const handleConfirmRefund = async () => {
-  if (!refundOrder) return;
+    setRefundOrder(order);
+    setRefundAmount(total);
+    setRefundError(null);
+  };
+  const handleConfirmRefund = async () => {
+    if (!refundOrder) return;
 
-  const maxAmount =
-    Number(refundOrder.complaint?.totalAmount) ||
-    Number(refundOrder.totalAmount) ||
-    0;
+    const maxAmount =
+      Number(refundOrder.complaint?.totalAmount) ||
+      Number(refundOrder.totalAmount) ||
+      0;
 
-  if (refundAmount <= 0) {
-    setRefundError("Refund amount must be greater than 0");
-    return;
-  }
+    if (refundAmount <= 0) {
+      setRefundError("Refund amount must be greater than 0");
+      return;
+    }
 
-  if (refundAmount > maxAmount) {
-    setRefundError("Refund amount cannot exceed order value");
-    return;
-  }
+    if (refundAmount > maxAmount) {
+      setRefundError("Refund amount cannot exceed order value");
+      return;
+    }
 
-  setIsRefunding(true);
-  try {
-    await apiProcessRefundApproval(
-      refundOrder.id,
-      refundAmount,
-      "Approved complaint refund"
-    );
-    setRefundOrder(null);
-    await fetchComplaints();
-  } catch (e) {
-    setRefundError("Refund failed. Please try again.");
-  } finally {
-    setIsRefunding(false);
-  }
-};
+    setIsRefunding(true);
+    try {
+      await apiProcessRefundApproval(
+        refundOrder.id,
+        refundAmount,
+        "Approved complaint refund"
+      );
+      setRefundOrder(null);
+      await fetchComplaints();
+    } catch (e) {
+      setRefundError("Refund failed. Please try again.");
+    } finally {
+      setIsRefunding(false);
+    }
+  };
 
 
 
@@ -521,72 +540,65 @@ const handleConfirmRefund = async () => {
         <div className="flex border-b border-gray-700 mb-6 overflow-x-auto">
           <button
             onClick={() => setActiveTab("menu")}
-            className={`flex-shrink-0 py-2 px-4 font-semibold ${
-              activeTab === "menu"
+            className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "menu"
                 ? "border-b-2 border-cyan-400 text-cyan-400"
                 : "text-gray-400"
-            }`}
+              }`}
           >
             Live Menu
           </button>
           <button
             onClick={() => setActiveTab("orders")}
-            className={`flex-shrink-0 py-2 px-4 font-semibold ${
-              activeTab === "orders"
+            className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "orders"
                 ? "border-b-2 border-cyan-400 text-cyan-400"
                 : "text-gray-400"
-            }`}
+              }`}
           >
             Orders
           </button>
           <button
             onClick={() => setActiveTab("reservations")}
-            className={`flex-shrink-0 py-2 px-4 font-semibold ${
-              activeTab === "reservations"
+            className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "reservations"
                 ? "border-b-2 border-cyan-400 text-cyan-400"
                 : "text-gray-400"
-            }`}
+              }`}
           >
             Reservations ({reservations.length})
           </button>
           <button
             onClick={() => setActiveTab("complaints")}
-            className={`flex-shrink-0 py-2 px-4 font-semibold ${
-              activeTab === "complaints"
+            className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "complaints"
                 ? "border-b-2 border-cyan-400 text-cyan-400"
                 : "text-gray-400"
-            }`}
+              }`}
           >
             Complaints
           </button>
           <button
             onClick={() => setActiveTab("loyalty")}
-            className={`flex-shrink-0 py-2 px-4 font-semibold ${
-              activeTab === "loyalty"
+            className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "loyalty"
                 ? "border-b-2 border-cyan-400 text-cyan-400"
                 : "text-gray-400"
-            }`}
+              }`}
           >
             Loyalty
           </button>
           <button
             onClick={() => setActiveTab("restaurants")}
-            className={`flex-shrink-0 py-2 px-4 font-semibold ${
-              activeTab === "restaurants"
+            className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "restaurants"
                 ? "border-b-2 border-cyan-400 text-cyan-400"
                 : "text-gray-400"
-            }`}
+              }`}
           >
             All Restaurants
           </button>
 
           <button
             onClick={() => setActiveTab("addRestaurant")}
-            className={`flex-shrink-0 py-2 px-4 font-semibold ${
-              activeTab === "addRestaurant"
+            className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "addRestaurant"
                 ? "border-b-2 border-cyan-400 text-cyan-400"
                 : "text-gray-400"
-            }`}
+              }`}
           >
             Add Restaurant
           </button>
@@ -634,11 +646,10 @@ const handleConfirmRefund = async () => {
 
                             <button
                               // onClick={() => handleToggleAvailability(item.name)}
-                              className={`px-2 py-1 text-xs font-bold rounded transition-colors ${
-                                item.isAvailable
+                              className={`px-2 py-1 text-xs font-bold rounded transition-colors ${item.isAvailable
                                   ? "bg-green-900 text-green-300 hover:bg-green-800"
                                   : "bg-red-900 text-red-300 hover:bg-red-800"
-                              }`}
+                                }`}
                             >
                               {item.isAvailable ? "In Stock" : "Unavailable"}
                             </button>
@@ -853,6 +864,8 @@ const handleConfirmRefund = async () => {
                       <th className="px-4 py-3">Customer</th>
                       <th className="px-4 py-3">Date & Time</th>
                       <th className="px-4 py-3">Price</th>
+                      <th className="px-4 py-3">Rating</th>
+                      <th className="px-4 py-3">Feedback</th>
                       <th className="px-4 py-3 text-right">Actions</th>
                     </tr>
                   </thead>
@@ -901,6 +914,16 @@ const handleConfirmRefund = async () => {
                         {/* PRICE */}
                         <td className="px-4 py-4 whitespace-nowrap text-sm text-white font-bold">
                           ₹{o.totalAmount.toFixed(2)}
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                          {o.rating != null ? <StarRating value={o.rating} /> : null}
+                        </td>
+                        <td className="px-4 py-4 max-w-xs">
+                          {o.feedback ? (
+                            <p className="text-sm text-gray-300 line-clamp-2">
+                              {o.feedback}
+                            </p>
+                          ) : null}
                         </td>
 
                         {/* ACTIONS */}
@@ -1039,11 +1062,10 @@ const handleConfirmRefund = async () => {
             <div className="flex justify-center gap-4 mb-6">
               <button
                 onClick={() => setComplaintFilter("active")}
-                className={`px-4 py-2 rounded-full font-semibold text-sm ${
-                  complaintFilter === "active"
+                className={`px-4 py-2 rounded-full font-semibold text-sm ${complaintFilter === "active"
                     ? "bg-red-600 text-white"
                     : "bg-gray-800 text-gray-400 hover:bg-gray-700"
-                }`}
+                  }`}
               >
                 Active (
                 {
@@ -1054,11 +1076,10 @@ const handleConfirmRefund = async () => {
               </button>
               <button
                 onClick={() => setComplaintFilter("resolved")}
-                className={`px-4 py-2 rounded-full font-semibold text-sm ${
-                  complaintFilter === "resolved"
+                className={`px-4 py-2 rounded-full font-semibold text-sm ${complaintFilter === "resolved"
                     ? "bg-green-600 text-white"
                     : "bg-gray-800 text-gray-400 hover:bg-gray-700"
-                }`}
+                  }`}
               >
                 Resolved
               </button>
@@ -1089,13 +1110,12 @@ const handleConfirmRefund = async () => {
                           </span>
                         </p>
                         <span
-                          className={`px-2 py-0.5 text-xs font-bold rounded-full capitalize ${
-                            order.complaint?.status === "pending"
+                          className={`px-2 py-0.5 text-xs font-bold rounded-full capitalize ${order.complaint?.status === "pending"
                               ? "bg-yellow-900 text-yellow-300"
                               : order.complaint?.status === "approved"
-                              ? "bg-green-900 text-green-300"
-                              : "bg-red-900 text-red-300"
-                          }`}
+                                ? "bg-green-900 text-green-300"
+                                : "bg-red-900 text-red-300"
+                            }`}
                         >
                           {order.complaint?.status}
                         </span>
@@ -1324,11 +1344,10 @@ const handleConfirmRefund = async () => {
                     </span>
 
                     <button
-                      className={`px-2 py-1 rounded text-xs text-white ${
-                        t.is_active
+                      className={`px-2 py-1 rounded text-xs text-white ${t.is_active
                           ? "bg-green-600 hover:bg-green-500"
                           : "bg-red-600 hover:bg-red-500"
-                      }`}
+                        }`}
                       onClick={async () => {
                         await apiToggleTable(t.id, !t.is_active);
                         loadTables(showTablesFor!);

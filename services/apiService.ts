@@ -8,6 +8,54 @@ export const apiFetchRestaurantMapping = async (rest_id: string) => {
     const res = await fetch(`${BASE_URL}/resturents/restaurant-by-mappingId?resturent_identifier=${rest_id}`);
     return res.json();
 };
+export const apiBookRider = async (payload: {
+  order_id: string;
+  resturent_lat: number;
+  resturent_lang: number;
+  resturent_name: string;
+  resturent_number: string;
+  resturent_address: string;
+  resturent_city: string;
+}) => {
+  const res = await fetch(
+    "http://localhost:3000/api/rider/rider-booking",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }
+  );
+
+  return res.json();
+};
+
+export const apiCheckServiceAvailability = async (
+    pikupLat: number,
+    pickuplong: number,
+  dropLat: number,
+  dropLng: number
+) => {
+  const res = await fetch(
+    "http://localhost:3000/api/rider/service-availability",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        pickupLatitude: pikupLat,
+        pickupLongitude: pickuplong,
+        dropLatitude: dropLat,
+        dropLongitude: dropLng,
+      }),
+    }
+  );
+
+  const json = await res.json();
+  if (!res.ok) {
+    throw new Error(json.message || "Service not available");
+  }
+
+  return json.data;
+};
 
 export const apiAddRestaurant = async (payload: any) => {
     const res = await fetch(`${BASE_URL}/resturents/add`, {
@@ -786,7 +834,7 @@ export const apiGetAllBrands = (): Brand[] => {
 export const apiPunchOrder = async (order: Order): Promise<{ success: boolean; message: string }> => { return { success: true, message: "Order processing initiated." }; };
 export const apiBookDelivery = async (orderId: string): Promise<boolean> => {
     await simulateDelay(2000);
-    const mockRider = { riderName: "Rajesh Kumar", riderPhone: "9876543210", etaMinutes: 25 };
+    const mockRider = { riderName: "Not Provided", riderPhone: "9999999999", etaMinutes: 25 };
     await apiUpdateOrder(orderId, { deliveryInfo: mockRider });
     return true;
 };
