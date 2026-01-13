@@ -255,15 +255,31 @@ const BrandPage: React.FC<BrandPageProps> = ({ brandData, onBack }) => {
         })).filter(cat => cat.items.length > 0);
     }, [searchQuery, menuData]);
 
-    const handleAddToCart = (item: ItemData) => {
-        addItem({
-            ...item,
-            id: item.itemid,
-            name: item.itemname,
-            image: item.item_image_url,
-            quantity: 1,
-        } as CartItem);
-    };
+const handleAddToCart = (item: ItemData) => {
+  const normalizedItemTax = Array.isArray((item as any).item_tax)
+    ? (item as any).item_tax
+    : typeof (item as any).item_tax === "string"
+    ? (() => {
+        try {
+          const parsed = JSON.parse((item as any).item_tax);
+          return Array.isArray(parsed) ? parsed : [];
+        } catch {
+          return [];
+        }
+      })()
+    : [];
+
+  addItem({
+    ...item,
+    item_tax: normalizedItemTax,
+    id: item.itemid,
+    name: item.itemname,
+    image: item.item_image_url,
+    quantity: 1,
+  } as CartItem);
+};
+
+
 
 
 
