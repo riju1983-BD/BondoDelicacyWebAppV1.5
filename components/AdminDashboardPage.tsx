@@ -320,6 +320,8 @@ const AdminDashboardPage: React.FC = () => {
       theme_primary: themePrimary,
       theme_accent: themeAccent,
       theme_text_on_primary: themeText,
+      Latitude: fetchedData.latitude ? Number(fetchedData.latitude) : null,
+      Longitude: fetchedData.longitude ? Number(fetchedData.longitude) : null,
     };
 
     const res = await apiAddRestaurant(payload);
@@ -541,8 +543,8 @@ const AdminDashboardPage: React.FC = () => {
           <button
             onClick={() => setActiveTab("menu")}
             className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "menu"
-                ? "border-b-2 border-cyan-400 text-cyan-400"
-                : "text-gray-400"
+              ? "border-b-2 border-cyan-400 text-cyan-400"
+              : "text-gray-400"
               }`}
           >
             Live Menu
@@ -550,8 +552,8 @@ const AdminDashboardPage: React.FC = () => {
           <button
             onClick={() => setActiveTab("orders")}
             className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "orders"
-                ? "border-b-2 border-cyan-400 text-cyan-400"
-                : "text-gray-400"
+              ? "border-b-2 border-cyan-400 text-cyan-400"
+              : "text-gray-400"
               }`}
           >
             Orders
@@ -559,8 +561,8 @@ const AdminDashboardPage: React.FC = () => {
           <button
             onClick={() => setActiveTab("reservations")}
             className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "reservations"
-                ? "border-b-2 border-cyan-400 text-cyan-400"
-                : "text-gray-400"
+              ? "border-b-2 border-cyan-400 text-cyan-400"
+              : "text-gray-400"
               }`}
           >
             Reservations ({reservations.length})
@@ -568,8 +570,8 @@ const AdminDashboardPage: React.FC = () => {
           <button
             onClick={() => setActiveTab("complaints")}
             className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "complaints"
-                ? "border-b-2 border-cyan-400 text-cyan-400"
-                : "text-gray-400"
+              ? "border-b-2 border-cyan-400 text-cyan-400"
+              : "text-gray-400"
               }`}
           >
             Complaints
@@ -577,8 +579,8 @@ const AdminDashboardPage: React.FC = () => {
           <button
             onClick={() => setActiveTab("loyalty")}
             className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "loyalty"
-                ? "border-b-2 border-cyan-400 text-cyan-400"
-                : "text-gray-400"
+              ? "border-b-2 border-cyan-400 text-cyan-400"
+              : "text-gray-400"
               }`}
           >
             Loyalty
@@ -586,8 +588,8 @@ const AdminDashboardPage: React.FC = () => {
           <button
             onClick={() => setActiveTab("restaurants")}
             className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "restaurants"
-                ? "border-b-2 border-cyan-400 text-cyan-400"
-                : "text-gray-400"
+              ? "border-b-2 border-cyan-400 text-cyan-400"
+              : "text-gray-400"
               }`}
           >
             All Restaurants
@@ -596,8 +598,8 @@ const AdminDashboardPage: React.FC = () => {
           <button
             onClick={() => setActiveTab("addRestaurant")}
             className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "addRestaurant"
-                ? "border-b-2 border-cyan-400 text-cyan-400"
-                : "text-gray-400"
+              ? "border-b-2 border-cyan-400 text-cyan-400"
+              : "text-gray-400"
               }`}
           >
             Add Restaurant
@@ -647,8 +649,8 @@ const AdminDashboardPage: React.FC = () => {
                             <button
                               // onClick={() => handleToggleAvailability(item.name)}
                               className={`px-2 py-1 text-xs font-bold rounded transition-colors ${item.isAvailable
-                                  ? "bg-green-900 text-green-300 hover:bg-green-800"
-                                  : "bg-red-900 text-red-300 hover:bg-red-800"
+                                ? "bg-green-900 text-green-300 hover:bg-green-800"
+                                : "bg-red-900 text-red-300 hover:bg-red-800"
                                 }`}
                             >
                               {item.isAvailable ? "In Stock" : "Unavailable"}
@@ -1063,8 +1065,8 @@ const AdminDashboardPage: React.FC = () => {
               <button
                 onClick={() => setComplaintFilter("active")}
                 className={`px-4 py-2 rounded-full font-semibold text-sm ${complaintFilter === "active"
-                    ? "bg-red-600 text-white"
-                    : "bg-gray-800 text-gray-400 hover:bg-gray-700"
+                  ? "bg-red-600 text-white"
+                  : "bg-gray-800 text-gray-400 hover:bg-gray-700"
                   }`}
               >
                 Active (
@@ -1077,8 +1079,8 @@ const AdminDashboardPage: React.FC = () => {
               <button
                 onClick={() => setComplaintFilter("resolved")}
                 className={`px-4 py-2 rounded-full font-semibold text-sm ${complaintFilter === "resolved"
-                    ? "bg-green-600 text-white"
-                    : "bg-gray-800 text-gray-400 hover:bg-gray-700"
+                  ? "bg-green-600 text-white"
+                  : "bg-gray-800 text-gray-400 hover:bg-gray-700"
                   }`}
               >
                 Resolved
@@ -1111,10 +1113,10 @@ const AdminDashboardPage: React.FC = () => {
                         </p>
                         <span
                           className={`px-2 py-0.5 text-xs font-bold rounded-full capitalize ${order.complaint?.status === "pending"
-                              ? "bg-yellow-900 text-yellow-300"
-                              : order.complaint?.status === "approved"
-                                ? "bg-green-900 text-green-300"
-                                : "bg-red-900 text-red-300"
+                            ? "bg-yellow-900 text-yellow-300"
+                            : order.complaint?.status === "approved"
+                              ? "bg-green-900 text-green-300"
+                              : "bg-red-900 text-red-300"
                             }`}
                         >
                           {order.complaint?.status}
@@ -1345,8 +1347,8 @@ const AdminDashboardPage: React.FC = () => {
 
                     <button
                       className={`px-2 py-1 rounded text-xs text-white ${t.is_active
-                          ? "bg-green-600 hover:bg-green-500"
-                          : "bg-red-600 hover:bg-red-500"
+                        ? "bg-green-600 hover:bg-green-500"
+                        : "bg-red-600 hover:bg-red-500"
                         }`}
                       onClick={async () => {
                         await apiToggleTable(t.id, !t.is_active);
