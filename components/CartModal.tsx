@@ -51,6 +51,10 @@ const RESTAURANT_LAT = 12.9716; // example
 const RESTAURANT_LNG = 77.5946;
 
 const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
+  const [calculatedTaxByItemId, setCalculatedTaxByItemId] = useState<
+    Record<string, any[]>
+  >({});
+  const [calculatedGstTotal, setCalculatedGstTotal] = useState(0);
   const [deliveryCharge, setDeliveryCharge] = useState(0);
   const {
     items,
@@ -109,6 +113,27 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
       now.getDate()
     )}`;
   };
+  const normalizeItemTax = (item: any) => {
+    // ✅ best source from your API response
+    if (Array.isArray(item?.tax_breakup) && item.tax_breakup.length > 0) {
+      return item.tax_breakup;
+    }
+
+    // fallback: if item_tax already array
+    if (Array.isArray(item?.item_tax)) return item.item_tax;
+
+    // fallback: if item_tax is JSON string
+    if (typeof item?.item_tax === "string") {
+      try {
+        const parsed = JSON.parse(item.item_tax);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+
+    return [];
+  };
 
   const formatOrderTime = () => {
     const now = new Date();
@@ -122,14 +147,47 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
     const pad = (n: number) => String(n).padStart(2, "0");
 
     return (
-      d.getFullYear() + "-" +
-      pad(d.getMonth() + 1) + "-" +
-      pad(d.getDate()) + " " +
-      pad(d.getHours()) + ":" +
-      pad(d.getMinutes()) + ":" +
+      d.getFullYear() +
+      "-" +
+      pad(d.getMonth() + 1) +
+      "-" +
+      pad(d.getDate()) +
+      " " +
+      pad(d.getHours()) +
+      ":" +
+      pad(d.getMinutes()) +
+      ":" +
       pad(d.getSeconds())
     );
   };
+  useEffect(() => {
+    const taxMap: Record<string, any[]> = {};
+    let total = 0;
+
+    items.forEach((it: any) => {
+      // ✅ tax_breakup is the real tax array from your API response
+      const taxArr =
+        Array.isArray(it?.tax_breakup) && it.tax_breakup.length > 0
+          ? it.tax_breakup
+          : Array.isArray(it?.item_tax)
+          ? it.item_tax
+          : [];
+
+      taxMap[it.itemid] = taxArr;
+
+      const qty = Number(it.quantity || 1);
+
+      const perQtyTax = taxArr.reduce(
+        (s: number, t: any) => s + Number(t?.amount || 0),
+        0
+      );
+
+      total += perQtyTax * qty;
+    });
+
+    setCalculatedTaxByItemId(taxMap);
+    setCalculatedGstTotal(Number(total.toFixed(2)));
+  }, [items]);
 
   // Google Maps Autocomplete Init
   useEffect(() => {
@@ -245,7 +303,8 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
       discountedTotal - loyaltyDiscountCalc > 0
         ? discountedTotal - loyaltyDiscountCalc
         : 0;
-    const gstAmountCalc = preTaxTotalCalc * 0.05;
+    const gstAmountCalc = calculatedGstTotal;
+
     const grandTotalCalc = preTaxTotalCalc + gstAmountCalc + deliveryCharge;
 
     return {
@@ -256,7 +315,14 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
       gstAmount: gstAmountCalc,
       grandTotal: grandTotalCalc,
     };
-  }, [totalPrice, loyaltyPointsToRedeem, availablePoints, deliveryCharge]);
+  }, [
+    items,
+    totalPrice,
+    loyaltyPointsToRedeem,
+    availablePoints,
+    deliveryCharge,
+    calculatedGstTotal,
+  ]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -351,7 +417,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                 preorder_time: formatOrderTime(),
                 service_charge: "0",
                 sc_tax_amount: "0",
-                delivery_charges: "0",
+                delivery_charges: deliveryCharge.toString(),
                 dc_tax_percentage: "0",
                 dc_tax_amount: "0",
                 dc_gst_details: [],
@@ -368,9 +434,10 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                 no_of_persons: "0",
                 discount_total: discountAmount.toString(),
                 discount_type: discountAmount > 0 ? "F" : "",
-                tax_total: gstAmount.toFixed(2),
+                tax_total: calculatedGstTotal.toFixed(2),
+
                 total: grandTotal.toFixed(2),
-                description: "",
+                // description: "",
                 created_on: getCurrentDateTime(),
                 enable_delivery: 1,
                 callback_url:
@@ -384,7 +451,17 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                 name: i.itemname,
                 tax_inclusive: i.tax_inclusive,
                 gst_liability: "vendor",
-                item_tax: [],
+                item_tax: (calculatedTaxByItemId[i.itemid] || []).map(
+                  (t: any) => ({
+                    id: t.id,
+                    name: t.name,
+                    tax_percentage: t.tax_percentage,
+                    amount: (
+                      Number(t.amount || 0) * Number(i.quantity || 1)
+                    ).toFixed(2),
+                  })
+                ),
+
                 item_discount: "0",
                 price: i.price.toString(),
                 final_price: (
@@ -397,6 +474,17 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
               })),
             },
           },
+          Tax: items.flatMap((i: any) =>
+            (calculatedTaxByItemId[i.itemid] || []).map((t: any) => ({
+              id: t.id,
+              title: t.name,
+              type: "P",
+              price: t.tax_percentage,
+              tax: (Number(t.amount || 0) * Number(i.quantity || 1)).toFixed(2),
+              restaurant_liable_amt: "0.00",
+            }))
+          ),
+
           udid: "",
           device_type: "Web",
         },
@@ -480,8 +568,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
             }).catch((err) => {
               console.error("Rider booking failed", err);
             });
-            apiBookDelivery(clientorderID)
-
+            apiBookDelivery(clientorderID);
           } catch (err) {
             alert("Payment succeeded but order creation failed.");
           } finally {
@@ -583,7 +670,6 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
     }
   };
 
-
   const handleAddNewAddressSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser) return;
@@ -609,7 +695,6 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
         setSelectedAddressId(savedAddress.id || null);
         setShowAddressForm(false);
         setView("checkout");
-
       } catch (error) {
         console.error("Failed to save address:", error);
         setAddressError("Failed to save address. Please try again.");
@@ -641,7 +726,23 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                       <p className="font-semibold text-white">
                         {item.itemname}
                       </p>
-                      <p className="text-sm text-gray-400">{item.price}</p>
+                      <p className="text-sm text-gray-400">
+                        ₹{Number(item.price).toFixed(2)}
+                      </p>
+
+                      {Array.isArray(calculatedTaxByItemId[item.itemid]) &&
+                        calculatedTaxByItemId[item.itemid].length > 0 && (
+                          <p className="text-xs text-gray-500">
+                            GST: ₹
+                            {(
+                              calculatedTaxByItemId[item.itemid].reduce(
+                                (s: number, t: any) =>
+                                  s + Number(t?.amount || 0),
+                                0
+                              ) * Number(item.quantity || 1)
+                            ).toFixed(2)}
+                          </p>
+                        )}
                     </div>
                     <div className="flex items-center gap-2">
                       <button
@@ -686,8 +787,9 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                   setIsLoginView(true);
                   setAuthError("");
                 }}
-                className={`flex-1 p-2 rounded-l-md text-sm ${isLoginView ? "bg-cyan-600 text-white" : "bg-gray-700"
-                  }`}
+                className={`flex-1 p-2 rounded-l-md text-sm ${
+                  isLoginView ? "bg-cyan-600 text-white" : "bg-gray-700"
+                }`}
               >
                 Login
               </button>
@@ -697,8 +799,9 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                   setIsLoginView(false);
                   setAuthError("");
                 }}
-                className={`flex-1 p-2 rounded-r-md text-sm ${!isLoginView ? "bg-cyan-600 text-white" : "bg-gray-700"
-                  }`}
+                className={`flex-1 p-2 rounded-r-md text-sm ${
+                  !isLoginView ? "bg-cyan-600 text-white" : "bg-gray-700"
+                }`}
               >
                 Register
               </button>
@@ -777,10 +880,11 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                 {currentUser.addresses.map((addr) => (
                   <label
                     key={addr.id}
-                    className={`block p-4 rounded-lg border cursor-pointer transition-all ${selectedAddressId === addr.id
+                    className={`block p-4 rounded-lg border cursor-pointer transition-all ${
+                      selectedAddressId === addr.id
                         ? "border-cyan-500 bg-cyan-900/20"
                         : "border-gray-600 bg-gray-700/50 hover:border-gray-500"
-                      }`}
+                    }`}
                   >
                     <div className="flex items-start gap-3">
                       <input
@@ -892,10 +996,11 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                         setAddressError("");
                       }
                     }}
-                    className={`w-full bg-gray-700 p-3 pl-10 rounded-md border ${!isAddressServiceable
+                    className={`w-full bg-gray-700 p-3 pl-10 rounded-md border ${
+                      !isAddressServiceable
                         ? "border-red-500 focus:ring-red-500"
                         : "border-gray-600 focus:ring-cyan-500"
-                      } focus:ring-2 focus:outline-none text-white`}
+                    } focus:ring-2 focus:outline-none text-white`}
                   />
                 </div>
                 {!isAddressServiceable && (
@@ -1175,8 +1280,8 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
               )}
 
               <div className="flex justify-between text-gray-300">
-                <span>GST (5%)</span>
-                <span>+ ₹{gstAmount.toFixed(2)}</span>
+                <span>GST </span>
+                <span>+ ₹{calculatedGstTotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-gray-300">
                 <span>Delivery Charges</span>
@@ -1197,7 +1302,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
             )}
             {
               view === "auth" &&
-              null /* Auth view has its own submit button in form */
+                null /* Auth view has its own submit button in form */
             }
             {view === "checkout" && (
               <button
