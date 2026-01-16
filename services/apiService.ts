@@ -9,52 +9,53 @@ export const apiFetchRestaurantMapping = async (rest_id: string) => {
     return res.json();
 };
 export const apiBookRider = async (payload: {
-  order_id: string;
-  resturent_lat: number;
-  resturent_lang: number;
-  resturent_name: string;
-  resturent_number: string;
-  resturent_address: string;
-  resturent_city: string;
+    order_id: string;
+    resturent_lat: number;
+    resturent_lang: number;
+    resturent_name: string;
+    resturent_number: string;
+    resturent_address: string;
+    resturent_city: string;
 }) => {
-  const res = await fetch(
-    "http://localhost:3000/api/rider/rider-booking",
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    }
-  );
+    const res = await fetch(
+        `${BASE_URL}/rider/rider-booking`,
+        {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+        }
+    );
 
-  return res.json();
+    return res.json();
 };
 
 export const apiCheckServiceAvailability = async (
     pikupLat: number,
     pickuplong: number,
-  dropLat: number,
-  dropLng: number
+    dropLat: number,
+    dropLng: number
 ) => {
-  const res = await fetch(
-    "http://localhost:3000/api/rider/service-availability",
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        pickupLatitude: pikupLat,
-        pickupLongitude: pickuplong,
-        dropLatitude: dropLat,
-        dropLongitude: dropLng,
-      }),
+    const res = await fetch(
+        `${BASE_URL}/rider/service-availability`
+        ,
+        {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                pickupLatitude: pikupLat,
+                pickupLongitude: pickuplong,
+                dropLatitude: dropLat,
+                dropLongitude: dropLng,
+            }),
+        }
+    );
+
+    const json = await res.json();
+    if (!res.ok) {
+        throw new Error(json.message || "Service not available");
     }
-  );
 
-  const json = await res.json();
-  if (!res.ok) {
-    throw new Error(json.message || "Service not available");
-  }
-
-  return json.data;
+    return json.data;
 };
 
 export const apiAddRestaurant = async (payload: any) => {
@@ -71,7 +72,7 @@ export async function apiAddTable(
 ) {
     try {
         const res = await fetch(
-            `http://localhost:3000/api/resturents/${restId}/addTable`,
+            `${BASE_URL}/resturents/${restId}/addTable`,
             {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -456,60 +457,60 @@ export const apiUpdateOrder = async (orderId: string, updates: Partial<Order>): 
 
 // --- Complaint & Refund API ---
 export const apiRaiseComplaint = async (
-  orderId: string,
-  itemNames: string[],
-  comments: string
+    orderId: string,
+    itemNames: string[],
+    comments: string
 ): Promise<Order> => {
 
-  const order = await apiGetOrderById(orderId);
-  if (!order) throw new Error("Order not found");
+    const order = await apiGetOrderById(orderId);
+    if (!order) throw new Error("Order not found");
 
-  const complaintId = `C-${orderId}-${Date.now()}`;
-  const now = new Date().toISOString();
+    const complaintId = `C-${orderId}-${Date.now()}`;
+    const now = new Date().toISOString();
 
-  // 1️⃣ Insert into complaints table (DB format)
-  const { error: insertError } = await supabase
-    .from("complaints")
-    .insert({
-      id: complaintId,
-      order_id: orderId,
-      user_id: order.userId,
-      item_names: itemNames,
-      comments,
-      status: "pending",
-      created_at: now,
-    });
+    // 1️⃣ Insert into complaints table (DB format)
+    const { error: insertError } = await supabase
+        .from("complaints")
+        .insert({
+            id: complaintId,
+            order_id: orderId,
+            user_id: order.userId,
+            item_names: itemNames,
+            comments,
+            status: "pending",
+            created_at: now,
+        });
 
-  if (insertError) throw insertError;
+    if (insertError) throw insertError;
 
-  // 2️⃣ Update orders.complaint (frontend snapshot format)
-  const { data: updatedOrder, error: updateError } = await supabase
-    .from("orders")
-    .update({
-      complaint: {
-        id: complaintId,
-        itemNames,
-        comments,
-        status: "pending",
-        createdAt: now,
-        totalAmount: Number(order.totalAmount || 0), // ✅ ADDED
-      },
-      refund_status: "pending",
-    })
-    .eq("id", orderId)
-    .select()
-    .single();
+    // 2️⃣ Update orders.complaint (frontend snapshot format)
+    const { data: updatedOrder, error: updateError } = await supabase
+        .from("orders")
+        .update({
+            complaint: {
+                id: complaintId,
+                itemNames,
+                comments,
+                status: "pending",
+                createdAt: now,
+                totalAmount: Number(order.totalAmount || 0), // ✅ ADDED
+            },
+            refund_status: "pending",
+        })
+        .eq("id", orderId)
+        .select()
+        .single();
 
-  if (updateError) throw updateError;
-  if (!updatedOrder) throw new Error("Order update blocked (RLS)");
+    if (updateError) throw updateError;
+    if (!updatedOrder) throw new Error("Order update blocked (RLS)");
 
-  return mapDbOrderToType(updatedOrder);
+    return mapDbOrderToType(updatedOrder);
 };
 
 
 
 export async function apiCancelOrder(orderId: string, amount: number, reason: string) {
-    const res = await fetch("http://localhost:3000/api/payment/cancel-order", {
+    const res = await fetch(`${BASE_URL}/payment/cancel-order`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -540,26 +541,26 @@ export const apiGetOrders = async (): Promise<Order[]> => {
 };
 
 export async function apiProcessRefundApproval(
-  orderId: string,
-  refundAmount: number,
-  reason?: string
+    orderId: string,
+    refundAmount: number,
+    reason?: string
 ) {
-  const res = await fetch("http://localhost:3000/api/complaints/refund", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      orderId,
-      refundAmount,
-      reason,
-    }),
-  });
+    const res = await fetch(`${BASE_URL}/complaints/refund`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            orderId,
+            refundAmount,
+            reason,
+        }),
+    });
 
-  if (!res.ok) {
-    const err = await res.json();
-    throw new Error(err.message || "Refund failed");
-  }
+    if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "Refund failed");
+    }
 
-  return res.json();
+    return res.json();
 }
 export const apiRejectComplaint = async (orderId: string): Promise<Order> => {
     const order = await apiGetOrderById(orderId);
@@ -663,20 +664,20 @@ export const apiGetAvailableTables = async (
 ) => {
     const url = `${BASE_URL}/reservation/tables/${brandId}?date=${date}&time=${time}&guests=${guests}`;
 
-     const res = await fetch(url);
+    const res = await fetch(url);
 
-  if (!res.ok) {
-    const msg = await res.json();
-    throw new Error(msg.error || "Failed to load tables");
-  }
+    if (!res.ok) {
+        const msg = await res.json();
+        throw new Error(msg.error || "Failed to load tables");
+    }
 
-  const data = await res.json();
+    const data = await res.json();
 
-  if (!Array.isArray(data)) {
-    throw new Error("Invalid table response");
-  }
+    if (!Array.isArray(data)) {
+        throw new Error("Invalid table response");
+    }
 
-  return data;
+    return data;
 };
 
 
@@ -693,7 +694,7 @@ export const apiVerifyReservationOTP = async (contact: string, otp: string): Pro
 // apiService.ts
 
 export async function apiGetUserAIRecommendation(userId: string, restaurantId: string) {
-    const res = await fetch(`http://localhost:3000/api/ai/user-recommendations`, {
+    const res = await fetch(`${BASE_URL}/ai/user-recommendations`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId, restaurantId })
@@ -736,43 +737,43 @@ const generateDailyBookingId = async (dateStr: string): Promise<string> => {
 };
 
 export const apiCreateReservation = async (
-  brandId: string,
-  userId: string | undefined,
-  form: {
-    name: string;
-    email: string;
-    phone: string;
-    date: string;
-    time: string;
-    guests: number;
-    requests: string;
-    tableId?: string;
-  }
+    brandId: string,
+    userId: string | undefined,
+    form: {
+        name: string;
+        email: string;
+        phone: string;
+        date: string;
+        time: string;
+        guests: number;
+        requests: string;
+        tableId?: string;
+    }
 ) => {
-  const payload = {
-    user_id: userId || null,   // ✅ match backend
-    name: form.name,
-    phone: form.phone.trim(),
-    email: form.email || null,
-    date: form.date,
-    time: form.time,
-    guests: form.guests,
-    tableId: form.tableId,     // ✅ backend expects tableId
-    requests: form.requests || null,
-  };
+    const payload = {
+        user_id: userId || null,   // ✅ match backend
+        name: form.name,
+        phone: form.phone.trim(),
+        email: form.email || null,
+        date: form.date,
+        time: form.time,
+        guests: form.guests,
+        tableId: form.tableId,     // ✅ backend expects tableId
+        requests: form.requests || null,
+    };
 
-  const res = await fetch(`${BASE_URL}/reservation/${brandId}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
+    const res = await fetch(`${BASE_URL}/reservation/${brandId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
 
-  if (!res.ok) {
-    const msg = await res.json();
-    throw new Error(msg.error || "Reservation failed");
-  }
+    if (!res.ok) {
+        const msg = await res.json();
+        throw new Error(msg.error || "Reservation failed");
+    }
 
-  return await res.json(); // contains booking_id from backend
+    return await res.json(); // contains booking_id from backend
 };
 
 
@@ -908,7 +909,7 @@ const getCurrentRestaurantId = (): string => {
 
     // Option 2: Default to Bongo Delicacy
     return 'c9ignw2k50';
-    
+
     // Option 3: You could also get it from URL params, Redux store, or Context
 };
 
@@ -928,7 +929,7 @@ export const apiHelpBuddyChat = async (
     try {
         // Get restaurant ID (parameter > current context > default)
         const restId = restaurantId || getCurrentRestaurantId();
-        
+
         // Get user ID (parameter > current user > undefined for guest)
         let currentUserId = userId;
         if (!currentUserId) {
@@ -955,7 +956,7 @@ export const apiHelpBuddyChat = async (
         };
 
         // Make API request
-        const response = await fetch(`http://localhost:3000/api/ai/help-buddy/chat`, {
+        const response = await fetch(`${BASE_URL}/ai/help-buddy/chat`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -967,7 +968,7 @@ export const apiHelpBuddyChat = async (
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
             const errorMessage = errorData.message || `Request failed with status ${response.status}`;
-            
+
             console.error('❌ Help Buddy API Error:', {
                 status: response.status,
                 message: errorMessage
@@ -981,7 +982,7 @@ export const apiHelpBuddyChat = async (
             } else if (response.status === 429) {
                 throw new Error('Too many requests. Please wait a moment.');
             }
-            
+
             throw new Error(errorMessage);
         }
 

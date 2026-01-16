@@ -3,6 +3,7 @@ import { useCart } from "../context/CartContext";
 import { useAuth } from "../context/AuthContext";
 import { Icon } from "./Icon";
 import { Brand, DeliveryAddress } from "../types";
+import { BASE_URL } from "../src/config";
 import {
   apiCreateOrder,
   applyFlatDiscount,
@@ -39,6 +40,128 @@ const Spinner: React.FC<{ className?: string }> = ({
     ></path>
   </svg>
 );
+type TaxLine = { id: string; name: string; tax_percentage: string; amount?: string | number };
+
+const round2 = (n: number) => Math.round(n * 100) / 100;
+const getItemKey = (i: any) => String(i.itemid ?? i.id ?? "");
+
+const computeDiscountAwareTaxes = (
+  items: any[],
+  calculatedTaxByItemId: Record<string, TaxLine[]>,
+  orderDiscount: number
+) => {
+  const lines = items.map((i) => {
+    const key = getItemKey(i);
+    const qty = Number(i.quantity || 1);
+
+    const taxArr = (calculatedTaxByItemId[key] || []).map((t) => ({
+      id: String(t.id),
+      name: String(t.name),
+      pct: Number(t.tax_percentage || 0),
+    }));
+
+    const totalRate = taxArr.reduce((s, t) => s + t.pct, 0);
+    const unitPrice = Number(i.price || 0);
+
+    const isInclusive =
+      i.tax_inclusive === true ||
+      i.tax_inclusive === "true" ||
+      i.is_tax_inclusive === "1" ||
+      i.is_tax_inclusive === 1;
+
+    const unitBase =
+      isInclusive && totalRate > 0
+        ? unitPrice / (1 + totalRate / 100)
+        : unitPrice;
+
+    const lineBase = unitBase * qty;
+
+    return { key, lineBase, taxArr };
+  });
+
+  const totalBase = lines.reduce((s, l) => s + l.lineBase, 0);
+  const discountToApply = Math.min(Number(orderDiscount || 0), totalBase);
+
+  const perItemTax: Record<string, any[]> = {};
+  let gstTotal = 0;
+
+  if (totalBase <= 0) return { perItemTax: {}, gstTotal: 0 };
+
+  let distributed = 0;
+
+  lines.forEach((l, idx) => {
+    const lineDiscount =
+      idx === lines.length - 1
+        ? round2(discountToApply - distributed)
+        : round2((l.lineBase / totalBase) * discountToApply);
+
+    distributed += lineDiscount;
+
+    const discountedBase = Math.max(0, l.lineBase - lineDiscount);
+
+    const taxes = l.taxArr.map((t) => {
+      const amt = (discountedBase * t.pct) / 100;
+      gstTotal += amt;
+      return {
+        id: t.id,
+        name: t.name,
+        tax_percentage: String(t.pct),
+        amount: round2(amt),
+      };
+    });
+
+    perItemTax[l.key] = taxes;
+  });
+
+  return { perItemTax, gstTotal: round2(gstTotal) };
+};
+
+
+const buildTaxSummary = (items: any[], perItemTax: Record<string, any[]>) => {
+  const map = new Map<string, any>();
+
+  for (const item of items) {
+    const key = getItemKey(item);
+    const taxes = perItemTax[key] || [];
+
+    const liability = String(item.gst_liability || "vendor").toLowerCase();
+
+    for (const t of taxes) {
+      const id = String(t.id);
+      const title = String(t.name);
+      const pct = String(t.tax_percentage);
+
+      const groupKey = `${id}|${title}|${pct}|${liability}`;
+
+      const amt = Number(t.amount || 0);
+
+      if (!map.has(groupKey)) {
+        map.set(groupKey, {
+          id,
+          title,
+          type: "P",
+          price: pct,
+          tax: 0,
+          restaurant_liable_amt: 0,
+        });
+      }
+
+      const row = map.get(groupKey);
+      row.tax += amt;
+
+      if (liability === "restaurant") {
+        row.restaurant_liable_amt += amt;
+      }
+    }
+  }
+
+  return Array.from(map.values()).map((r) => ({
+    ...r,
+    tax: Number(r.tax).toFixed(2),
+    restaurant_liable_amt: Number(r.restaurant_liable_amt).toFixed(2),
+  }));
+};
+
 
 interface CartModalProps {
   isOpen: boolean;
@@ -56,6 +179,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
   >({});
   const [calculatedGstTotal, setCalculatedGstTotal] = useState(0);
   const [deliveryCharge, setDeliveryCharge] = useState(0);
+  const [gstAfterDiscount, setGstAfterDiscount] = useState(0);
   const {
     items,
     removeItem,
@@ -113,27 +237,42 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
       now.getDate()
     )}`;
   };
-  const normalizeItemTax = (item: any) => {
-    // ✅ best source from your API response
+  const normalizeItemTax = (item: any): TaxLine[] => {
     if (Array.isArray(item?.tax_breakup) && item.tax_breakup.length > 0) {
-      return item.tax_breakup;
+      return item.tax_breakup.map((t: any) => ({
+        id: String(t.id),
+        name: String(t.name),
+        tax_percentage: String(t.tax_percentage ?? t.tax ?? 0),
+        amount: t.amount,
+      }));
     }
 
-    // fallback: if item_tax already array
-    if (Array.isArray(item?.item_tax)) return item.item_tax;
+    if (Array.isArray(item?.item_tax) && item.item_tax.length > 0) {
+      return item.item_tax.map((t: any) => ({
+        id: String(t.id),
+        name: String(t.name),
+        tax_percentage: String(t.tax_percentage ?? t.tax ?? 0),
+        amount: t.amount,
+      }));
+    }
 
-    // fallback: if item_tax is JSON string
     if (typeof item?.item_tax === "string") {
       try {
         const parsed = JSON.parse(item.item_tax);
-        return Array.isArray(parsed) ? parsed : [];
-      } catch {
-        return [];
-      }
+        if (Array.isArray(parsed)) {
+          return parsed.map((t: any) => ({
+            id: String(t.id),
+            name: String(t.name),
+            tax_percentage: String(t.tax_percentage ?? t.tax ?? 0),
+            amount: t.amount,
+          }));
+        }
+      } catch { }
     }
 
     return [];
   };
+
 
   const formatOrderTime = () => {
     const now = new Date();
@@ -161,26 +300,17 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
     );
   };
   useEffect(() => {
-    const taxMap: Record<string, any[]> = {};
+    const taxMap: Record<string, TaxLine[]> = {};
     let total = 0;
 
     items.forEach((it: any) => {
-      // ✅ tax_breakup is the real tax array from your API response
-      const taxArr =
-        Array.isArray(it?.tax_breakup) && it.tax_breakup.length > 0
-          ? it.tax_breakup
-          : Array.isArray(it?.item_tax)
-          ? it.item_tax
-          : [];
+      const key = getItemKey(it);
+      const taxArr = normalizeItemTax(it);
 
-      taxMap[it.itemid] = taxArr;
+      taxMap[key] = taxArr;
 
       const qty = Number(it.quantity || 1);
-
-      const perQtyTax = taxArr.reduce(
-        (s: number, t: any) => s + Number(t?.amount || 0),
-        0
-      );
+      const perQtyTax = taxArr.reduce((s, t) => s + Number(t?.amount || 0), 0);
 
       total += perQtyTax * qty;
     });
@@ -189,6 +319,17 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
     setCalculatedGstTotal(Number(total.toFixed(2)));
   }, [items]);
 
+
+  const hasInclusiveItems = useMemo(() => {
+    return items.some((i: any) => {
+      return (
+        i.tax_inclusive === true ||
+        i.tax_inclusive === "true" ||
+        i.is_tax_inclusive === "1" ||
+        i.is_tax_inclusive === 1
+      );
+    });
+  }, [items]);
   // Google Maps Autocomplete Init
   useEffect(() => {
     if (
@@ -303,9 +444,12 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
       discountedTotal - loyaltyDiscountCalc > 0
         ? discountedTotal - loyaltyDiscountCalc
         : 0;
-    const gstAmountCalc = calculatedGstTotal;
+    const gstAmountCalc = gstAfterDiscount;
+    const grandTotalCalc = hasInclusiveItems
+      ? preTaxTotalCalc + deliveryCharge
+      : preTaxTotalCalc + gstAmountCalc + deliveryCharge;
 
-    const grandTotalCalc = preTaxTotalCalc + gstAmountCalc + deliveryCharge;
+
 
     return {
       subtotal: subtotalCalc,
@@ -321,8 +465,21 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
     loyaltyPointsToRedeem,
     availablePoints,
     deliveryCharge,
-    calculatedGstTotal,
+    gstAfterDiscount,
+    hasInclusiveItems
   ]);
+  useEffect(() => {
+    const discountForTax =
+      Number(discountAmount || 0) + Number(loyaltyDiscount || 0);
+
+    const { gstTotal } = computeDiscountAwareTaxes(
+      items,
+      calculatedTaxByItemId,
+      discountForTax
+    );
+
+    setGstAfterDiscount(gstTotal);
+  }, [items, calculatedTaxByItemId, discountAmount, loyaltyDiscount]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -395,12 +552,40 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
     setIsProcessing(true);
 
     try {
+      // ✅ Discount that should reduce taxable value (before tax)
+      const discountForTax = Number(discountAmount || 0) + Number(loyaltyDiscount || 0);
+
+      // ✅ Recalculate item taxes AFTER discount
+      const { perItemTax, gstTotal } = computeDiscountAwareTaxes(
+        items,
+        calculatedTaxByItemId,
+        discountForTax
+      );
+      const preTax = Math.max(
+        0,
+        Number(totalPrice || 0) -
+        Number(discountAmount || 0) -
+        Number(loyaltyDiscount || 0)
+      );
+
+      const finalTotalForPayload = hasInclusiveItems
+        ? preTax + Number(deliveryCharge || 0)
+        : preTax + Number(gstTotal || 0) + Number(deliveryCharge || 0);
+
+
+      // ✅ Build PetPooja Tax.details summary (grouped)
+      const taxSummary = buildTaxSummary(items, perItemTax);
       // 1) Build PetPooja + backend payload
       const payload = {
         userId: currentUser.id,
         orderinfo: {
           OrderInfo: {
-            Restaurant: { details: { restID: brandId } },
+            Restaurant: {
+              details: {
+                restID: brandId,
+              },
+            },
+
             Customer: {
               details: {
                 email: currentUser.email,
@@ -411,33 +596,45 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                 longitude: deliveryAddress.coordinates?.lng?.toString() ?? "",
               },
             },
+
             Order: {
               details: {
                 preorder_date: formatOrderDate(),
                 preorder_time: formatOrderTime(),
+
                 service_charge: "0",
                 sc_tax_amount: "0",
-                delivery_charges: deliveryCharge.toString(),
+
+                delivery_charges: String(deliveryCharge ?? 0),
                 dc_tax_percentage: "0",
                 dc_tax_amount: "0",
                 dc_gst_details: [],
+
                 packing_charges: "0",
                 pc_tax_amount: "0",
                 pc_tax_percentage: "0",
                 pc_gst_details: [],
+
                 order_type: "H",
                 advanced_order: "N",
                 urgent_order: false,
                 urgent_time: 0,
+
                 payment_type: "ONLINE",
                 table_no: "",
                 no_of_persons: "0",
-                discount_total: discountAmount.toString(),
-                discount_type: discountAmount > 0 ? "F" : "",
-                tax_total: calculatedGstTotal.toFixed(2),
 
-                total: grandTotal.toFixed(2),
-                // description: "",
+                discount_total: (
+                  Number(discountAmount || 0) + Number(loyaltyDiscount || 0)
+                ).toFixed(2),
+                discount_type:
+                  Number(discountAmount || 0) + Number(loyaltyDiscount || 0) > 0
+                    ? "F"
+                    : "",
+
+                tax_total: Number(gstTotal || 0).toFixed(2),
+                total: Number(finalTotalForPayload || 0).toFixed(2),
+
                 created_on: getCurrentDateTime(),
                 enable_delivery: 1,
                 callback_url:
@@ -445,54 +642,53 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                 collect_cash: "0",
               },
             },
-            OrderItem: {
-              details: items.map((i) => ({
-                id: i.itemid.toString(),
-                name: i.itemname,
-                tax_inclusive: i.tax_inclusive,
-                gst_liability: "vendor",
-                item_tax: (calculatedTaxByItemId[i.itemid] || []).map(
-                  (t: any) => ({
-                    id: t.id,
-                    name: t.name,
-                    tax_percentage: t.tax_percentage,
-                    amount: (
-                      Number(t.amount || 0) * Number(i.quantity || 1)
-                    ).toFixed(2),
-                  })
-                ),
 
-                item_discount: "0",
-                price: i.price.toString(),
-                final_price: (
-                  parseFloat(i.price) * Number(i.quantity)
-                ).toString(),
-                quantity: i.quantity.toString(),
-                variation_name: "",
-                variation_id: "",
-                AddonItem: { details: [] },
-              })),
+            OrderItem: {
+              details: items.map((i: any) => {
+                const itemKey = getItemKey(i); // IMPORTANT: same key used in perItemTax
+
+                return {
+                  id: String(i.itemid ?? i.id ?? ""),
+                  name: String(i.itemname ?? i.name ?? ""),
+
+                  tax_inclusive: i.tax_inclusive,
+                  gst_liability: String(i.gst_liability ?? "vendor"),
+
+                  item_tax: (perItemTax[itemKey] || []).map((t: any) => ({
+                    id: String(t.id),
+                    name: String(t.name),
+                    tax_percentage: String(t.tax_percentage),
+                    amount: Number(t.amount || 0).toFixed(2),
+                  })),
+
+                  item_discount: "0",
+                  price: String(i.price ?? "0"),
+                  final_price: (
+                    Number(i.price || 0) * Number(i.quantity || 1)
+                  ).toFixed(2),
+                  quantity: String(i.quantity ?? "1"),
+
+                  variation_name: "",
+                  variation_id: "",
+                  AddonItem: { details: [] },
+                };
+              }),
             },
           },
-          Tax: items.flatMap((i: any) =>
-            (calculatedTaxByItemId[i.itemid] || []).map((t: any) => ({
-              id: t.id,
-              title: t.name,
-              type: "P",
-              price: t.tax_percentage,
-              tax: (Number(t.amount || 0) * Number(i.quantity || 1)).toFixed(2),
-              restaurant_liable_amt: "0.00",
-            }))
-          ),
+
+          Tax: {
+            details: taxSummary,
+          },
 
           udid: "",
           device_type: "Web",
         },
       };
 
+
       // 2) Hit backend → create PetPooja order + Razorpay order
       const res = await fetch(
-        "http://localhost:3000/api/payment/create-order",
+        `${BASE_URL}/payment/create-order`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -517,7 +713,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
         handler: async (paymentResponse: any) => {
           try {
             const verifyRes = await fetch(
-              "http://localhost:3000/api/payment/verify-payment",
+              `${BASE_URL}/payment/verify-payment`,
               {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -715,64 +911,65 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
               <p className="text-gray-400 text-center">Your cart is empty.</p>
             ) : (
               <div className="space-y-4">
-                {items.map((item) => (
-                  <div key={item.itemid} className="flex items-center gap-4">
-                    <img
-                      src={item.item_image_url}
-                      alt={item.itemname}
-                      className="w-16 h-16 rounded-md object-cover"
-                    />
-                    <div className="flex-grow">
-                      <p className="font-semibold text-white">
-                        {item.itemname}
-                      </p>
-                      <p className="text-sm text-gray-400">
-                        ₹{Number(item.price).toFixed(2)}
-                      </p>
+                {items.map((item: any) => {
+                  const itemKey = getItemKey(item);
 
-                      {Array.isArray(calculatedTaxByItemId[item.itemid]) &&
-                        calculatedTaxByItemId[item.itemid].length > 0 && (
-                          <p className="text-xs text-gray-500">
-                            GST: ₹
-                            {(
-                              calculatedTaxByItemId[item.itemid].reduce(
-                                (s: number, t: any) =>
-                                  s + Number(t?.amount || 0),
-                                0
-                              ) * Number(item.quantity || 1)
-                            ).toFixed(2)}
-                          </p>
-                        )}
-                    </div>
-                    <div className="flex items-center gap-2">
+                  return (
+                    <div key={itemKey} className="flex items-center gap-4">
+                      <img
+                        src={item.item_image_url}
+                        alt={item.itemname}
+                        className="w-16 h-16 rounded-md object-cover"
+                      />
+
+                      <div className="flex-grow">
+                        <p className="font-semibold text-white">{item.itemname}</p>
+                        <p className="text-sm text-gray-400">₹{Number(item.price).toFixed(2)}</p>
+
+                        {Array.isArray(calculatedTaxByItemId[itemKey]) &&
+                          calculatedTaxByItemId[itemKey].length > 0 && (
+                            <p className="text-xs text-gray-500">
+                              GST: ₹
+                              {(
+                                calculatedTaxByItemId[itemKey].reduce(
+                                  (s: number, t: any) => s + Number(t?.amount || 0),
+                                  0
+                                ) * Number(item.quantity || 1)
+                              ).toFixed(2)}
+                            </p>
+                          )}
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => updateItemQuantity(item.itemname, item.quantity - 1)}
+                          className="text-gray-400 hover:text-white"
+                        >
+                          <Icon type="minus-circle" className="w-6 h-6" />
+                        </button>
+
+                        <span className="font-bold text-white w-5 text-center">
+                          {item.quantity}
+                        </span>
+
+                        <button
+                          onClick={() => updateItemQuantity(item.itemname, item.quantity + 1)}
+                          className="text-gray-400 hover:text-white"
+                        >
+                          <Icon type="plus-circle" className="w-6 h-6" />
+                        </button>
+                      </div>
+
                       <button
-                        onClick={() =>
-                          updateItemQuantity(item.itemname, item.quantity - 1)
-                        }
-                        className="text-gray-400 hover:text-white"
+                        onClick={() => removeItem(item.itemname)}
+                        className="text-red-400 hover:text-red-300"
                       >
-                        <Icon type="minus-circle" className="w-6 h-6" />
-                      </button>
-                      <span className="font-bold text-white w-5 text-center">
-                        {item.quantity}
-                      </span>
-                      <button
-                        onClick={() =>
-                          updateItemQuantity(item.itemname, item.quantity + 1)
-                        }
-                        className="text-gray-400 hover:text-white"
-                      >
-                        <Icon type="plus-circle" className="w-6 h-6" />
+                        <Icon type="trash" className="w-5 h-5" />
                       </button>
                     </div>
-                    <button
-                      onClick={() => removeItem(item.itemname)}
-                      className="text-red-400 hover:text-red-300"
-                    >
-                      <Icon type="trash" className="w-5 h-5" />
-                    </button>
-                  </div>
-                ))}
+                  );
+                })}
+
               </div>
             )}
           </>
@@ -787,9 +984,8 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                   setIsLoginView(true);
                   setAuthError("");
                 }}
-                className={`flex-1 p-2 rounded-l-md text-sm ${
-                  isLoginView ? "bg-cyan-600 text-white" : "bg-gray-700"
-                }`}
+                className={`flex-1 p-2 rounded-l-md text-sm ${isLoginView ? "bg-cyan-600 text-white" : "bg-gray-700"
+                  }`}
               >
                 Login
               </button>
@@ -799,9 +995,8 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                   setIsLoginView(false);
                   setAuthError("");
                 }}
-                className={`flex-1 p-2 rounded-r-md text-sm ${
-                  !isLoginView ? "bg-cyan-600 text-white" : "bg-gray-700"
-                }`}
+                className={`flex-1 p-2 rounded-r-md text-sm ${!isLoginView ? "bg-cyan-600 text-white" : "bg-gray-700"
+                  }`}
               >
                 Register
               </button>
@@ -880,11 +1075,10 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                 {currentUser.addresses.map((addr) => (
                   <label
                     key={addr.id}
-                    className={`block p-4 rounded-lg border cursor-pointer transition-all ${
-                      selectedAddressId === addr.id
-                        ? "border-cyan-500 bg-cyan-900/20"
-                        : "border-gray-600 bg-gray-700/50 hover:border-gray-500"
-                    }`}
+                    className={`block p-4 rounded-lg border cursor-pointer transition-all ${selectedAddressId === addr.id
+                      ? "border-cyan-500 bg-cyan-900/20"
+                      : "border-gray-600 bg-gray-700/50 hover:border-gray-500"
+                      }`}
                   >
                     <div className="flex items-start gap-3">
                       <input
@@ -996,11 +1190,10 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                         setAddressError("");
                       }
                     }}
-                    className={`w-full bg-gray-700 p-3 pl-10 rounded-md border ${
-                      !isAddressServiceable
-                        ? "border-red-500 focus:ring-red-500"
-                        : "border-gray-600 focus:ring-cyan-500"
-                    } focus:ring-2 focus:outline-none text-white`}
+                    className={`w-full bg-gray-700 p-3 pl-10 rounded-md border ${!isAddressServiceable
+                      ? "border-red-500 focus:ring-red-500"
+                      : "border-gray-600 focus:ring-cyan-500"
+                      } focus:ring-2 focus:outline-none text-white`}
                   />
                 </div>
                 {!isAddressServiceable && (
@@ -1281,7 +1474,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
 
               <div className="flex justify-between text-gray-300">
                 <span>GST </span>
-                <span>+ ₹{calculatedGstTotal.toFixed(2)}</span>
+                <span>+ ₹{gstAfterDiscount.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-gray-300">
                 <span>Delivery Charges</span>
@@ -1302,7 +1495,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
             )}
             {
               view === "auth" &&
-                null /* Auth view has its own submit button in form */
+              null /* Auth view has its own submit button in form */
             }
             {view === "checkout" && (
               <button
