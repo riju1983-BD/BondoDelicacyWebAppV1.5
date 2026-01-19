@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { bongoDelicacyLogo } from "../data";
+import bongoDelicacyLogo from "../src/assets/bongodelicacylogo.png";
 import { useAuth } from "../context/AuthContext";
 import HelpBuddyIcon from "./HelpBuddyIcon";
 import HelpBuddyModal from "./HelpBuddyModal";
@@ -78,7 +78,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
             <img
               src={bongoDelicacyLogo}
               alt="Bongo Delicacy Logo"
-              className="h-10 w-auto sm:h-12"
+              className="h-20 w-auto sm:h-26"
             />
             <div>
               <h1 className="text-xl sm:text-2xl font-serif font-bold text-cyan-500 leading-none">

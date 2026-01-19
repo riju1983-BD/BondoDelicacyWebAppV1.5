@@ -177,7 +177,7 @@ const AdminDashboardPage: React.FC = () => {
 
       // ✅ change URL if your backend prefix is different
       const res = await fetch(
-        `http://localhost:3000/api/resturents/upload-image`,
+        `${BASE_URL}/resturents/upload-image`,
         {
           method: "POST",
           body: form,

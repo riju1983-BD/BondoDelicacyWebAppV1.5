@@ -217,13 +217,12 @@ const TableMap: React.FC<{
           >
             <Icon
               type="users"
-              className={`w-8 h-8 mb-2 ${
-                isBooked
-                  ? "text-red-500"
-                  : isSelected
-                    ? "text-[var(--accent-color)]"
-                    : "text-gray-500"
-              }`}
+              className={`w-8 h-8 mb-2 ${isBooked
+                ? "text-red-500"
+                : isSelected
+                  ? "text-[var(--accent-color)]"
+                  : "text-gray-500"
+                }`}
             />
             <span className="font-semibold text-white">{table.name}</span>
             <span className="text-xs text-gray-400">
@@ -349,26 +348,59 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
 
     loadMenu();
   }, [restId]);
+  // ✅ Refresh current menu when user comes back to the tab/app (no polling)
+  useEffect(() => {
+    if (!restId || !activeCategory) return;
+
+    const refreshCurrentCategory = async () => {
+      try {
+        const currentCat = categories.find((c) => c.id === activeCategory);
+        const items = await apiGetMenu(restId, activeCategory);
+
+        setMenuCache((prev) => ({ ...prev, [activeCategory]: items }));
+
+        // update what you're rendering (menuData)
+        if (currentCat) {
+          setMenuData([
+            { category: currentCat.name, category_id: activeCategory, items },
+          ]);
+        } else {
+          setMenuData([
+            { category: currentCat?.name || "Menu", category_id: activeCategory, items },
+          ]);
+        }
+      } catch {
+        // ignore
+      }
+    };
+
+    const onFocus = () => refreshCurrentCategory();
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") refreshCurrentCategory();
+    };
+
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [restId, activeCategory, categories]);
 
   const handleCategoryChange = async (cat: any) => {
     setActiveCategory(cat.id);
-
-    if (menuCache[cat.id]) {
-      setMenuData([
-        { category: cat.name, category_id: cat.id, items: menuCache[cat.id] },
-      ]);
-      return;
-    }
-
     setIsMenuChanging(true);
+
     try {
       const items = await apiGetMenu(restId, cat.id);
-      setMenuCache((prev) => ({ ...prev, [cat.id]: items }));
+      setMenuCache((prev) => ({ ...prev, [cat.id]: items })); // keep cache updated
       setMenuData([{ category: cat.name, category_id: cat.id, items }]);
     } finally {
       setIsMenuChanging(false);
     }
   };
+
 
   const filteredMenu = useMemo(() => {
     if (!searchQuery.trim()) return menuData;
@@ -390,13 +422,13 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
       ? (item as any).item_tax
       : typeof (item as any).item_tax === "string"
         ? (() => {
-            try {
-              const parsed = JSON.parse((item as any).item_tax);
-              return Array.isArray(parsed) ? parsed : [];
-            } catch {
-              return [];
-            }
-          })()
+          try {
+            const parsed = JSON.parse((item as any).item_tax);
+            return Array.isArray(parsed) ? parsed : [];
+          } catch {
+            return [];
+          }
+        })()
         : [];
 
     addItem({
@@ -561,8 +593,8 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
     Array.isArray(restaurant?.gallery) && restaurant.gallery.length > 0
       ? restaurant.gallery
       : Array.from({ length: 8 }).map(
-          (_, i) => [heroImage, aboutImage, logo][i % 3],
-        );
+        (_, i) => [heroImage, aboutImage, logo][i % 3],
+      );
 
   const contactAddress = restaurant?.address
     ? [restaurant.address, restaurant?.city].filter(Boolean).join(", ")
@@ -742,10 +774,9 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
                     key={cat.id}
                     onClick={() => handleCategoryChange(cat)}
                     className={`px-4 py-2 rounded-md font-semibold transition-all 
-                      ${
-                        activeCategory === cat.id
-                          ? "text-[var(--text-on-primary-color)]"
-                          : "bg-gray-700 text-white hover:bg-gray-600"
+                      ${activeCategory === cat.id
+                        ? "text-[var(--text-on-primary-color)]"
+                        : "bg-gray-700 text-white hover:bg-gray-600"
                       }`}
                     style={
                       activeCategory === cat.id
@@ -776,7 +807,11 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
 
                       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
                         {category.items.map((item: any) => {
-                          const isAvailable = item.active === "1";
+                          const isAvailable =
+                            String(item.active) === "1" &&
+                            String(item.in_stock) !== "0";
+
+
 
                           return (
                             <div
@@ -1012,9 +1047,9 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
                       onSubmit={
                         otpSent
                           ? (e) => {
-                              e.preventDefault();
-                              confirmBooking();
-                            }
+                            e.preventDefault();
+                            confirmBooking();
+                          }
                           : sendOtp
                       }
                       className="space-y-4"
