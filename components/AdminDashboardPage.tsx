@@ -26,7 +26,9 @@ import {
   apiAddTable,
   apiGetTables,
   apiToggleTable,
+  apiUploadRestaurantImage,
 } from "../services/apiService";
+import { BASE_URL } from "../src/config";
 import { supabase } from "../services/supabaseClient";
 import { brandsData } from "../data";
 
@@ -66,13 +68,20 @@ const AdminDashboardPage: React.FC = () => {
     | "addRestaurant"
   >("menu");
 
-
   // Menu State
   const [menu, setMenu] = useState<BrandMenuCategory[] | null>(null);
   const [isLoadingMenu, setIsLoadingMenu] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedBrandId, setSelectedBrandId] =
     useState<Brand["id"]>("c9ignw2k50");
+  // Restaurants dropdown for Live Menu
+  const [restaurantOptions, setRestaurantOptions] = useState<
+    { rest_id: string; name: string }[]
+  >([]);
+  const [selectedRestaurantId, setSelectedRestaurantId] = useState<string>("");
+  const [isLoadingRestaurantOptions, setIsLoadingRestaurantOptions] =
+    useState(false);
+
   const [restId, setRestId] = useState("");
   const [fetchedData, setFetchedData] = useState<any>(null);
   const [isFetching, setIsFetching] = useState(false);
@@ -84,7 +93,20 @@ const AdminDashboardPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const DEFAULT_IMAGE = "https://via.placeholder.com/400x300?text=No+Image";
+  // --- Add Restaurant: Extra fields + uploads ---
+  const [tagline, setTagline] = useState("");
+  const [description, setDescription] = useState("");
+  const [aboutText, setAboutText] = useState("");
 
+  const [logoUrl, setLogoUrl] = useState("");
+  const [heroImageUrl, setHeroImageUrl] = useState("");
+  const [aboutImageUrl, setAboutImageUrl] = useState("");
+
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  // ✅ change this bucket to your real bucket name in Supabase Storage
+  const RESTAURANT_BUCKET = "restaurant-images";
   // Loyalty State
   const [loyaltyConfig, setLoyaltyConfig] = useState<LoyaltyConfig>({
     rupeesPerPoint: 100,
@@ -98,7 +120,7 @@ const AdminDashboardPage: React.FC = () => {
   const [isLoadingComplaints, setIsLoadingComplaints] = useState(false);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
   const [complaintFilter, setComplaintFilter] = useState<"active" | "resolved">(
-    "active"
+    "active",
   );
   const [processingComplaintId, setProcessingComplaintId] = useState<
     string | null
@@ -136,6 +158,43 @@ const AdminDashboardPage: React.FC = () => {
   const [tables, setTables] = useState<any[]>([]);
   const [showTablesFor, setShowTablesFor] = useState<string | null>(null);
   const [loadingTables, setLoadingTables] = useState(false);
+  const buildStoragePath = (restId: string, filename: string) => {
+    const safeName = filename.replace(/\s+/g, "-").toLowerCase();
+    return `restaurants/${restId || "unknown"}/${Date.now()}-${safeName}`;
+  };
+
+  const uploadImage = async (file: File, type: "logo" | "hero" | "about") => {
+    setUploadError(null);
+    setIsUploading(true);
+
+    try {
+      if (!restId) throw new Error("Please enter Rest ID first");
+
+      const form = new FormData();
+      form.append("rest_id", restId);
+      form.append("type", type);
+      form.append("file", file);
+
+      // ✅ change URL if your backend prefix is different
+      const res = await fetch(
+        `http://localhost:3000/api/resturents/upload-image`,
+        {
+          method: "POST",
+          body: form,
+        },
+      );
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Upload failed");
+
+      return data.url as string;
+    } catch (e: any) {
+      setUploadError(e?.message || "Image upload failed");
+      return "";
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   async function loadTables(restId: string) {
     setLoadingTables(true);
@@ -153,7 +212,7 @@ const AdminDashboardPage: React.FC = () => {
         { event: "*", schema: "public", table: "orders" },
         () => {
           if (activeTab === "complaints") fetchComplaints();
-        }
+        },
       )
       .subscribe();
     const ordersSubscription = supabase
@@ -163,7 +222,7 @@ const AdminDashboardPage: React.FC = () => {
         { event: "*", schema: "public", table: "orders" },
         () => {
           if (activeTab === "complaints") fetchComplaints();
-        }
+        },
       )
       .subscribe();
     // Subscribe to 'reservations'
@@ -174,7 +233,7 @@ const AdminDashboardPage: React.FC = () => {
         { event: "*", schema: "public", table: "reservations" },
         () => {
           if (activeTab === "reservations") fetchReservations();
-        }
+        },
       )
       .subscribe();
 
@@ -226,6 +285,30 @@ const AdminDashboardPage: React.FC = () => {
       setIsLoadingRestaurants(false);
     }
   }, []);
+  const fetchRestaurantOptions = useCallback(async () => {
+    setIsLoadingRestaurantOptions(true);
+    try {
+      const { data, error } = await supabase
+        .from("restaurants")
+        .select("rest_id,name")
+        .order("name", { ascending: true });
+
+      if (error) throw error;
+
+      const list = (data || []).filter((r) => r.rest_id);
+
+      setRestaurantOptions(list);
+
+      // auto-select first item if nothing selected
+      if (!selectedRestaurantId && list.length > 0) {
+        setSelectedRestaurantId(list[0].rest_id);
+      }
+    } catch (e) {
+      console.error("fetchRestaurantOptions:", e);
+    } finally {
+      setIsLoadingRestaurantOptions(false);
+    }
+  }, [selectedRestaurantId]);
 
   const fetchOrders = useCallback(async () => {
     setIsLoadingOrders(true);
@@ -250,8 +333,10 @@ const AdminDashboardPage: React.FC = () => {
     }
   }, []);
   useEffect(() => {
-    if (activeTab === "menu") fetchMenu(selectedBrandId);
-    else if (activeTab === "orders") fetchOrders();
+    if (activeTab === "menu") {
+      fetchRestaurantOptions(); // ✅ load dropdown from Supabase
+      fetchMenu(selectedBrandId); // keep your existing menu call for now
+    } else if (activeTab === "orders") fetchOrders();
     else if (activeTab === "loyalty")
       apiGetLoyaltyConfig().then(setLoyaltyConfig);
     else if (activeTab === "complaints") fetchComplaints();
@@ -272,16 +357,38 @@ const AdminDashboardPage: React.FC = () => {
 
     const res = await apiFetchRestaurantMapping(restId);
 
+    let d: any = null;
+
     if (Array.isArray(res.data) && res.data.length > 0) {
-      setFetchedData(res.data[0].details || res.data[0]); // Use details if present
+      d = res.data[0].details || res.data[0];
     } else if (Array.isArray(res.data?.data) && res.data.data.length > 0) {
-      setFetchedData(res.data.data[0].details || res.data.data[0]);
+      d = res.data.data[0].details || res.data.data[0];
+    }
+
+    setFetchedData(d || null);
+
+    // ✅ Prefill new fields
+    if (d) {
+      setTagline(d.tagline || "");
+      setDescription(d.description || "");
+      setAboutText(d.about_text || "");
+
+      setLogoUrl(d.logo || d.images?.[0] || "");
+      setHeroImageUrl(d.hero_image || "");
+      setAboutImageUrl(d.about_image || "");
     } else {
-      setFetchedData(null);
+      setTagline("");
+      setDescription("");
+      setAboutText("");
+
+      setLogoUrl("");
+      setHeroImageUrl("");
+      setAboutImageUrl("");
     }
 
     setIsFetching(false);
   };
+
   const StarRating: React.FC<{ value: number }> = ({ value }) => {
     const fullStars = Math.floor(value);
 
@@ -290,8 +397,9 @@ const AdminDashboardPage: React.FC = () => {
         {[1, 2, 3, 4, 5].map((i) => (
           <svg
             key={i}
-            className={`w-4 h-4 ${i <= fullStars ? "text-yellow-400" : "text-gray-600"
-              }`}
+            className={`w-4 h-4 ${
+              i <= fullStars ? "text-yellow-400" : "text-gray-600"
+            }`}
             fill="currentColor"
             viewBox="0 0 20 20"
           >
@@ -309,17 +417,27 @@ const AdminDashboardPage: React.FC = () => {
     const payload = {
       rest_id: restId,
       name: fetchedData.restaurantname || "",
-      tagline: fetchedData.tagline || "",
-      description: fetchedData.description || "",
+
+      // ✅ from new inputs
+      tagline: tagline,
+      description: description,
+
       address: fetchedData.address || "",
       city: fetchedData.city || "",
-      logo: fetchedData.logo || fetchedData.images?.[0] || "",
-      hero_image: fetchedData.hero_image || "",
-      about_text: fetchedData.about_text || "",
-      about_image: fetchedData.about_image || "",
+
+      // ✅ image urls from uploads
+      logo: logoUrl,
+      hero_image: heroImageUrl,
+
+      // ✅ about section
+      about_text: aboutText,
+      about_image: aboutImageUrl,
+
+      // theme
       theme_primary: themePrimary,
       theme_accent: themeAccent,
       theme_text_on_primary: themeText,
+
       Latitude: fetchedData.latitude ? Number(fetchedData.latitude) : null,
       Longitude: fetchedData.longitude ? Number(fetchedData.longitude) : null,
     };
@@ -336,15 +454,13 @@ const AdminDashboardPage: React.FC = () => {
     setIsSubmitting(false);
   };
 
-
-
   const handleBrandChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedBrandId(e.target.value as Brand["id"]);
     setMenu(null);
   };
   // const handleToggleAvailability = async (itemName: string) => { if (!menu) return; const isCurrentlyAvailable = !!menu.flatMap(c => c.items).find(i => i.name === itemName)?.isAvailable; const updatedMenu = menu.map(category => ({ ...category, items: category.items.map(item => item.name === itemName ? { ...item, isAvailable: !item.isAvailable } : item) })); try { await apiUpdateItemAvailability(selectedBrandId, itemName, !isCurrentlyAvailable); setMenu(updatedMenu); } catch (err) { setError(err instanceof Error ? err.message : "Failed to update item."); } };
   const handleLoyaltyConfigChange = (
-    e: React.ChangeEvent<HTMLInputElement>
+    e: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const value = parseInt(e.target.value, 10);
     setLoyaltyConfig({ rupeesPerPoint: isNaN(value) || value < 1 ? 1 : value });
@@ -359,7 +475,7 @@ const AdminDashboardPage: React.FC = () => {
   };
   const calculateComplaintRefundAmount = (
     order: Order,
-    requestedAmount?: number
+    requestedAmount?: number,
   ) => {
     const totalAmount = Number(order.totalAmount || 0);
 
@@ -410,7 +526,7 @@ const AdminDashboardPage: React.FC = () => {
       await apiProcessRefundApproval(
         refundOrder.id,
         refundAmount,
-        "Approved complaint refund"
+        "Approved complaint refund",
       );
       setRefundOrder(null);
       await fetchComplaints();
@@ -420,8 +536,6 @@ const AdminDashboardPage: React.FC = () => {
       setIsRefunding(false);
     }
   };
-
-
 
   const handleRejectComplaint = async (orderId: string) => {
     if (!window.confirm("Reject this complaint?")) return;
@@ -440,7 +554,7 @@ const AdminDashboardPage: React.FC = () => {
 
   const handleReservationAction = async (
     resId: string,
-    action: "seated" | "cancel"
+    action: "seated" | "cancel",
   ) => {
     if (
       action === "cancel" &&
@@ -456,7 +570,7 @@ const AdminDashboardPage: React.FC = () => {
     } catch (e) {
       console.error("Error updating reservation:", e);
       alert(
-        "Action failed. You may need to check database permissions (RLS policies)."
+        "Action failed. You may need to check database permissions (RLS policies).",
       );
     } finally {
       setProcessingResId(null);
@@ -542,65 +656,72 @@ const AdminDashboardPage: React.FC = () => {
         <div className="flex border-b border-gray-700 mb-6 overflow-x-auto">
           <button
             onClick={() => setActiveTab("menu")}
-            className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "menu"
-              ? "border-b-2 border-cyan-400 text-cyan-400"
-              : "text-gray-400"
-              }`}
+            className={`flex-shrink-0 py-2 px-4 font-semibold ${
+              activeTab === "menu"
+                ? "border-b-2 border-cyan-400 text-cyan-400"
+                : "text-gray-400"
+            }`}
           >
             Live Menu
           </button>
           <button
             onClick={() => setActiveTab("orders")}
-            className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "orders"
-              ? "border-b-2 border-cyan-400 text-cyan-400"
-              : "text-gray-400"
-              }`}
+            className={`flex-shrink-0 py-2 px-4 font-semibold ${
+              activeTab === "orders"
+                ? "border-b-2 border-cyan-400 text-cyan-400"
+                : "text-gray-400"
+            }`}
           >
             Orders
           </button>
           <button
             onClick={() => setActiveTab("reservations")}
-            className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "reservations"
-              ? "border-b-2 border-cyan-400 text-cyan-400"
-              : "text-gray-400"
-              }`}
+            className={`flex-shrink-0 py-2 px-4 font-semibold ${
+              activeTab === "reservations"
+                ? "border-b-2 border-cyan-400 text-cyan-400"
+                : "text-gray-400"
+            }`}
           >
             Reservations ({reservations.length})
           </button>
           <button
             onClick={() => setActiveTab("complaints")}
-            className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "complaints"
-              ? "border-b-2 border-cyan-400 text-cyan-400"
-              : "text-gray-400"
-              }`}
+            className={`flex-shrink-0 py-2 px-4 font-semibold ${
+              activeTab === "complaints"
+                ? "border-b-2 border-cyan-400 text-cyan-400"
+                : "text-gray-400"
+            }`}
           >
             Complaints
           </button>
           <button
             onClick={() => setActiveTab("loyalty")}
-            className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "loyalty"
-              ? "border-b-2 border-cyan-400 text-cyan-400"
-              : "text-gray-400"
-              }`}
+            className={`flex-shrink-0 py-2 px-4 font-semibold ${
+              activeTab === "loyalty"
+                ? "border-b-2 border-cyan-400 text-cyan-400"
+                : "text-gray-400"
+            }`}
           >
             Loyalty
           </button>
           <button
             onClick={() => setActiveTab("restaurants")}
-            className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "restaurants"
-              ? "border-b-2 border-cyan-400 text-cyan-400"
-              : "text-gray-400"
-              }`}
+            className={`flex-shrink-0 py-2 px-4 font-semibold ${
+              activeTab === "restaurants"
+                ? "border-b-2 border-cyan-400 text-cyan-400"
+                : "text-gray-400"
+            }`}
           >
             All Restaurants
           </button>
 
           <button
             onClick={() => setActiveTab("addRestaurant")}
-            className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "addRestaurant"
-              ? "border-b-2 border-cyan-400 text-cyan-400"
-              : "text-gray-400"
-              }`}
+            className={`flex-shrink-0 py-2 px-4 font-semibold ${
+              activeTab === "addRestaurant"
+                ? "border-b-2 border-cyan-400 text-cyan-400"
+                : "text-gray-400"
+            }`}
           >
             Add Restaurant
           </button>
@@ -609,16 +730,22 @@ const AdminDashboardPage: React.FC = () => {
           <div className="animate-fade-in">
             <div className="mb-4 max-w-xs mx-auto">
               <select
-                id="brand-select"
-                value={selectedBrandId}
-                onChange={handleBrandChange}
+                id="restaurant-select"
+                value={selectedRestaurantId}
+                onChange={(e) => setSelectedRestaurantId(e.target.value)}
                 className="block w-full rounded-md border-gray-600 bg-gray-800 py-2 px-3 text-white focus:ring-2 focus:ring-cyan-500 sm:text-sm"
               >
-                {(apiGetAllBrands() || []).map((brand) => (
-                  <option key={brand.id} value={brand.id}>
-                    {brand.name}
-                  </option>
-                ))}
+                {isLoadingRestaurantOptions ? (
+                  <option value="">Loading restaurants...</option>
+                ) : restaurantOptions.length === 0 ? (
+                  <option value="">No restaurants found</option>
+                ) : (
+                  restaurantOptions.map((r) => (
+                    <option key={r.rest_id} value={r.rest_id}>
+                      {r.name} ({r.rest_id})
+                    </option>
+                  ))
+                )}
               </select>
             </div>
 
@@ -648,10 +775,11 @@ const AdminDashboardPage: React.FC = () => {
 
                             <button
                               // onClick={() => handleToggleAvailability(item.name)}
-                              className={`px-2 py-1 text-xs font-bold rounded transition-colors ${item.isAvailable
-                                ? "bg-green-900 text-green-300 hover:bg-green-800"
-                                : "bg-red-900 text-red-300 hover:bg-red-800"
-                                }`}
+                              className={`px-2 py-1 text-xs font-bold rounded transition-colors ${
+                                item.isAvailable
+                                  ? "bg-green-900 text-green-300 hover:bg-green-800"
+                                  : "bg-red-900 text-red-300 hover:bg-red-800"
+                              }`}
                             >
                               {item.isAvailable ? "In Stock" : "Unavailable"}
                             </button>
@@ -701,32 +829,134 @@ const AdminDashboardPage: React.FC = () => {
             </div>
 
             {/* STEP 2: SHOW AUTO-FETCHED DATA */}
+            {/* STEP 2.5: EDIT FIELDS + UPLOADS */}
             {fetchedData && (
-              <div className="bg-gray-900 border border-gray-700 rounded-md p-5 space-y-3">
+              <div className="bg-gray-900 border border-gray-700 rounded-md p-5 space-y-4">
                 <h3 className="text-lg font-semibold text-cyan-400">
-                  Fetched Details
+                  Restaurant Details
                 </h3>
 
-                <p>
-                  <span className="text-gray-400">Name:</span>{" "}
-                  {fetchedData.restaurantname}
-                </p>
-                <p>
-                  <span className="text-gray-400">Address:</span>{" "}
-                  {fetchedData.address}
-                </p>
-                <p>
-                  <span className="text-gray-400">City:</span>{" "}
-                  {fetchedData.city}
-                </p>
+                <div>
+                  <label className="text-gray-400 text-sm">Tagline</label>
+                  <input
+                    type="text"
+                    value={tagline}
+                    onChange={(e) => setTagline(e.target.value)}
+                    placeholder="Short tagline"
+                    className="w-full bg-gray-800 text-gray-200 border border-gray-700 rounded-md p-3"
+                  />
+                </div>
 
-                <img
-                  src={
-                    fetchedData.logo || fetchedData.images?.[0] || DEFAULT_IMAGE
-                  }
-                  alt="Restaurant Logo"
-                  className="w-40 h-40 object-cover border border-gray-700 rounded"
-                />
+                <div>
+                  <label className="text-gray-400 text-sm">Description</label>
+                  <textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="About this restaurant"
+                    className="w-full bg-gray-800 text-gray-200 border border-gray-700 rounded-md p-3 h-24"
+                  />
+                </div>
+
+                <div className="grid sm:grid-cols-2 gap-4">
+                  {/* LOGO */}
+                  <div className="space-y-2">
+                    <label className="text-gray-400 text-sm">Logo</label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      disabled={isUploading}
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+
+                        // instant preview
+                        const localUrl = URL.createObjectURL(file);
+                        setLogoUrl(localUrl);
+
+                        // upload to storage
+                        const url = await uploadImage(file, "logo");
+                        if (url) setLogoUrl(url);
+                      }}
+                      className="w-full text-sm text-gray-300"
+                    />
+                    <img
+                      src={logoUrl || DEFAULT_IMAGE}
+                      alt="Logo Preview"
+                      className="w-full h-40 object-cover border border-gray-700 rounded"
+                    />
+                  </div>
+
+                  {/* HERO IMAGE */}
+                  <div className="space-y-2">
+                    <label className="text-gray-400 text-sm">Hero Image</label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      disabled={isUploading}
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+
+                        const localUrl = URL.createObjectURL(file);
+                        setHeroImageUrl(localUrl);
+
+                        const url = await uploadImage(file, "hero");
+                        if (url) setHeroImageUrl(url);
+                      }}
+                      className="w-full text-sm text-gray-300"
+                    />
+                    <img
+                      src={heroImageUrl || DEFAULT_IMAGE}
+                      alt="Hero Preview"
+                      className="w-full h-40 object-cover border border-gray-700 rounded"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-gray-400 text-sm">About Text</label>
+                  <textarea
+                    value={aboutText}
+                    onChange={(e) => setAboutText(e.target.value)}
+                    placeholder="Story / about section"
+                    className="w-full bg-gray-800 text-gray-200 border border-gray-700 rounded-md p-3 h-24"
+                  />
+                </div>
+
+                {/* ABOUT IMAGE */}
+                <div className="space-y-2">
+                  <label className="text-gray-400 text-sm">About Image</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    disabled={isUploading}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+
+                      const localUrl = URL.createObjectURL(file);
+                      setAboutImageUrl(localUrl);
+                      const url = await uploadImage(file, "about");
+                      if (url) setAboutImageUrl(url);
+                    }}
+                    className="w-full text-sm text-gray-300"
+                  />
+                  <img
+                    src={aboutImageUrl || DEFAULT_IMAGE}
+                    alt="About Preview"
+                    className="w-full h-56 object-cover border border-gray-700 rounded"
+                  />
+                </div>
+
+                {uploadError ? (
+                  <p className="text-sm text-red-400">{uploadError}</p>
+                ) : null}
+
+                {isUploading ? (
+                  <p className="text-xs text-gray-400 flex items-center gap-2">
+                    <Spinner className="w-4 h-4" /> Uploading image...
+                  </p>
+                ) : null}
               </div>
             )}
 
@@ -765,7 +995,7 @@ const AdminDashboardPage: React.FC = () => {
 
             {/* STEP 4: SUBMIT */}
             <button
-              disabled={!fetchedData || isSubmitting}
+              disabled={!fetchedData || isSubmitting || isUploading}
               onClick={handleSubmitRestaurant}
               className="w-full bg-green-600 hover:bg-green-500 text-white px-4 py-3 rounded-md font-semibold disabled:opacity-50 flex justify-center gap-2"
             >
@@ -918,7 +1148,9 @@ const AdminDashboardPage: React.FC = () => {
                           ₹{o.totalAmount.toFixed(2)}
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap">
-                          {o.rating != null ? <StarRating value={o.rating} /> : null}
+                          {o.rating != null ? (
+                            <StarRating value={o.rating} />
+                          ) : null}
                         </td>
                         <td className="px-4 py-4 max-w-xs">
                           {o.feedback ? (
@@ -1064,10 +1296,11 @@ const AdminDashboardPage: React.FC = () => {
             <div className="flex justify-center gap-4 mb-6">
               <button
                 onClick={() => setComplaintFilter("active")}
-                className={`px-4 py-2 rounded-full font-semibold text-sm ${complaintFilter === "active"
-                  ? "bg-red-600 text-white"
-                  : "bg-gray-800 text-gray-400 hover:bg-gray-700"
-                  }`}
+                className={`px-4 py-2 rounded-full font-semibold text-sm ${
+                  complaintFilter === "active"
+                    ? "bg-red-600 text-white"
+                    : "bg-gray-800 text-gray-400 hover:bg-gray-700"
+                }`}
               >
                 Active (
                 {
@@ -1078,10 +1311,11 @@ const AdminDashboardPage: React.FC = () => {
               </button>
               <button
                 onClick={() => setComplaintFilter("resolved")}
-                className={`px-4 py-2 rounded-full font-semibold text-sm ${complaintFilter === "resolved"
-                  ? "bg-green-600 text-white"
-                  : "bg-gray-800 text-gray-400 hover:bg-gray-700"
-                  }`}
+                className={`px-4 py-2 rounded-full font-semibold text-sm ${
+                  complaintFilter === "resolved"
+                    ? "bg-green-600 text-white"
+                    : "bg-gray-800 text-gray-400 hover:bg-gray-700"
+                }`}
               >
                 Resolved
               </button>
@@ -1112,12 +1346,13 @@ const AdminDashboardPage: React.FC = () => {
                           </span>
                         </p>
                         <span
-                          className={`px-2 py-0.5 text-xs font-bold rounded-full capitalize ${order.complaint?.status === "pending"
-                            ? "bg-yellow-900 text-yellow-300"
-                            : order.complaint?.status === "approved"
-                              ? "bg-green-900 text-green-300"
-                              : "bg-red-900 text-red-300"
-                            }`}
+                          className={`px-2 py-0.5 text-xs font-bold rounded-full capitalize ${
+                            order.complaint?.status === "pending"
+                              ? "bg-yellow-900 text-yellow-300"
+                              : order.complaint?.status === "approved"
+                                ? "bg-green-900 text-green-300"
+                                : "bg-red-900 text-red-300"
+                          }`}
                         >
                           {order.complaint?.status}
                         </span>
@@ -1346,10 +1581,11 @@ const AdminDashboardPage: React.FC = () => {
                     </span>
 
                     <button
-                      className={`px-2 py-1 rounded text-xs text-white ${t.is_active
-                        ? "bg-green-600 hover:bg-green-500"
-                        : "bg-red-600 hover:bg-red-500"
-                        }`}
+                      className={`px-2 py-1 rounded text-xs text-white ${
+                        t.is_active
+                          ? "bg-green-600 hover:bg-green-500"
+                          : "bg-red-600 hover:bg-red-500"
+                      }`}
                       onClick={async () => {
                         await apiToggleTable(t.id, !t.is_active);
                         loadTables(showTablesFor!);
@@ -1435,7 +1671,7 @@ const AdminDashboardPage: React.FC = () => {
                 setRefundError(
                   value > Number(refundOrder.complaint?.totalAmount)
                     ? "Refund cannot exceed order value"
-                    : null
+                    : null,
                 );
               }}
               className="w-full bg-gray-800 text-white border border-gray-700 rounded-md p-2"
@@ -1466,6 +1702,6 @@ const AdminDashboardPage: React.FC = () => {
       )}
     </div>
   );
-};
+};;
 
 export default AdminDashboardPage;

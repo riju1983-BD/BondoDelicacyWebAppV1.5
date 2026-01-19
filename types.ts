@@ -64,6 +64,22 @@ export interface Reservation {
 export interface CartItem extends ItemData {
   quantity: number;
 }
+export type Restaurant = {
+  rest_id: string;
+  name: string;
+  tagline?: string | null;
+  description?: string | null;
+
+  logo?: string | null;
+  hero_image?: string | null;
+
+  about_text?: string | null;
+  about_image?: string | null;
+
+  theme_primary?: string | null;
+  theme_accent?: string | null;
+  theme_text_on_primary?: string | null;
+};
 
 export interface DeliveryInfo {
   riderName: string;

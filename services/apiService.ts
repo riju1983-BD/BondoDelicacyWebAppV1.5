@@ -8,6 +8,27 @@ export const apiFetchRestaurantMapping = async (rest_id: string) => {
     const res = await fetch(`${BASE_URL}/resturents/restaurant-by-mappingId?resturent_identifier=${rest_id}`);
     return res.json();
 };
+export const apiUploadRestaurantImage = async (
+  rest_id: string,
+  type: "logo" | "hero" | "about",
+  file: File
+) => {
+  const form = new FormData();
+  form.append("rest_id", rest_id);
+  form.append("type", type);
+  form.append("file", file);
+
+  const res = await fetch(`${BASE_URL}/restaurants/upload-image`, {
+    method: "POST",
+    body: form,
+  });
+
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Upload failed");
+
+  return data.url as string;
+};
+
 export const apiBookRider = async (payload: {
     order_id: string;
     resturent_lat: number;
@@ -131,6 +152,34 @@ export async function apiToggleTable(tableId: string, newState: boolean) {
     return res.json();
 }
 
+// ✅ Restaurants API (global reusable)
+
+export async function apiGetRestaurants() {
+  const { data, error } = await supabase
+    .from("restaurants")
+    .select(
+      "rest_id,name,tagline,description,logo,hero_image,about_text,about_image,theme_primary,theme_accent,theme_text_on_primary"
+    )
+    .order("name", { ascending: true });
+
+  if (error) handleSupabaseError(error, "Fetch Restaurants");
+
+  return data || [];
+}
+
+export async function apiGetRestaurantById(restId: string) {
+  const { data, error } = await supabase
+    .from("restaurants")
+    .select(
+      "rest_id,name,tagline,description,logo,hero_image,about_text,about_image,theme_primary,theme_accent,theme_text_on_primary"
+    )
+    .eq("rest_id", restId)
+    .maybeSingle();
+
+  if (error) handleSupabaseError(error, "Fetch Restaurant By Id");
+
+  return data || null;
+}
 
 export async function apiGetMenu(resturent_identifier: string, category_id: string) {
     const url = `${BASE_URL}/menu/fetch-menus-by-catagory`;
