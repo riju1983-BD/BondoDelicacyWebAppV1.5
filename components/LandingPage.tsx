@@ -10,7 +10,7 @@ interface LandingPageProps {
   onSelectBrand: (brandId: string) => void;
 }
 
-/** ✅ Skeleton card that matches your existing restaurant card layout */
+/** Skeleton card */
 const RestaurantCardSkeleton: React.FC = () => {
   return (
     <div className="group relative h-[350px] rounded-2xl overflow-hidden shadow-2xl">
@@ -48,21 +48,41 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
     window.location.hash = hash;
   };
 
+  // Normalize isclosed to real boolean (covers true/false, 1/0, "true"/"false")
+  const isClosed = (r: any) => {
+    const v = r?.isclosed;
+    if (typeof v === "boolean") return v;
+    if (typeof v === "number") return v === 1;
+    if (typeof v === "string") {
+      const s = v.trim().toLowerCase();
+      return s === "true" || s === "1" || s === "yes" || s === "closed";
+    }
+    return false;
+  };
+
+  const loadRestaurants = async () => {
+    setIsLoadingRestaurants(true);
+    setRestaurantsError(null);
+    try {
+      const data = await apiGetRestaurants();
+      setRestaurants(Array.isArray(data) ? data : []);
+    } catch (e: any) {
+      setRestaurantsError(e?.message || "Failed to load restaurants");
+      setRestaurants([]);
+    } finally {
+      setIsLoadingRestaurants(false);
+    }
+  };
+
   useEffect(() => {
-    const load = async () => {
-      setIsLoadingRestaurants(true);
-      setRestaurantsError(null);
-      try {
-        const data = await apiGetRestaurants();
-        setRestaurants(Array.isArray(data) ? data : []);
-      } catch (e: any) {
-        setRestaurantsError(e?.message || "Failed to load restaurants");
-        setRestaurants([]);
-      } finally {
-        setIsLoadingRestaurants(false);
-      }
-    };
-    load();
+    loadRestaurants();
+
+    // refresh to reflect isclosed updates
+    const t = setInterval(() => {
+      loadRestaurants();
+    }, 5000);
+
+    return () => clearInterval(t);
   }, []);
 
   return (
@@ -132,7 +152,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
             alt="Bengali Spices"
             className="w-full h-full object-cover opacity-40"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/60 to-transparent"></div>
+          <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/60 to-transparent" />
         </div>
 
         <div className="relative z-10 text-center px-4 animate-fade-in">
@@ -175,27 +195,59 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
                   ? r.logo
                   : "https://placehold.co/160x60?text=Logo";
 
+              const closed = isClosed(r);
+
               return (
                 <div
                   key={r.rest_id}
                   onClick={() => {
-                    // ✅ FIX: persist selected restaurant id for BrandPage
+                    if (closed) return; // disabled
                     localStorage.setItem("selectedRestaurantId", r.rest_id);
                     onSelectBrand(r.rest_id);
                   }}
-                  className="group relative h-[350px] rounded-2xl overflow-hidden cursor-pointer shadow-2xl transform hover:-translate-y-2 transition-all duration-500"
+                  className={[
+                    "group relative h-[350px] rounded-2xl overflow-hidden shadow-2xl transition-all duration-500",
+                    closed
+                      ? "cursor-not-allowed pointer-events-none grayscale"
+                      : "cursor-pointer transform hover:-translate-y-2",
+                  ].join(" ")}
+                  aria-disabled={closed}
+                  role="button"
+                  tabIndex={closed ? -1 : 0}
                 >
                   <div className="absolute inset-0">
                     <img
                       src={hero}
                       alt={r.name}
-                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                      className={[
+                        "w-full h-full object-cover transition-transform duration-700",
+                        closed ? "" : "group-hover:scale-110",
+                      ].join(" ")}
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-80 group-hover:opacity-90 transition-opacity"></div>
+
+                    {/* shadow overlay only when closed */}
+                    {closed ? (
+                      <div className="absolute inset-0 bg-black/70" />
+                    ) : (
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-80 group-hover:opacity-90 transition-opacity" />
+                    )}
                   </div>
 
+                  {/* CLOSED badge */}
+                  {closed && (
+                    <div className="absolute top-4 right-4 z-20 text-xs font-semibold px-3 py-1 rounded-full bg-red-600/90">
+                      Closed
+                    </div>
+                  )}
+
                   <div className="absolute inset-0 p-6 flex flex-col justify-end">
-                    <div className="transform translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
+                    <div
+                      className={
+                        closed
+                          ? ""
+                          : "transform translate-y-4 group-hover:translate-y-0 transition-transform duration-500"
+                      }
+                    >
                       <img
                         src={logo}
                         alt={`${r.name} logo`}
@@ -207,15 +259,32 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
                       </h3>
 
                       <div
-                        className="h-1 w-16 mb-3 transform scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-500"
+                        className={[
+                          "h-1 w-16 mb-3 origin-left duration-500",
+                          closed
+                            ? ""
+                            : "transform scale-x-0 group-hover:scale-x-100 transition-transform",
+                        ].join(" ")}
                         style={{ backgroundColor: r.theme_accent || "#06B6D4" }}
                       />
 
-                      <p className="text-gray-300 text-sm opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-100 line-clamp-3">
+                      <p
+                        className={
+                          closed
+                            ? "text-gray-300 text-sm line-clamp-3"
+                            : "text-gray-300 text-sm opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-100 line-clamp-3"
+                        }
+                      >
                         {r.tagline || r.description || ""}
                       </p>
 
-                      <p className="text-xs text-gray-400 mt-2 font-mono opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-150">
+                      <p
+                        className={
+                          closed
+                            ? "text-xs text-gray-400 mt-2 font-mono"
+                            : "text-xs text-gray-400 mt-2 font-mono opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-150"
+                        }
+                      >
                         {r.rest_id}
                       </p>
                     </div>
@@ -230,8 +299,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
       {/* FOOTER */}
       <footer className="bg-gray-950 py-12 text-center text-gray-500">
         <p>
-          © {new Date().getFullYear()} Bongo Delicacy Group. All rights
-          reserved.
+          © {new Date().getFullYear()} Bongo Delicacy Group. All rights reserved.
         </p>
         <div className="mt-4 flex justify-center gap-4">
           <button

@@ -158,7 +158,7 @@ export async function apiGetRestaurants() {
   const { data, error } = await supabase
     .from("restaurants")
     .select(
-      "rest_id,name,tagline,description,logo,hero_image,about_text,about_image,theme_primary,theme_accent,theme_text_on_primary"
+      "rest_id,name,tagline,description,logo,hero_image,about_text,about_image,theme_primary,theme_accent,theme_text_on_primary,isclosed,turn_on_time"
     )
     .order("name", { ascending: true });
 
@@ -171,7 +171,7 @@ export async function apiGetRestaurantById(restId: string) {
   const { data, error } = await supabase
     .from("restaurants")
     .select(
-      "rest_id,name,tagline,description,logo,hero_image,about_text,about_image,theme_primary,theme_accent,theme_text_on_primary"
+      "rest_id,name,tagline,description,logo,hero_image,about_text,about_image,theme_primary,theme_accent,theme_text_on_primary,isclosed,turn_on_time"
     )
     .eq("rest_id", restId)
     .maybeSingle();
