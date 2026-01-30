@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Reservation } from '../types';
-import { brandsData } from '../data';
+// import { brandsData } from '../data';
 import { Icon } from './Icon';
 import { apiTrackReservations } from '../services/apiService';
 
@@ -147,7 +147,7 @@ const OrderTrackingPage: React.FC = () => {
                         <div key={res.id} className="bg-gray-800 p-6 rounded-lg border border-gray-700 animate-fade-in">
                             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
                                 <div>
-                                    <h2 className="text-xl font-serif text-white">{brandsData[res.brandId]?.name || 'Unknown Restaurant'}</h2>
+                                    <h2 className="text-xl font-serif text-white">{res.name || 'Unknown Restaurant'}</h2>
                                     <p className="text-cyan-400 font-mono text-sm font-semibold">{res.bookingId}</p>
                                 </div>
                                 <div className="text-right mt-2 sm:mt-0">

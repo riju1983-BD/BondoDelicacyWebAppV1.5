@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Icon } from "./Icon";
 import {
-  Brand,
-  BrandMenuCategory,
+
   LoyaltyConfig,
   Order,
+  
   Reservation,
 } from "../types";
 import {
@@ -12,7 +12,7 @@ import {
   apiSetLoyaltyConfig,
   apiGetLiveMenu,
   apiUpdateItemAvailability,
-  apiGetAllBrands,
+
   apiGetComplaints,
   apiProcessRefundApproval,
   apiRejectComplaint,
@@ -30,7 +30,7 @@ import {
 } from "../services/apiService";
 import { BASE_URL } from "../src/config";
 import { supabase } from "../services/supabaseClient";
-import { brandsData } from "../data";
+
 
 const Spinner: React.FC<{ className?: string }> = ({
   className = "h-5 w-5",
@@ -69,11 +69,11 @@ const AdminDashboardPage: React.FC = () => {
   >("menu");
 
   // Menu State
-  const [menu, setMenu] = useState<BrandMenuCategory[] | null>(null);
+const [menu, setMenu] = useState<any[] | null>(null);
+
   const [isLoadingMenu, setIsLoadingMenu] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedBrandId, setSelectedBrandId] =
-    useState<Brand["id"]>("c9ignw2k50");
+
   // Restaurants dropdown for Live Menu
   const [restaurantOptions, setRestaurantOptions] = useState<
     { rest_id: string; name: string }[]
@@ -138,12 +138,12 @@ const AdminDashboardPage: React.FC = () => {
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [isLoadingReservations, setIsLoadingReservations] = useState(false);
   const [processingResId, setProcessingResId] = useState<string | null>(null);
-  useEffect(() => {
-    const brands = apiGetAllBrands(); // already synchronous in your code
-    if (!selectedBrandId && brands.length > 0) {
-      setSelectedBrandId(brands[0].id); // pick the first brand
-    }
-  }, [selectedBrandId]);
+  // useEffect(() => {
+  //   const brands = apiGetAllBrands(); // already synchronous in your code
+  //   if (!selectedBrandId && brands.length > 0) {
+  //     setSelectedBrandId(brands[0].id); // pick the first brand
+  //   }
+  // }, [selectedBrandId]);
   // *** REAL-TIME SETUP ***
   // Restaurants State
   const [restaurants, setRestaurants] = useState<any[]>([]);
@@ -243,18 +243,21 @@ const AdminDashboardPage: React.FC = () => {
     };
   }, [activeTab]);
 
-  const fetchMenu = useCallback(async (brandId: Brand["id"]) => {
-    setIsLoadingMenu(true);
-    setError(null);
-    try {
-      const adminMenu = await apiGetAdminCategoriesMenu(brandId); // <-- use new API
-      setMenu(adminMenu);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to fetch menu");
-    } finally {
-      setIsLoadingMenu(false);
-    }
-  }, []);
+ const fetchMenu = useCallback(async (restId: string) => {
+  if (!restId) return;
+
+  setIsLoadingMenu(true);
+  setError(null);
+
+  try {
+    const adminMenu = await apiGetAdminCategoriesMenu(restId);
+    setMenu(adminMenu);
+  } catch (err) {
+    setError(err instanceof Error ? err.message : "Failed to fetch menu");
+  } finally {
+    setIsLoadingMenu(false);
+  }
+}, []);
 
   const fetchComplaints = useCallback(async () => {
     setIsLoadingComplaints(true);
@@ -333,10 +336,13 @@ const AdminDashboardPage: React.FC = () => {
     }
   }, []);
   useEffect(() => {
-    if (activeTab === "menu") {
-      fetchRestaurantOptions(); // ✅ load dropdown from Supabase
-      fetchMenu(selectedBrandId); // keep your existing menu call for now
-    } else if (activeTab === "orders") fetchOrders();
+ if (activeTab === "menu") {
+  fetchRestaurantOptions();
+  if (selectedRestaurantId) {
+    fetchMenu(selectedRestaurantId);
+  }
+}
+else if (activeTab === "orders") fetchOrders();
     else if (activeTab === "loyalty")
       apiGetLoyaltyConfig().then(setLoyaltyConfig);
     else if (activeTab === "complaints") fetchComplaints();
@@ -344,7 +350,7 @@ const AdminDashboardPage: React.FC = () => {
     else if (activeTab === "restaurants") fetchRestaurants();
   }, [
     activeTab,
-    selectedBrandId,
+    selectedRestaurantId,
     fetchMenu,
     fetchOrders,
     fetchComplaints,
@@ -454,10 +460,10 @@ const AdminDashboardPage: React.FC = () => {
     setIsSubmitting(false);
   };
 
-  const handleBrandChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectedBrandId(e.target.value as Brand["id"]);
-    setMenu(null);
-  };
+  // const handleBrandChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  //   setSelectedBrandId(e.target.value as Brand["id"]);
+  //   setMenu(null);
+  // };
   // const handleToggleAvailability = async (itemName: string) => { if (!menu) return; const isCurrentlyAvailable = !!menu.flatMap(c => c.items).find(i => i.name === itemName)?.isAvailable; const updatedMenu = menu.map(category => ({ ...category, items: category.items.map(item => item.name === itemName ? { ...item, isAvailable: !item.isAvailable } : item) })); try { await apiUpdateItemAvailability(selectedBrandId, itemName, !isCurrentlyAvailable); setMenu(updatedMenu); } catch (err) { setError(err instanceof Error ? err.message : "Failed to update item."); } };
   const handleLoyaltyConfigChange = (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -1110,7 +1116,7 @@ const AdminDashboardPage: React.FC = () => {
                             {o.id}
                           </div>
                           <div className="text-xs text-gray-400">
-                            {brandsData[o.brandId]?.name}
+                            {o.name}
                           </div>
 
                           {o.status && (
@@ -1220,7 +1226,7 @@ const AdminDashboardPage: React.FC = () => {
                               {res.bookingId}
                             </div>
                             <div className="text-xs text-gray-400">
-                              {brandsData[res.brandId]?.name}
+                              {res.name}
                             </div>
                             {overdue && (
                               <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-900 text-red-200 mt-1">

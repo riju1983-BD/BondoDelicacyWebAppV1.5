@@ -8,83 +8,98 @@ import LoginPage from './components/LoginPage';
 import AccountPage from './components/AccountPage';
 import AdminLoginPage from './components/AdminLoginPage';
 import { useAuth } from './context/AuthContext';
-import { apiGetBrandDetails } from './services/apiService';
+import { apiGetRestaurantById } from './services/apiService';
+import { Restaurant } from './types';
 
 const App: React.FC = () => {
-    const getRoute = () => window.location.hash.substring(1).split('?')[0];
-    const [route, setRoute] = useState(getRoute());
-    const [selectedBrandId, setSelectedBrandId] = useState<string | null>(null);
-    const { currentUser } = useAuth();
+  const getRoute = () => window.location.hash.substring(1).split('?')[0];
 
-    useEffect(() => {
-        const handleHashChange = () => {
-            const newRoute = getRoute();
-            const mainRoutes = ['', 'admin', 'tracking', 'login', 'account', 'admin-login'];
-            
-            const isMainRouteChange = mainRoutes.includes(newRoute) || newRoute.startsWith('order-status');
-    
-            if (isMainRouteChange) {
-                setRoute(newRoute);
-                setSelectedBrandId(null); 
-                window.scrollTo(0, 0);
-            }
-        };
-        window.addEventListener('hashchange', handleHashChange);
-        return () => window.removeEventListener('hashchange', handleHashChange);
-    }, []);
+  const [route, setRoute] = useState(getRoute());
+  const [selectedRestaurantId, setSelectedRestaurantId] = useState<string | null>(null);
+  const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
+  const [loadingRestaurant, setLoadingRestaurant] = useState(false);
 
+  const { currentUser } = useAuth();
 
-    const handleSelectBrand = (brandId: string) => {
-        setSelectedBrandId(brandId);
+  useEffect(() => {
+    const handleHashChange = () => {
+      const newRoute = getRoute();
+      const mainRoutes = ['', 'admin', 'tracking', 'login', 'account', 'admin-login'];
+
+      const isMainRouteChange =
+        mainRoutes.includes(newRoute) || newRoute.startsWith('order-status');
+
+      if (isMainRouteChange) {
+        setRoute(newRoute);
+        setSelectedRestaurantId(null);
+        setRestaurant(null);
         window.scrollTo(0, 0);
+      }
     };
 
-    const handleGoBack = () => {
-        setSelectedBrandId(null);
-        window.location.hash = '#';
-        window.scrollTo(0, 0);
-    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
 
-    if (route === 'admin-login') {
-        return <AdminLoginPage />;
-    }
+  const handleSelectRestaurant = (restId: string) => {
+    setSelectedRestaurantId(restId);
+    window.scrollTo(0, 0);
+  };
 
-    if (route === 'admin') {
-        if (currentUser?.isAdmin) {
-            return <AdminDashboardPage />;
-        } else {
-            window.location.hash = '#admin-login';
-            return null;
-        }
-    }
+  const handleGoBack = () => {
+    setSelectedRestaurantId(null);
+    setRestaurant(null);
+    window.location.hash = '#';
+    window.scrollTo(0, 0);
+  };
 
-    if (route === 'tracking') {
-        return <OrderTrackingPage />;
-    }
-    
-    if (route === 'login') {
-        return <LoginPage />;
-    }
+  // Load restaurant when rest_id changes
+  useEffect(() => {
+    if (!selectedRestaurantId) return;
 
-    if (route === 'account') {
-        return <AccountPage />;
-    }
+    setLoadingRestaurant(true);
+    apiGetRestaurantById(selectedRestaurantId)
+      .then(data => setRestaurant(data))
+      .catch(err => {
+        console.error('Failed to load restaurant:', err);
+        setRestaurant(null);
+      })
+      .finally(() => setLoadingRestaurant(false));
+  }, [selectedRestaurantId]);
 
-    if (route.startsWith('order-status')) {
-        return <OrderStatusPage />;
-    }
+  // ---------- ROUTES ----------
 
-    if (!selectedBrandId) {
-        return <LandingPage onSelectBrand={handleSelectBrand} />;
-    }
+  if (route === 'admin-login') return <AdminLoginPage />;
 
-    const brandData = apiGetBrandDetails(selectedBrandId);
-    if (!brandData) {
-        console.error(`Invalid brand ID: ${selectedBrandId}`);
-        return <LandingPage onSelectBrand={handleSelectBrand} />;
-    }
+  if (route === 'admin') {
+    if (currentUser?.isAdmin) return <AdminDashboardPage />;
+    window.location.hash = '#admin-login';
+    return null;
+  }
 
-    return <BrandPage brandData={brandData} onBack={handleGoBack} />;
+  if (route === 'tracking') return <OrderTrackingPage />;
+  if (route === 'login') return <LoginPage />;
+  if (route === 'account') return <AccountPage />;
+  if (route.startsWith('order-status')) return <OrderStatusPage />;
+
+  // ---------- MAIN FLOW ----------
+
+  if (!selectedRestaurantId) {
+    return <LandingPage onSelectBrand={handleSelectRestaurant} />;
+  }
+
+  if (loadingRestaurant) {
+    return <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
+      Loading restaurant…
+    </div>;
+  }
+
+  if (!restaurant) {
+    console.error(`Invalid restaurant id: ${selectedRestaurantId}`);
+    return <LandingPage onSelectBrand={handleSelectRestaurant} />;
+  }
+
+  return <BrandPage brandData={restaurant} onBack={handleGoBack} />;
 };
 
 export default App;

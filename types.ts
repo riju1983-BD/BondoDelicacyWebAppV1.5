@@ -1,72 +1,41 @@
 import { ItemData } from "./model/menu_list";
 
-export interface MenuItem {
-  id?: string; // Internal or external ID
-  name: string;
-  description: string;
-  price: string;
-  image: string;
-  isAvailable: boolean;
-  externalItemId?: string; // For Petpooja Item ID mapping
-}
+/* =========================
+   MENU (PetPooja-aligned)
+========================= */
 
-export interface BrandMenuCategory {
-  category: string;
+export interface RestaurantMenu {
   items: ItemData[];
+  categories: MenuCategory[];
+  variations?: any[];
+  addongroups?: any[];
+  taxes?: any[];
+  discounts?: any[];
 }
 
-export interface LoyaltyConfig {
-  rupeesPerPoint: number;
+export interface MenuCategory {
+  categoryid: string;
+  categoryname: string;
+  categoryrank: string;
+  parent_category_id: string;
 }
 
-export interface User {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  passwordHash: string;
-  isAdmin?: boolean;
-  loyaltyPoints?: { points: number; earnedAt: string }[];
-  dob?: string;
-  anniversaryDate?: string;
-  dietaryPreferences?: {
-    likes?: string;
-    dislikes?: string;
-    allergies?: string;
-  };
-  addresses?: DeliveryAddress[];
-}
-
-export interface RestaurantTable {
-  id: string;
-  name: string;
-  capacity: number;
-  _status: "available" | "booked";
-}
-
-export interface Reservation {
-  id: string;
-  bookingId: string;
-  brandId: string;
-  userId?: string;
-  tableId?: string;
-  name: string;
-  email: string;
-  phone: string;
-  date: string;
-  time: string;
-  guests: number;
-  requests: string;
-  createdAt: string;
-  status: 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'expired';
-}
+/* =========================
+   CART
+========================= */
 
 export interface CartItem extends ItemData {
   quantity: number;
 }
+
+/* =========================
+   RESTAURANT
+========================= */
+
 export type Restaurant = {
-  rest_id: string;
+  rest_id: string; // PetPooja restaurantid / menusharingcode
   name: string;
+
   tagline?: string | null;
   description?: string | null;
 
@@ -81,6 +50,40 @@ export type Restaurant = {
   theme_text_on_primary?: string | null;
 };
 
+/* =========================
+   USER
+========================= */
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  passwordHash: string;
+
+  isAdmin?: boolean;
+
+  loyaltyPoints?: {
+    points: number;
+    earnedAt: string;
+  }[];
+
+  dob?: string;
+  anniversaryDate?: string;
+
+  dietaryPreferences?: {
+    likes?: string;
+    dislikes?: string;
+    allergies?: string;
+  };
+
+  addresses?: DeliveryAddress[];
+}
+
+/* =========================
+   DELIVERY
+========================= */
+
 export interface DeliveryInfo {
   riderName: string;
   riderPhone: string;
@@ -92,78 +95,122 @@ export interface DeliveryAddress {
   fullAddress: string;
   flatNo: string;
   landmark: string;
+
   coordinates?: {
     lat: number;
     lng: number;
   };
+
   isDefault?: boolean;
 }
 
-export interface Complaint {
-  id: string;
-  itemNames: string[];
-  comments: string;
-  status: 'pending' | 'approved' | 'rejected';
-  createdAt: string;
-  resolvedAt?: string;
-  totalAmount: number;
-}
+/* =========================
+   ORDERS
+========================= */
 
 export interface Order {
   id: string;
-  brandId: Brand['id'];
+  restId: string;
+
   userId: string;
   items: CartItem[];
+
   customer: {
     name: string;
     email: string;
     phone: string;
   };
+
   deliveryAddress?: DeliveryAddress;
+
   subtotal: number;
   discountAmount?: number;
   loyaltyDiscount?: number;
   gstAmount?: number;
   totalAmount: number;
+
   pointsEarned?: number;
   createdAt: string;
-  status: 'Order Placed' | 'Accepted' | 'Food Ready' | 'Out For Delivery' | 'Delivered' | 'Cancelled';
+
+  status:
+    | 'Order Placed'
+    | 'Accepted'
+    | 'Food Ready'
+    | 'Out For Delivery'
+    | 'Delivered'
+    | 'Cancelled';
 
   rating?: number;
   feedback?: string;
+
   complaint?: Complaint;
   refundStatus?: 'none' | 'pending' | 'processed' | 'failed';
+
   deliveryInfo?: DeliveryInfo;
-  externalOrderId?: string; // To store Petpooja's order ID
+
+  externalOrderId?: string; // PetPooja order ID
 }
 
+/* =========================
+   COMPLAINTS
+========================= */
 
-export interface Brand {
-  id: 'c9ignw2k50' | 'niraamish' | 'daily-box' | 'teretti';
+export interface Complaint {
+  id: string;
+  itemNames: string[];
+  comments: string;
+
+  status: 'pending' | 'approved' | 'rejected';
+
+  createdAt: string;
+  resolvedAt?: string;
+
+  totalAmount: number;
+}
+
+/* =========================
+   TABLES & RESERVATIONS
+========================= */
+
+export interface RestaurantTable {
+  id: string;
   name: string;
-  description: string;
-  logo: string;
-  petpoojaRestId?: string; // Added for API mapping
+  capacity: number;
+  _status: 'available' | 'booked';
 }
 
-export interface BrandData extends Brand {
-  tagline: string;
-  heroImage: string;
-  aboutText: string;
-  aboutImage: string;
-  menu: BrandMenuCategory[]; // This is now just a fallback
-  gallery: string[];
-  contactInfo: {
-    address: string;
-    phone: string;
-    hours: string;
-  };
-  theme: {
-    primary: string;
-    accent: string;
-    textOnPrimary: string;
-  };
+export interface Reservation {
+  id: string;
+  bookingId: string;
+  restId: string;
+
+  userId?: string;
+  tableId?: string;
+
+  name: string;
+  email: string;
+  phone: string;
+
+  date: string;
+  time: string;
+  guests: number;
+  requests: string;
+
+  createdAt: string;
+  status: 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'expired';
 }
+
+/* =========================
+   LOYALTY
+========================= */
+
+export interface LoyaltyConfig {
+  rupeesPerPoint: number;
+}
+
+/* =========================
+   AI / MISC
+========================= */
 
 export interface PredictionResult {
   spoilageDate: string;
@@ -183,18 +230,26 @@ export interface PartyLead {
   eventTime: string;
   location: string;
   menu: string;
+
   contactNumber: string;
+
   quoteAmount?: number;
   status: 'pending-quote' | 'quoted' | 'accepted' | 'declined';
   declineReason?: string;
+
   createdAt: string;
 }
+
+/* =========================
+   CHAT
+========================= */
 
 export interface ChatMessage {
   id: string;
   role: 'user' | 'bot' | 'model';
   content: string;
-  timestamp?: string; // ✅ Add this line
+
+  timestamp?: string;
   metadata?: {
     categoriesCount?: number;
     itemsCount?: number;

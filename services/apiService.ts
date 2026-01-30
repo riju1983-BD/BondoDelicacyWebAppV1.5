@@ -1,7 +1,7 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { User, Order, Reservation, CartItem, Brand, LoyaltyConfig, BrandData, BrandMenuCategory, DishRecommendation, ChatMessage, PartyLead, Complaint, RestaurantTable, DeliveryAddress } from '../types';
-import { brandsData } from '../data';
+import { User, Order, Reservation, CartItem,  LoyaltyConfig,   DishRecommendation, ChatMessage, PartyLead, Complaint, RestaurantTable, DeliveryAddress, RestaurantMenu } from '../types';
+// import { brandsData } from '../data';
 import { supabase } from './supabaseClient';
 import { BASE_URL } from "../src/config";
 export const apiFetchRestaurantMapping = async (rest_id: string) => {
@@ -9,24 +9,24 @@ export const apiFetchRestaurantMapping = async (rest_id: string) => {
     return res.json();
 };
 export const apiUploadRestaurantImage = async (
-  rest_id: string,
-  type: "logo" | "hero" | "about",
-  file: File
+    rest_id: string,
+    type: "logo" | "hero" | "about",
+    file: File
 ) => {
-  const form = new FormData();
-  form.append("rest_id", rest_id);
-  form.append("type", type);
-  form.append("file", file);
+    const form = new FormData();
+    form.append("rest_id", rest_id);
+    form.append("type", type);
+    form.append("file", file);
 
-  const res = await fetch(`${BASE_URL}/restaurants/upload-image`, {
-    method: "POST",
-    body: form,
-  });
+    const res = await fetch(`${BASE_URL}/restaurants/upload-image`, {
+        method: "POST",
+        body: form,
+    });
 
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Upload failed");
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Upload failed");
 
-  return data.url as string;
+    return data.url as string;
 };
 
 export const apiBookRider = async (payload: {
@@ -155,30 +155,30 @@ export async function apiToggleTable(tableId: string, newState: boolean) {
 // ✅ Restaurants API (global reusable)
 
 export async function apiGetRestaurants() {
-  const { data, error } = await supabase
-    .from("restaurants")
-    .select(
-      "rest_id,name,tagline,description,logo,hero_image,about_text,about_image,theme_primary,theme_accent,theme_text_on_primary,isclosed,turn_on_time"
-    )
-    .order("name", { ascending: true });
+    const { data, error } = await supabase
+        .from("restaurants")
+        .select(
+            "rest_id,name,tagline,description,logo,hero_image,about_text,about_image,theme_primary,theme_accent,theme_text_on_primary,isclosed,turn_on_time"
+        )
+        .order("name", { ascending: true });
 
-  if (error) handleSupabaseError(error, "Fetch Restaurants");
+    if (error) handleSupabaseError(error, "Fetch Restaurants");
 
-  return data || [];
+    return data || [];
 }
 
 export async function apiGetRestaurantById(restId: string) {
-  const { data, error } = await supabase
-    .from("restaurants")
-    .select(
-      "rest_id,name,tagline,description,logo,hero_image,about_text,about_image,theme_primary,theme_accent,theme_text_on_primary,isclosed,turn_on_time"
-    )
-    .eq("rest_id", restId)
-    .maybeSingle();
+    const { data, error } = await supabase
+        .from("restaurants")
+        .select(
+            "rest_id,name,tagline,description,logo,hero_image,about_text,about_image,theme_primary,theme_accent,theme_text_on_primary,isclosed,turn_on_time"
+        )
+        .eq("rest_id", restId)
+        .maybeSingle();
 
-  if (error) handleSupabaseError(error, "Fetch Restaurant By Id");
+    if (error) handleSupabaseError(error, "Fetch Restaurant By Id");
 
-  return data || null;
+    return data || null;
 }
 
 export async function apiGetMenu(resturent_identifier: string, category_id: string) {
@@ -417,7 +417,7 @@ export const apiGetUserOrders = async (userId: string): Promise<Order[]> => {
 
 const mapDbOrderToType = (dbOrder: any): Order => ({
     id: dbOrder.id,
-    brandId: dbOrder.brand_id,
+    restId: dbOrder.rest_id,
     userId: dbOrder.user_id,
     items: dbOrder.items,
     customer: dbOrder.customer,
@@ -444,51 +444,51 @@ export const apiGetOrderById = async (orderId: string): Promise<Order | undefine
     return mapDbOrderToType(data);
 }
 
-export const apiCreateOrder = async (
-    brandId: Brand['id'],
-    userId: string,
-    items: CartItem[],
-    customer: Order['customer'],
-    deliveryAddress: DeliveryAddress,
-    subtotal: number,
-    loyaltyPointsToRedeem: number,
-    serverOrderId: string
-): Promise<Order> => {
-    const { discountedTotal, discountAmount } = applyFlatDiscount(subtotal);
-    const totalBeforeGst = Math.max(0, discountedTotal - loyaltyPointsToRedeem);
-    const gstAmount = totalBeforeGst * 0.05;
-    const finalTotalAmount = totalBeforeGst + gstAmount;
-    const config = await apiGetLoyaltyConfig();
-    const pointsEarned = Math.floor(finalTotalAmount / config.rupeesPerPoint);
-    const internalOrderId = generateOrderId();
+// export const apiCreateOrder = async (
+//     brandId: Brand['id'],
+//     userId: string,
+//     items: CartItem[],
+//     customer: Order['customer'],
+//     deliveryAddress: DeliveryAddress,
+//     subtotal: number,
+//     loyaltyPointsToRedeem: number,
+//     serverOrderId: string
+// ): Promise<Order> => {
+//     const { discountedTotal, discountAmount } = applyFlatDiscount(subtotal);
+//     const totalBeforeGst = Math.max(0, discountedTotal - loyaltyPointsToRedeem);
+//     const gstAmount = totalBeforeGst * 0.05;
+//     const finalTotalAmount = totalBeforeGst + gstAmount;
+//     const config = await apiGetLoyaltyConfig();
+//     const pointsEarned = Math.floor(finalTotalAmount / config.rupeesPerPoint);
+//     const internalOrderId = generateOrderId();
 
-    const newOrderData = {
-        id: serverOrderId,
-        brand_id: brandId,
-        user_id: userId,
-        items,
-        customer,
-        delivery_address: deliveryAddress,
-        subtotal,
-        discount_amount: discountAmount,
-        loyalty_discount: loyaltyPointsToRedeem,
-        gst_amount: gstAmount,
-        total_amount: finalTotalAmount,
-        points_earned: pointsEarned,
+//     const newOrderData = {
+//         id: serverOrderId,
+//         brand_id: brandId,
+//         user_id: userId,
+//         items,
+//         customer,
+//         delivery_address: deliveryAddress,
+//         subtotal,
+//         discount_amount: discountAmount,
+//         loyalty_discount: loyaltyPointsToRedeem,
+//         gst_amount: gstAmount,
+//         total_amount: finalTotalAmount,
+//         points_earned: pointsEarned,
 
-        created_at: new Date().toISOString(),
-    };
+//         created_at: new Date().toISOString(),
+//     };
 
-    const { error: orderError } = await supabase.from('orders').insert(newOrderData);
-    if (orderError) handleSupabaseError(orderError, 'Create Order');
+//     const { error: orderError } = await supabase.from('orders').insert(newOrderData);
+//     if (orderError) handleSupabaseError(orderError, 'Create Order');
 
-    const { data: profile } = await supabase.from('profiles').select('loyalty_points').eq('id', userId).single();
-    let currentPoints = (profile?.loyalty_points as any[]) || [];
-    if (pointsEarned > 0) currentPoints.push({ points: pointsEarned, earnedAt: new Date().toISOString() });
-    await supabase.from('profiles').update({ loyalty_points: currentPoints }).eq('id', userId);
+//     const { data: profile } = await supabase.from('profiles').select('loyalty_points').eq('id', userId).single();
+//     let currentPoints = (profile?.loyalty_points as any[]) || [];
+//     if (pointsEarned > 0) currentPoints.push({ points: pointsEarned, earnedAt: new Date().toISOString() });
+//     await supabase.from('profiles').update({ loyalty_points: currentPoints }).eq('id', userId);
 
-    return mapDbOrderToType(newOrderData);
-};
+//     return mapDbOrderToType(newOrderData);
+// };
 
 export const apiUpdateOrder = async (orderId: string, updates: Partial<Order>): Promise<Order> => {
     const dbUpdates: any = {};
@@ -692,7 +692,7 @@ export const apiGetAllActiveReservations = async (): Promise<Reservation[]> => {
 const mapDbReservation = (data: any): Reservation => ({
     id: data.id,
     bookingId: data.booking_id,
-    brandId: data.brand_id,
+    restId: data.rest_id,
     userId: data.user_id,
     tableId: data.table_id,
     name: data.name,
@@ -854,33 +854,50 @@ export async function getMealRecommendation(resturent_identifier: string, prefer
 }
 
 // --- Menu & Other ---
-const saveMenuToStorage = (brandId: Brand['id'], menu: BrandMenuCategory[]) => {
-    localStorage.setItem(`petpooja-menu-${brandId}`, JSON.stringify(menu));
+const saveMenuToStorage = (restId: string, menu: RestaurantMenu) => {
+    localStorage.setItem(`petpooja-menu-${restId}`, JSON.stringify(menu));
 };
-const getMenuFromStorage = (brandId: Brand['id']): BrandMenuCategory[] | null => {
-    const storedMenu = localStorage.getItem(`petpooja-menu-${brandId}`);
+
+const getMenuFromStorage = (restId: string): RestaurantMenu | null => {
+    const storedMenu = localStorage.getItem(`petpooja-menu-${restId}`);
     return storedMenu ? JSON.parse(storedMenu) : null;
 };
 
-export const apiGetLiveMenu = async (brandId: Brand['id']): Promise<BrandMenuCategory[]> => {
-    return getMenuFromStorage(brandId) || brandsData[brandId].menu;
+export const apiGetLiveMenu = async (
+    restId: string
+): Promise<RestaurantMenu | null> => {
+    return getMenuFromStorage(restId);
 };
-export const apiUpdateItemAvailability = async (brandId: Brand['id'], itemName: string, isAvailable: boolean): Promise<boolean> => {
-    const menu = await apiGetLiveMenu(brandId);
-    const newMenu = menu.map(category => ({
-        ...category,
-        items: category.items.map(item => item.itemname === itemName ? { ...item, isAvailable } : item)
-    }));
-    saveMenuToStorage(brandId, newMenu);
+
+
+export const apiUpdateItemAvailability = async (
+    restId: string,
+    itemName: string,
+    isAvailable: boolean
+): Promise<boolean> => {
+    const menu = await apiGetLiveMenu(restId);
+    if (!menu) return false;
+
+    const updatedMenu: RestaurantMenu = {
+        ...menu,
+        items: menu.items.map(item =>
+            item.itemname === itemName
+                ? { ...item, active: isAvailable ? "1" : "0" }
+                : item
+        ),
+    };
+
+    saveMenuToStorage(restId, updatedMenu);
     return true;
 };
-export const apiGetBrandDetails = (brandId: string): BrandData | undefined => {
-    // @ts-ignore
-    return brandsData[brandId];
-};
-export const apiGetAllBrands = (): Brand[] => {
-    return Object.values(brandsData).map(b => ({ id: b.id, name: b.name, description: b.tagline, logo: b.logo, petpoojaRestId: b.petpoojaRestId }));
-};
+
+// export const apiGetBrandDetails = (brandId: string): BrandData | undefined => {
+//     // @ts-ignore
+//     return brandsData[brandId];
+// };
+// export const apiGetAllBrands = (): Brand[] => {
+//     return Object.values(brandsData).map(b => ({ id: b.id, name: b.name, description: b.tagline, logo: b.logo, petpoojaRestId: b.petpoojaRestId }));
+// };
 export const apiPunchOrder = async (order: Order): Promise<{ success: boolean; message: string }> => { return { success: true, message: "Order processing initiated." }; };
 export const apiBookDelivery = async (orderId: string): Promise<boolean> => {
     await simulateDelay(2000);
@@ -888,22 +905,22 @@ export const apiBookDelivery = async (orderId: string): Promise<boolean> => {
     await apiUpdateOrder(orderId, { deliveryInfo: mockRider });
     return true;
 };
-export const apiGetDishRecommendation = async (user: User, brandId: Brand['id']): Promise<DishRecommendation> => {
-    if (!process.env.API_KEY) throw new Error("API_KEY not set");
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    const brandName = brandsData[brandId]?.name || 'our restaurant';
-    const menu = brandsData[brandId].menu;
-    const simplifiedMenu = menu.flatMap(cat => cat.items.map(item => item.itemname)).join(', ');
-    const userOrders = await apiGetUserOrders(user.id);
-    const orderHistory = userOrders.slice(0, 5).map(order => ({
-        items: order.items.map(item => `${item.quantity}x ${item.itemname}`).join(', '),
-        rating: order.rating ? `${order.rating}/5 stars` : 'Not rated',
-        date: new Date(order.createdAt).toLocaleDateString()
-    }));
-    const prompt = `You are an expert restaurant concierge for ${brandName}. Recommend ONE dish based on this profile: Name: ${user.name}, Preferences: Likes: ${user.dietaryPreferences?.likes}, Dislikes: ${user.dietaryPreferences?.dislikes}, Allergies: ${user.dietaryPreferences?.allergies}. Recent Orders: ${JSON.stringify(orderHistory)}. Menu: ${simplifiedMenu}. Return JSON: { "dishName": "", "reason": "", "offer": "(optional if special day)" }`;
-    const response = await ai.models.generateContent({ model: "gemini-2.5-flash", contents: prompt, config: { responseMimeType: "application/json" } });
-    return JSON.parse(response.text.trim());
-};
+// export const apiGetDishRecommendation = async (user: User, brandId: Brand['id']): Promise<DishRecommendation> => {
+//     if (!process.env.API_KEY) throw new Error("API_KEY not set");
+//     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+//     const brandName = brandsData[brandId]?.name || 'our restaurant';
+//     const menu = brandsData[brandId].menu;
+//     const simplifiedMenu = menu.flatMap(cat => cat.items.map(item => item.itemname)).join(', ');
+//     const userOrders = await apiGetUserOrders(user.id);
+//     const orderHistory = userOrders.slice(0, 5).map(order => ({
+//         items: order.items.map(item => `${item.quantity}x ${item.itemname}`).join(', '),
+//         rating: order.rating ? `${order.rating}/5 stars` : 'Not rated',
+//         date: new Date(order.createdAt).toLocaleDateString()
+//     }));
+//     const prompt = `You are an expert restaurant concierge for ${brandName}. Recommend ONE dish based on this profile: Name: ${user.name}, Preferences: Likes: ${user.dietaryPreferences?.likes}, Dislikes: ${user.dietaryPreferences?.dislikes}, Allergies: ${user.dietaryPreferences?.allergies}. Recent Orders: ${JSON.stringify(orderHistory)}. Menu: ${simplifiedMenu}. Return JSON: { "dishName": "", "reason": "", "offer": "(optional if special day)" }`;
+//     const response = await ai.models.generateContent({ model: "gemini-2.5-flash", contents: prompt, config: { responseMimeType: "application/json" } });
+//     return JSON.parse(response.text.trim());
+// };
 // --- Help Buddy Chat API ---
 
 export interface HelpBuddyChatHistoryItem {

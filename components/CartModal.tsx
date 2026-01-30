@@ -2,10 +2,10 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useCart } from "../context/CartContext";
 import { useAuth } from "../context/AuthContext";
 import { Icon } from "./Icon";
-import { Brand, DeliveryAddress } from "../types";
+import {  DeliveryAddress } from "../types";
 import { BASE_URL } from "../src/config";
 import {
-  apiCreateOrder,
+
   applyFlatDiscount,
   apiGetUserValidPoints,
   apiPunchOrder,
@@ -166,7 +166,7 @@ const buildTaxSummary = (items: any[], perItemTax: Record<string, any[]>) => {
 interface CartModalProps {
   isOpen: boolean;
   onClose: () => void;
-  brandId: Brand["id"];
+  restaurantId: string;
 }
 
 type View = "cart" | "auth" | "address" | "checkout" | "confirmation";

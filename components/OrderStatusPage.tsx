@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Order } from "../types";
-import { brandsData } from "../data";
+
 import { Icon } from "./Icon";
 import { apiCancelOrder, apiGetOrderById, } from "../services/apiService";
 import { normalizeOrderStatus } from "../model/status";
@@ -169,7 +169,7 @@ const OrderStatusPage: React.FC<OrderStatusPageProps> = ({ orderId, isEmbedded =
         <div className="bg-gray-900 p-8 border border-gray-700 rounded-lg space-y-10">
           <header>
             <h2 className="text-xl sm:text-2xl font-serif">
-              Order from {brandsData[foundOrder.brandId]?.name || "Unknown Restaurant"}
+              Order from {foundOrder?.name || "Unknown Restaurant"}
             </h2>
             <p className="text-gray-400 text-sm font-mono">ID: {foundOrder.id}</p>
           </header>
