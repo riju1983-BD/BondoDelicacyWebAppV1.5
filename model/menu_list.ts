@@ -1,6 +1,6 @@
 export interface Main {
-  message: string
-  data: ItemData[]
+  message: string;
+  data: ItemData[];
 }
 
 export interface ItemData {
@@ -19,7 +19,24 @@ export interface ItemData {
   cuisine: any[];
   variation_groupname: string;
   is_combo: string;
-  variation: any[];
+  variation: {
+    id: string;
+    name: string;
+    price: string;
+    active: string;
+    variationid: string;
+    variationrank: string;
+    variationallowaddon: number;
+    item_packingcharges: string;
+    groupname: string;
+
+    addon?: {
+      addon_group_id: string;
+      addon_item_selection_min: string;
+      addon_item_selection_max: string;
+    }[];
+  }[];
+
   addon: any[];
   is_recommend: string;
   itemname: string;
@@ -34,13 +51,13 @@ export interface ItemData {
   item_image_url: string;
 
   // existing
-item_tax: Array<{
-  id: string;
-  name: string;
-  tax_percentage: string;
-  amount: string;
-}>;
-      // "3174,3175"
+  item_tax: Array<{
+    id: string;
+    name: string;
+    tax_percentage: string;
+    amount: string;
+  }>;
+  // "3174,3175"
   tax_inclusive: boolean;
   gst_type: string;
 
@@ -49,12 +66,12 @@ item_tax: Array<{
 }
 
 export interface ItemTaxBreakup {
-  id: string;              // "3174"
-  name: string;            // "CGST"
-  tax_percentage: string;  // "2.5"
-  amount: string;          // "11.25" (for 1 qty price)
+  id: string; // "3174"
+  name: string; // "CGST"
+  tax_percentage: string; // "2.5"
+  amount: string; // "11.25" (for 1 qty price)
 }
 
 export interface ItemInfo {
-  spice_level: string
+  spice_level: string;
 }

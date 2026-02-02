@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from "react";
 import {
-  BrandMenuCategory,
+  MenuCategory,
   CartItem,
-  MenuItem,
+  RestaurantMenu,
   RestaurantTable,
 } from "../types";
 import { Icon } from "./Icon";
@@ -20,6 +20,7 @@ import {
   apiGetRestaurantById, // ✅ must exist in apiService
 } from "../services/apiService";
 import { ItemData } from "@/model/menu_list";
+import AddonModal from "./AddonModal";
 
 const ShimmerCard: React.FC = () => (
   <div className="animate-pulse bg-gray-900 rounded-lg overflow-hidden shadow-md">
@@ -253,11 +254,16 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
   const [restaurantLoading, setRestaurantLoading] = useState(true);
   const [restaurantError, setRestaurantError] = useState<string>("");
 
-  const [menuData, setMenuData] = useState<BrandMenuCategory[]>([]);
-  const [menuCache, setMenuCache] = useState<Record<string, MenuItem[]>>({});
+  const [menuData, setMenuData] = useState<MenuCategory[]>([]);
+  const [menuCache, setMenuCache] = useState<Record<string, RestaurantMenu[]>>(
+    {},
+  );
   const [activeCategory, setActiveCategory] = useState<string>("");
   const [isRecommenderOpen, setIsRecommenderOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [addonItem, setAddonItem] = useState<ItemData | null>(null);
+  const [isAddonModalOpen, setIsAddonModalOpen] = useState(false);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [categories, setCategories] = useState<any[]>([]);
   const [isMenuChanging, setIsMenuChanging] = useState(false);
@@ -774,9 +780,10 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
                     key={cat.id}
                     onClick={() => handleCategoryChange(cat)}
                     className={`px-4 py-2 rounded-md font-semibold transition-all 
-                      ${activeCategory === cat.id
-                        ? "text-[var(--text-on-primary-color)]"
-                        : "bg-gray-700 text-white hover:bg-gray-600"
+                      ${
+                        activeCategory === cat.id
+                          ? "text-[var(--text-on-primary-color)]"
+                          : "bg-gray-700 text-white hover:bg-gray-600"
                       }`}
                     style={
                       activeCategory === cat.id
@@ -811,8 +818,6 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
                             String(item.active) === "1" &&
                             String(item.in_stock) !== "0";
 
-
-
                           return (
                             <div
                               key={item.itemid}
@@ -839,7 +844,38 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
                                     {item.itemname}
                                   </h4>
                                   <p className="text-lg font-bold text-[var(--accent-color)]">
-                                    ₹{item.price}
+                                    {(() => {
+                                      const hasVariation =
+                                        Array.isArray(item.variation) &&
+                                        item.variation.length > 0;
+
+                                      const variationPrices = hasVariation
+                                        ? item.variation
+                                            .map((v: any) => Number(v.price))
+                                            .filter((p: number) => p > 0)
+                                        : [];
+
+                                      const minVariationPrice =
+                                        variationPrices.length > 0
+                                          ? Math.min(...variationPrices)
+                                          : null;
+
+                                      const displayPrice =
+                                        Number(item.price) > 0
+                                          ? Number(item.price)
+                                          : minVariationPrice;
+
+                                      return (
+                                        <p className="text-lg font-bold text-[var(--accent-color)]">
+                                          {displayPrice !== null
+                                            ? hasVariation &&
+                                              Number(item.price) === 0
+                                              ? `From ₹${displayPrice}`
+                                              : `₹${displayPrice}`
+                                            : "Customisable"}
+                                        </p>
+                                      );
+                                    })()}
                                   </p>
                                 </div>
 
@@ -848,12 +884,28 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
                                 </p>
 
                                 <button
-                                  onClick={() => handleAddToCart(item)}
+                                  onClick={() => {
+                                    if (
+                                      Array.isArray(item.variation) &&
+                                      item.variation.some(
+                                        (v: any) =>
+                                          Array.isArray(v.addon) &&
+                                          v.addon.length > 0,
+                                      )
+                                    ) {
+                                      // item HAS addons → open addon flow
+                                      setAddonItem(item);
+                                      setIsAddonModalOpen(true);
+                                    } else {
+                                      // item has NO addons → normal add
+                                      handleAddToCart(item);
+                                    }
+                                  }}
                                   disabled={!isAvailable}
                                   className="mt-4 w-full py-2 rounded-md border-2 font-semibold transition-all 
-             text-[var(--primary-color)]
-             disabled:opacity-50 disabled:cursor-not-allowed 
-             hover:bg-[var(--primary-color)] hover:text-white"
+    text-[var(--primary-color)]
+    disabled:opacity-50 disabled:cursor-not-allowed 
+    hover:bg-[var(--primary-color)] hover:text-white"
                                   style={{
                                     borderColor: "var(--primary-color)",
                                   }}
@@ -1047,9 +1099,9 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
                       onSubmit={
                         otpSent
                           ? (e) => {
-                            e.preventDefault();
-                            confirmBooking();
-                          }
+                              e.preventDefault();
+                              confirmBooking();
+                            }
                           : sendOtp
                       }
                       className="space-y-4"
@@ -1258,6 +1310,20 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
         onClose={() => setIsCartOpen(false)}
         brandId={restId} // keep prop name, pass rest_id
       />
+      {isAddonModalOpen && addonItem && (
+        <AddonModal
+          item={addonItem}
+          onClose={() => {
+            setIsAddonModalOpen(false);
+            setAddonItem(null);
+          }}
+          onConfirm={(finalItem) => {
+            handleAddToCart(finalItem);
+            setIsAddonModalOpen(false);
+            setAddonItem(null);
+          }}
+        />
+      )}
     </div>
   );
 };
