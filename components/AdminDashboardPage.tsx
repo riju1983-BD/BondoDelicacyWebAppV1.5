@@ -292,7 +292,7 @@ const [menu, setMenu] = useState<any[] | null>(null);
     setIsLoadingRestaurantOptions(true);
     try {
       const { data, error } = await supabase
-        .from("restaurants")
+        .from("petpooja_menu_cache")
         .select("rest_id,name")
         .order("name", { ascending: true });
 

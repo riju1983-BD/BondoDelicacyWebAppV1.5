@@ -8,6 +8,26 @@ export const apiFetchRestaurantMapping = async (rest_id: string) => {
     const res = await fetch(`${BASE_URL}/resturents/restaurant-by-mappingId?resturent_identifier=${rest_id}`);
     return res.json();
 };
+export async function apiResolveRestaurantByName(payload: {
+  restaurant_name: string;
+  lat: number;
+  lng: number;
+}) {
+  const res = await fetch(`http://localhost:3000/api/resturents/resolve-by-name`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await res.json();
+
+  if (!res.ok || !data.success) {
+    throw new Error(data.message || "No open outlet found nearby");
+  }
+
+  return data; // { rest_id, distance_km, outlet_name }
+}
+
 export const apiUploadRestaurantImage = async (
     rest_id: string,
     type: "logo" | "hero" | "about",
@@ -158,7 +178,7 @@ export async function apiGetRestaurants() {
     const { data, error } = await supabase
         .from("restaurants")
         .select(
-            "rest_id,name,tagline,description,logo,hero_image,about_text,about_image,theme_primary,theme_accent,theme_text_on_primary,isclosed,turn_on_time"
+            "rest_id,name,tagline,description,logo,hero_image,about_text,about_image,theme_primary,theme_accent,theme_text_on_primary"
         )
         .order("name", { ascending: true });
 
@@ -171,7 +191,7 @@ export async function apiGetRestaurantById(restId: string) {
     const { data, error } = await supabase
         .from("restaurants")
         .select(
-            "rest_id,name,tagline,description,logo,hero_image,about_text,about_image,theme_primary,theme_accent,theme_text_on_primary,isclosed,turn_on_time"
+            "rest_id,name,tagline,description,logo,hero_image,about_text,about_image,theme_primary,theme_accent,theme_text_on_primary"
         )
         .eq("rest_id", restId)
         .maybeSingle();

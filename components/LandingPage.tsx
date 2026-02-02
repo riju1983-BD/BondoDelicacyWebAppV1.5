@@ -4,7 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import HelpBuddyIcon from "./HelpBuddyIcon";
 import HelpBuddyModal from "./HelpBuddyModal";
 import { Icon } from "./Icon";
-import { apiGetRestaurants } from "../services/apiService";
+import { apiGetRestaurants, apiResolveRestaurantByName } from "../services/apiService";
 
 interface LandingPageProps {
   onSelectBrand: (brandId: string) => void;
@@ -39,29 +39,59 @@ const RestaurantCardSkeleton: React.FC = () => {
 const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
   const { isAuthenticated, currentUser } = useAuth();
   const [isHelpBuddyOpen, setIsHelpBuddyOpen] = useState(false);
+  const isFirstLoad = React.useRef(true);
 
   const [restaurants, setRestaurants] = useState<any[]>([]);
   const [isLoadingRestaurants, setIsLoadingRestaurants] = useState(false);
   const [restaurantsError, setRestaurantsError] = useState<string | null>(null);
+  const [location, setLocation] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(null);
 
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [locationName, setLocationName] = useState<string | null>(null);
   const handleNavigate = (hash: string) => {
     window.location.hash = hash;
   };
 
   // Normalize isclosed to real boolean (covers true/false, 1/0, "true"/"false")
-  const isClosed = (r: any) => {
-    const v = r?.isclosed;
-    if (typeof v === "boolean") return v;
-    if (typeof v === "number") return v === 1;
-    if (typeof v === "string") {
-      const s = v.trim().toLowerCase();
-      return s === "true" || s === "1" || s === "yes" || s === "closed";
-    }
-    return false;
-  };
+
+  useEffect(() => {
+    if (!location) return;
+
+    const fetchLocationName = async () => {
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${location.lat}&lon=${location.lng}`
+        );
+        const data = await res.json();
+
+        const city =
+          data.address?.city ||
+          data.address?.town ||
+          data.address?.village ||
+          data.address?.suburb ||
+          "";
+
+        const state = data.address?.state || "";
+        const country = data.address?.country || "";
+
+        setLocationName([city, state, country].filter(Boolean).join(", "));
+      } catch {
+        setLocationName(null);
+      }
+    };
+
+    fetchLocationName();
+  }, [location]);
+
 
   const loadRestaurants = async () => {
-    setIsLoadingRestaurants(true);
+    if (isFirstLoad.current) {
+      setIsLoadingRestaurants(true);
+    }
+
     setRestaurantsError(null);
     try {
       const data = await apiGetRestaurants();
@@ -70,9 +100,53 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
       setRestaurantsError(e?.message || "Failed to load restaurants");
       setRestaurants([]);
     } finally {
-      setIsLoadingRestaurants(false);
+      if (isFirstLoad.current) {
+        setIsLoadingRestaurants(false);
+        isFirstLoad.current = false;
+      }
     }
   };
+
+  useEffect(() => {
+    // 1️⃣ If user is logged in and has default address → use it
+    if (currentUser?.addresses?.length) {
+      const defaultAddress =
+        currentUser.addresses.find((a) => a.isDefault) ||
+        currentUser.addresses[0];
+
+      if (defaultAddress?.coordinates?.lat && defaultAddress?.coordinates?.lng) {
+        setLocation({
+          lat: defaultAddress.coordinates.lat,
+          lng: defaultAddress.coordinates.lng,
+        });
+        return; // ⛔ do NOT ask browser for GPS
+      }
+    }
+
+    // 2️⃣ Otherwise fallback to browser location
+    if (!navigator.geolocation) {
+      setLocationError("Geolocation not supported");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setLocation({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        });
+      },
+      () => {
+        setLocationError("Location permission denied");
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0,
+      }
+    );
+  }, [currentUser]);
+
 
   useEffect(() => {
     loadRestaurants();
@@ -164,6 +238,23 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
             A curated collective of authentic culinary brands, bringing the soul
             of Kolkata to your plate.
           </p>
+          {location && (
+            <div className="mt-2 space-y-1">
+              <p className="text-xs text-gray-300">
+                Location: {locationName ?? "Detecting location..."}
+              </p>
+
+              <p className="text-[11px] text-gray-400">
+                {location.lat.toFixed(5)}, {location.lng.toFixed(5)}
+              </p>
+            </div>
+          )}
+
+          {locationError && (
+            <p className="text-xs text-red-400 mt-2">
+              {locationError}
+            </p>
+          )}
         </div>
       </header>
 
@@ -195,16 +286,33 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
                   ? r.logo
                   : "https://placehold.co/160x60?text=Logo";
 
-              const closed = isClosed(r);
+
 
               return (
                 <div
                   key={r.rest_id}
-                  onClick={() => {
-                    if (closed) return; // disabled
-                    localStorage.setItem("selectedRestaurantId", r.rest_id);
-                    onSelectBrand(r.rest_id);
+                  onClick={async () => {
+                    if (!location) return;
+
+                    try {
+                      const resolved = await apiResolveRestaurantByName({
+                        restaurant_name: r.name,
+                        lat: location.lat,
+                        lng: location.lng,
+                      });
+
+                      // resolved.menusharing_id comes from backend
+                      localStorage.setItem(
+                        "selectedRestaurantId",
+                        resolved.rest_id
+                      );
+
+                      onSelectBrand(resolved.rest_id);
+                    } catch (err: any) {
+                      alert(err.message || "No open outlet nearby");
+                    }
                   }}
+
                   className={[
                     "group relative h-[350px] rounded-2xl overflow-hidden shadow-2xl transition-all duration-500",
                     closed
@@ -322,3 +430,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
 };
 
 export default LandingPage;
+
+
+
+
+
+
+
