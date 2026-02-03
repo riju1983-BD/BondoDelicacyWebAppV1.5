@@ -249,7 +249,7 @@ interface BrandPageProps {
 const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
   // ✅ rest id comes from landing page selection
   const restId = localStorage.getItem("selectedRestaurantId") || "";
-
+  const name = localStorage.getItem("selectedRestaurantId") || "";
   const [restaurant, setRestaurant] = useState<any>(null);
   const [restaurantLoading, setRestaurantLoading] = useState(true);
   const [restaurantError, setRestaurantError] = useState<string>("");
@@ -299,7 +299,7 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
       setRestaurantLoading(true);
       setRestaurantError("");
 
-      if (!restId) {
+      if (!name) {
         setRestaurantError(
           "Restaurant ID not found. Please go back and select a restaurant.",
         );
@@ -309,7 +309,7 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
       }
 
       try {
-        const r = await apiGetRestaurantById(restId);
+        const r = await apiGetRestaurantById(name);
         setRestaurant(r);
       } catch (e: any) {
         setRestaurantError(e?.message || "Failed to load restaurant");
@@ -320,7 +320,7 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
     };
 
     loadRestaurant();
-  }, [restId]);
+  }, [name]);
 
   // ✅ load categories + first menu
   useEffect(() => {
@@ -780,10 +780,9 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
                     key={cat.id}
                     onClick={() => handleCategoryChange(cat)}
                     className={`px-4 py-2 rounded-md font-semibold transition-all 
-                      ${
-                        activeCategory === cat.id
-                          ? "text-[var(--text-on-primary-color)]"
-                          : "bg-gray-700 text-white hover:bg-gray-600"
+                      ${activeCategory === cat.id
+                        ? "text-[var(--text-on-primary-color)]"
+                        : "bg-gray-700 text-white hover:bg-gray-600"
                       }`}
                     style={
                       activeCategory === cat.id
@@ -851,8 +850,8 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
 
                                       const variationPrices = hasVariation
                                         ? item.variation
-                                            .map((v: any) => Number(v.price))
-                                            .filter((p: number) => p > 0)
+                                          .map((v: any) => Number(v.price))
+                                          .filter((p: number) => p > 0)
                                         : [];
 
                                       const minVariationPrice =
@@ -1099,9 +1098,9 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
                       onSubmit={
                         otpSent
                           ? (e) => {
-                              e.preventDefault();
-                              confirmBooking();
-                            }
+                            e.preventDefault();
+                            confirmBooking();
+                          }
                           : sendOtp
                       }
                       className="space-y-4"

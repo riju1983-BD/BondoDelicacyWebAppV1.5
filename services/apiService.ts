@@ -187,13 +187,13 @@ export async function apiGetRestaurants() {
     return data || [];
 }
 
-export async function apiGetRestaurantById(restId: string) {
+export async function apiGetRestaurantById(name: string) {
     const { data, error } = await supabase
         .from("restaurants")
         .select(
             "rest_id,name,tagline,description,logo,hero_image,about_text,about_image,theme_primary,theme_accent,theme_text_on_primary"
         )
-        .eq("rest_id", restId)
+        .eq("rest_id", name)
         .maybeSingle();
 
     if (error) handleSupabaseError(error, "Fetch Restaurant By Id");
