@@ -968,7 +968,7 @@ export interface HelpBuddyChatResponse {
 export interface HelpBuddyChatRequest {
     history: HelpBuddyChatHistoryItem[];
     userMessage: string;
-    restaurantId: string;
+    restaurantId?: string;
     userId?: string;
 }
 
@@ -1030,16 +1030,16 @@ export const apiHelpBuddyChat = async (
         });
 
         // Prepare request body
-        const requestBody: HelpBuddyChatRequest = {
-            history: history.map(msg => ({
-                role: msg.role,
-                parts: msg.parts || msg.content || '',
-                content: msg.content || msg.parts || ''
-            })),
-            userMessage: userMessage.trim(),
-            restaurantId: restId,
-            ...(currentUserId && { userId: currentUserId })
-        };
+       const requestBody: HelpBuddyChatRequest = {
+  history: history.map(msg => ({
+    role: msg.role,
+    parts: msg.parts || msg.content || '',
+    content: msg.content || msg.parts || ''
+  })),
+  userMessage: userMessage.trim(),
+  ...(currentUserId && { userId: currentUserId })
+};
+
 
         // Make API request
         const response = await fetch(`${BASE_URL}/ai/help-buddy/chat`, {
