@@ -269,9 +269,14 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
   const [isMenuChanging, setIsMenuChanging] = useState(false);
   const [isInitialMenuLoading, setIsInitialMenuLoading] = useState(true);
 
-  const { addItem } = useCart();
-  const { currentUser } = useAuth();
+ const { addItem, switchRestaurant } = useCart();
 
+  const { currentUser } = useAuth();
+useEffect(() => {
+  if (restId) {
+    switchRestaurant(restId);
+  }
+}, [restId]);
   const [resStep, setResStep] = useState<1 | 2 | 3 | 4>(1);
   const [resForm, setResForm] = useState({
     name: "",

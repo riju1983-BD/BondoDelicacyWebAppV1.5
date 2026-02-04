@@ -166,9 +166,8 @@ const buildTaxSummary = (items: any[], perItemTax: Record<string, any[]>) => {
 interface CartModalProps {
   isOpen: boolean;
   onClose: () => void;
-  restaurantId: string;
+  brandId: string;
 }
-
 type View = "cart" | "auth" | "address" | "checkout" | "confirmation";
 const RESTAURANT_LAT = 12.9716; // example
 const RESTAURANT_LNG = 77.5946;
@@ -370,17 +369,17 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
             dropLng
           );
 
-          if (!serviceResp.serviceable.locationServiceable) {
-            setIsAddressServiceable(false);
-            setAddressError("Delivery not available for this location.");
-            return;
-          }
+          // if (!serviceResp.serviceable.locationServiceable) {
+          //   setIsAddressServiceable(false);
+          //   setAddressError("Delivery not available for this location.");
+          //   return;
+          // }
 
-          if (!serviceResp.serviceable.riderServiceable) {
-            setIsAddressServiceable(false);
-            setAddressError("No delivery partners available right now.");
-            return;
-          }
+          // if (!serviceResp.serviceable.riderServiceable) {
+          //   setIsAddressServiceable(false);
+          //   setAddressError("No delivery partners available right now.");
+          //   return;
+          // }
 
           // ✅ SERVICEABLE
           setIsAddressServiceable(true);
@@ -942,7 +941,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
 
                       <div className="flex items-center gap-2">
                         <button
-                          onClick={() => updateItemQuantity(item.itemname, item.quantity - 1)}
+                  onClick={() => updateItemQuantity(item.itemid, item.quantity - 1)}
                           className="text-gray-400 hover:text-white"
                         >
                           <Icon type="minus-circle" className="w-6 h-6" />
@@ -953,7 +952,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                         </span>
 
                         <button
-                          onClick={() => updateItemQuantity(item.itemname, item.quantity + 1)}
+                          onClick={() => updateItemQuantity(item.itemid, item.quantity + 1)}
                           className="text-gray-400 hover:text-white"
                         >
                           <Icon type="plus-circle" className="w-6 h-6" />
@@ -961,7 +960,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                       </div>
 
                       <button
-                        onClick={() => removeItem(item.itemname)}
+                        onClick={() => removeItem(item.itemid)}
                         className="text-red-400 hover:text-red-300"
                       >
                         <Icon type="trash" className="w-5 h-5" />
