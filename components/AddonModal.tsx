@@ -2,78 +2,125 @@ import React, { useState, useMemo } from "react";
 import { Icon } from "./Icon";
 import { ItemData } from "@/model/menu_list";
 
+/* =========================
+   Types
+========================= */
+
 interface AddonGroup {
   addon_group_id: string;
   addon_item_selection_min: string;
   addon_item_selection_max: string;
 }
 
+type SelectedAddon = {
+  id: string;
+  name: string;
+  price: number;
+  quantity: number;
+  group_id: string;
+};
+
+interface ComputedPricing {
+  base_price: number;
+  addon_price: number;
+  taxable_amount: number;
+  gst_percentage: number;
+  gst_amount: number;
+  final_price: number;
+}
+
+export interface EnrichedItemData extends ItemData {
+  computed: ComputedPricing;
+  selectedVariation?: any;
+  selectedAddons?: Record<string, SelectedAddon[]>;
+}
+
 interface Props {
   item: ItemData;
   onClose: () => void;
-  onConfirm: (item: ItemData) => void;
+  onConfirm: (item: EnrichedItemData) => void;
 }
 
+/* =========================
+   Component
+========================= */
+
 const AddonModal: React.FC<Props> = ({ item, onClose, onConfirm }) => {
-  // default to first variation
   const [selectedVariation, setSelectedVariation] = useState<any>(
     item.variation?.[0],
   );
 
-  /**
-   * selectedAddons:
-   * key   -> addon_group_id
-   * value -> total addon price selected for that group
-   */
-  const [selectedAddons, setSelectedAddons] = useState<Record<string, number>>(
-    {},
-  );
+  const [selectedAddons, setSelectedAddons] = useState<
+    Record<string, SelectedAddon[]>
+  >({});
 
-  /* -----------------------------
-   * Price calculations (SAFE)
-   * ----------------------------- */
+  /* =========================
+     Price calculations
+  ========================= */
 
-  const basePrice =
-    Number(item.price) > 0
-      ? Number(item.price)
-      : Number(selectedVariation?.price || 0);
+  const basePrice = useMemo(() => {
+    const itemPrice = Number(item.price);
+    if (itemPrice > 0) return itemPrice;
+    return Number(selectedVariation?.price || 0);
+  }, [item.price, selectedVariation]);
 
   const addonPrice = useMemo(() => {
-    return Object.values(selectedAddons).reduce<number>(
-      (sum, value) => sum + Number(value),
-      0,
-    );
+    return (Object.values(selectedAddons) as SelectedAddon[][])
+      .flat()
+      .reduce((sum, a) => sum + a.price * a.quantity, 0);
   }, [selectedAddons]);
 
-  const subtotal = basePrice + addonPrice;
+  /**
+   * ✅ GST % MUST come from item_tax / tax_breakup
+   */
+  const gstPercentage = useMemo(() => {
+    if (Array.isArray(item.tax_breakup) && item.tax_breakup.length > 0) {
+      return item.tax_breakup.reduce(
+        (sum, t: any) => sum + Number(t.tax_percentage || t.tax || 0),
+        0,
+      );
+    }
 
-  const gstPercentage = Number(item.gst_total_percentage ?? 0);
+    if (Array.isArray(item.item_tax) && item.item_tax.length > 0) {
+      return item.item_tax.reduce(
+        (sum, t: any) => sum + Number(t.tax_percentage || t.tax || 0),
+        0,
+      );
+    }
+
+    return 0;
+  }, [item.item_tax, item.tax_breakup]);
 
   const taxableAmount = basePrice + addonPrice;
-
   const gstAmount = (taxableAmount * gstPercentage) / 100;
-
   const totalWithGST = taxableAmount + gstAmount;
 
-  /* -----------------------------
-   * Addon selection handler
-   * ----------------------------- */
+  /* =========================
+     Addon handlers
+  ========================= */
 
-  const addAddon = (group: AddonGroup, addonUnitPrice: number) => {
-    const groupId = group.addon_group_id;
-    const min = Number(group.addon_item_selection_min);
-    const max = Number(group.addon_item_selection_max);
-
+  const addAddon = (
+    group: AddonGroup,
+    addon: { id: string; name: string; price: number },
+  ) => {
     setSelectedAddons((prev) => {
-      const current = prev[groupId] ?? 0;
+      const current = prev[group.addon_group_id] ?? [];
+      const count = current.reduce((s, a) => s + a.quantity, 0);
 
-      if (current / addonUnitPrice >= max) {
-        return prev; // max reached
-      }
+      if (count >= Number(group.addon_item_selection_max)) return prev;
 
       return {
         ...prev,
-        [groupId]: current + addonUnitPrice,
+        [group.addon_group_id]: [
+          ...current,
+          {
+            id: addon.id,
+            name: addon.name,
+            price: addon.price,
+            quantity: 1,
+            group_id: group.addon_group_id,
+          },
+        ],
       };
     });
   };
@@ -83,15 +130,17 @@ const AddonModal: React.FC<Props> = ({ item, onClose, onConfirm }) => {
 
     return selectedVariation.addon.every((g: AddonGroup) => {
       const min = Number(g.addon_item_selection_min);
-      const selectedValue = selectedAddons[g.addon_group_id] ?? 0;
+      const count =
+        selectedAddons[g.addon_group_id]?.reduce((s, a) => s + a.quantity, 0) ??
+        0;
 
-      return selectedValue > 0 || min === 0;
+      return count >= min;
     });
   }, [selectedAddons, selectedVariation]);
 
-  /* -----------------------------
-   * Render
-   * ----------------------------- */
+  /* =========================
+     Render
+  ========================= */
 
   return (
     <div
@@ -123,7 +172,10 @@ const AddonModal: React.FC<Props> = ({ item, onClose, onConfirm }) => {
                 <input
                   type="radio"
                   checked={selectedVariation?.id === v.id}
-                  onChange={() => setSelectedVariation(v)}
+                  onChange={() => {
+                    setSelectedVariation(v);
+                    setSelectedAddons({});
+                  }}
                 />
                 {v.name} — ₹{v.price}
               </label>
@@ -140,12 +192,15 @@ const AddonModal: React.FC<Props> = ({ item, onClose, onConfirm }) => {
                 {group.addon_item_selection_max})
               </p>
 
-              {/* NOTE:
-                 Replace 50 with REAL addon price once
-                 you wire addon menu items.
-              */}
+              {/* TEMP addon button */}
               <button
-                onClick={() => addAddon(group, 50)}
+                onClick={() =>
+                  addAddon(group, {
+                    id: "TEMP",
+                    name: "Addon",
+                    price: 50,
+                  })
+                }
                 className="px-3 py-1 bg-gray-700 text-sm rounded hover:bg-gray-600"
               >
                 + Add addon (₹50)
@@ -155,8 +210,8 @@ const AddonModal: React.FC<Props> = ({ item, onClose, onConfirm }) => {
 
         {/* Price Summary */}
         <div className="mt-4 border-t border-gray-700 pt-4 text-white text-sm space-y-1">
-          <p>Base price: ₹{basePrice}</p>
-          <p>Add-ons: ₹{addonPrice}</p>
+          <p>Base price: ₹{basePrice.toFixed(2)}</p>
+          <p>Add-ons: ₹{addonPrice.toFixed(2)}</p>
           <p>
             GST ({gstPercentage}%): ₹{gstAmount.toFixed(2)}
           </p>
@@ -171,8 +226,17 @@ const AddonModal: React.FC<Props> = ({ item, onClose, onConfirm }) => {
           onClick={() =>
             onConfirm({
               ...item,
+
+              // ✅ CRITICAL: preserve tax data
+              item_tax: item.item_tax,
+              tax_breakup: item.tax_breakup,
+              gst_liability: item.gst_liability ?? "vendor",
+              tax_inclusive: item.tax_inclusive,
+              is_tax_inclusive: item.is_tax_inclusive,
+
               selectedVariation,
               selectedAddons,
+
               computed: {
                 base_price: basePrice,
                 addon_price: addonPrice,

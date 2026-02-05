@@ -291,10 +291,10 @@ const [menu, setMenu] = useState<any[] | null>(null);
   const fetchRestaurantOptions = useCallback(async () => {
     setIsLoadingRestaurantOptions(true);
     try {
-      const { data, error } = await supabase
-        .from("petpooja_menu_cache")
-        .select("rest_id,name")
-        .order("name", { ascending: true });
+ const { data, error } = await supabase
+   .from("petpooja_menu_cache")
+   .select("rest_id,payload,last_pushed_at,restaurant_name")
+   .order("last_pushed_at", { ascending: false });
 
       if (error) throw error;
 
@@ -748,7 +748,9 @@ else if (activeTab === "orders") fetchOrders();
                 ) : (
                   restaurantOptions.map((r) => (
                     <option key={r.rest_id} value={r.rest_id}>
-                      {r.name} ({r.rest_id})
+                      {r.restaurant_name
+                        ? `${r.restaurant_name} (${r.rest_id})`
+                        : r.rest_id}
                     </option>
                   ))
                 )}
@@ -1115,9 +1117,7 @@ else if (activeTab === "orders") fetchOrders();
                           <div className="text-sm font-bold text-cyan-400 font-mono">
                             {o.id}
                           </div>
-                          <div className="text-xs text-gray-400">
-                            {o.name}
-                          </div>
+                          <div className="text-xs text-gray-400">{o.name}</div>
 
                           {o.status && (
                             <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-700 text-gray-300 mt-1 capitalize">

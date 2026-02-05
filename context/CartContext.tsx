@@ -12,8 +12,8 @@ interface CartContextType {
   restaurantId: string | null;
 
   addItem: (item: CartItem) => void;
-  removeItem: (itemId: string) => void;
-  updateItemQuantity: (itemId: string, quantity: number) => void;
+  removeItem: (cartKey: string) => void;
+  updateItemQuantity: (cartKey: string, quantity: number) => void;
 
   clearCart: () => void;
   switchRestaurant: (restaurantId: string) => void;
@@ -30,7 +30,10 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
   const [items, setItems] = useState<CartItem[]>([]);
   const [restaurantId, setRestaurantId] = useState<string | null>(null);
 
-  // ✅ Switch outlet → clear cart
+  /* =========================
+     Switch restaurant
+  ========================= */
+
   const switchRestaurant = (newRestaurantId: string) => {
     setRestaurantId((prev) => {
       if (prev && prev !== newRestaurantId) {
@@ -40,49 +43,66 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
     });
   };
 
-  // ✅ Add item (keyed by itemid)
+  /* =========================
+     Add item (cartKey based)
+  ========================= */
+
   const addItem = (itemToAdd: CartItem) => {
     setItems((prevItems) => {
       const existingItem = prevItems.find(
-        (item) => item.itemid === itemToAdd.itemid
+        (item) => item.cartKey === itemToAdd.cartKey,
       );
 
       if (existingItem) {
         return prevItems.map((item) =>
-          item.itemid === itemToAdd.itemid
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
+          item.cartKey === itemToAdd.cartKey
+            ? { ...item, quantity: item.quantity + itemToAdd.quantity }
+            : item,
         );
       }
 
-      return [...prevItems, { ...itemToAdd, quantity: 1 }];
+      return [...prevItems, { ...itemToAdd }];
     });
   };
 
-  // ✅ Remove item by itemid
-  const removeItem = (itemId: string) => {
+  /* =========================
+     Remove item
+  ========================= */
+
+  const removeItem = (cartKey: string) => {
     setItems((prevItems) =>
-      prevItems.filter((item) => item.itemid !== itemId)
+      prevItems.filter((item) => item.cartKey !== cartKey),
     );
   };
 
-  // ✅ Update quantity by itemid
-  const updateItemQuantity = (itemId: string, quantity: number) => {
+  /* =========================
+     Update quantity
+  ========================= */
+
+  const updateItemQuantity = (cartKey: string, quantity: number) => {
     if (quantity <= 0) {
-      removeItem(itemId);
+      removeItem(cartKey);
       return;
     }
 
     setItems((prevItems) =>
       prevItems.map((item) =>
-        item.itemid === itemId ? { ...item, quantity } : item
-      )
+        item.cartKey === cartKey ? { ...item, quantity } : item,
+      ),
     );
   };
+
+  /* =========================
+     Clear cart
+  ========================= */
 
   const clearCart = () => {
     setItems([]);
   };
+
+  /* =========================
+     Derived values
+  ========================= */
 
   const itemCount = useMemo(() => {
     return items.reduce((total, item) => total + item.quantity, 0);
@@ -90,10 +110,14 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
 
   const totalPrice = useMemo(() => {
     return items.reduce((total, item) => {
-      const priceNumber = Number(item.price) || 0;
-      return total + priceNumber * item.quantity;
+      const unitPrice = Number(item.unit_price) || 0;
+      return total + unitPrice * item.quantity;
     }, 0);
   }, [items]);
+
+  /* =========================
+     Context value
+  ========================= */
 
   const value: CartContextType = {
     items,
@@ -107,9 +131,7 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
     totalPrice,
   };
 
-  return (
-    <CartContext.Provider value={value}>{children}</CartContext.Provider>
-  );
+  return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 };
 
 export const useCart = (): CartContextType => {

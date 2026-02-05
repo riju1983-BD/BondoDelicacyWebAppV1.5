@@ -2,7 +2,14 @@ export interface Main {
   message: string;
   data: ItemData[];
 }
-
+export interface ItemComputed {
+  base_price: number;
+  addon_price: number;
+  taxable_amount: number;
+  gst_percentage: number;
+  gst_amount: number;
+  final_price: number;
+}
 export interface ItemData {
   itemid: string;
   itemallowvariation: string;
@@ -63,6 +70,7 @@ export interface ItemData {
 
   // ✅ new (expanded from API)
   item_tax_breakup?: ItemTaxBreakup[];
+  computed?: ItemComputed;
 }
 
 export interface ItemTaxBreakup {

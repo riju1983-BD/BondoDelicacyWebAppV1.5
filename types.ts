@@ -25,8 +25,19 @@ export interface MenuCategory {
 ========================= */
 
 export interface CartItem extends ItemData {
+  cartKey: string; // ✅ UNIQUE per cart line
+
   quantity: number;
+
+  unit_price: number;
+  base_price: number;
+  addon_price: number;
+
+  variation_id?: string;
+  variation_name?: string;
+  selected_addons?: any[];
 }
+
 
 /* =========================
    RESTAURANT

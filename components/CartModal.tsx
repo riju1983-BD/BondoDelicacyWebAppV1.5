@@ -2,10 +2,9 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useCart } from "../context/CartContext";
 import { useAuth } from "../context/AuthContext";
 import { Icon } from "./Icon";
-import {  DeliveryAddress } from "../types";
+import { DeliveryAddress } from "../types";
 import { BASE_URL } from "../src/config";
 import {
-
   applyFlatDiscount,
   apiGetUserValidPoints,
   apiPunchOrder,
@@ -40,15 +39,20 @@ const Spinner: React.FC<{ className?: string }> = ({
     ></path>
   </svg>
 );
-type TaxLine = { id: string; name: string; tax_percentage: string; amount?: string | number };
+type TaxLine = {
+  id: string;
+  name: string;
+  tax_percentage: string;
+  amount?: string | number;
+};
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
-const getItemKey = (i: any) => String(i.itemid ?? i.id ?? "");
+const getItemKey = (i: any) => String(i.itemid);
 
 const computeDiscountAwareTaxes = (
   items: any[],
   calculatedTaxByItemId: Record<string, TaxLine[]>,
-  orderDiscount: number
+  orderDiscount: number,
 ) => {
   const lines = items.map((i) => {
     const key = getItemKey(i);
@@ -61,7 +65,7 @@ const computeDiscountAwareTaxes = (
     }));
 
     const totalRate = taxArr.reduce((s, t) => s + t.pct, 0);
-    const unitPrice = Number(i.price || 0);
+    const unitPrice = Number(i.unit_price || i.price || 0);
 
     const isInclusive =
       i.tax_inclusive === true ||
@@ -116,7 +120,6 @@ const computeDiscountAwareTaxes = (
   return { perItemTax, gstTotal: round2(gstTotal) };
 };
 
-
 const buildTaxSummary = (items: any[], perItemTax: Record<string, any[]>) => {
   const map = new Map<string, any>();
 
@@ -162,7 +165,6 @@ const buildTaxSummary = (items: any[], perItemTax: Record<string, any[]>) => {
   }));
 };
 
-
 interface CartModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -176,7 +178,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
   const [calculatedTaxByItemId, setCalculatedTaxByItemId] = useState<
     Record<string, any[]>
   >({});
-  const [calculatedGstTotal, setCalculatedGstTotal] = useState(0);
+  // const [calculatedGstTotal, setCalculatedGstTotal] = useState(0);
   const [deliveryCharge, setDeliveryCharge] = useState(0);
   const [gstAfterDiscount, setGstAfterDiscount] = useState(0);
   const {
@@ -205,7 +207,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
 
   // Address State
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(
-    null
+    null,
   );
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [newAddressData, setNewAddressData] = useState<DeliveryAddress>({
@@ -233,7 +235,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
     const now = new Date();
     const pad = (n: number) => String(n).padStart(2, "0");
     return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(
-      now.getDate()
+      now.getDate(),
     )}`;
   };
   const normalizeItemTax = (item: any): TaxLine[] => {
@@ -266,18 +268,38 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
             amount: t.amount,
           }));
         }
-      } catch { }
+      } catch {}
     }
 
     return [];
   };
+  const getItemGST = (item: any) => {
+    console.log("RAW item_tax:", item.item_tax);
+    console.log("NORMALIZED:", normalizeItemTax(item));
+    const taxArr = normalizeItemTax(item);
+    const rate = taxArr.reduce((s, t) => s + Number(t.tax_percentage || 0), 0);
 
+    if (rate <= 0) return 0;
+
+    const unitPrice = Number(item.unit_price || item.price || 0);
+    const qty = Number(item.quantity || 1);
+
+    const isInclusive =
+      item.tax_inclusive === true ||
+      item.tax_inclusive === "true" ||
+      item.is_tax_inclusive === "1" ||
+      item.is_tax_inclusive === 1;
+
+    const base = isInclusive ? unitPrice / (1 + rate / 100) : unitPrice;
+
+    return ((base * rate) / 100) * qty;
+  };
 
   const formatOrderTime = () => {
     const now = new Date();
     const pad = (n: number) => String(n).padStart(2, "0");
     return `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(
-      now.getSeconds()
+      now.getSeconds(),
     )}`;
   };
   const getCurrentDateTime = () => {
@@ -300,24 +322,16 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
   };
   useEffect(() => {
     const taxMap: Record<string, TaxLine[]> = {};
-    let total = 0;
 
     items.forEach((it: any) => {
-      const key = getItemKey(it);
+      const key = String(it.itemid); // ✅ MUST be itemid
       const taxArr = normalizeItemTax(it);
 
       taxMap[key] = taxArr;
-
-      const qty = Number(it.quantity || 1);
-      const perQtyTax = taxArr.reduce((s, t) => s + Number(t?.amount || 0), 0);
-
-      total += perQtyTax * qty;
     });
 
     setCalculatedTaxByItemId(taxMap);
-    setCalculatedGstTotal(Number(total.toFixed(2)));
   }, [items]);
-
 
   const hasInclusiveItems = useMemo(() => {
     return items.some((i: any) => {
@@ -344,7 +358,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
         {
           componentRestrictions: { country: "in" },
           fields: ["formatted_address", "geometry", "address_components"],
-        }
+        },
       );
 
       autocomplete.addListener("place_changed", async () => {
@@ -366,7 +380,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
             RESTAURANT_LAT,
             RESTAURANT_LNG,
             dropLat,
-            dropLng
+            dropLng,
           );
 
           // if (!serviceResp.serviceable.locationServiceable) {
@@ -436,7 +450,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
     const loyaltyDiscountCalc = Math.min(
       loyaltyPointsToRedeem,
       availablePoints,
-      Math.floor(discountedTotal)
+      Math.floor(discountedTotal),
     );
 
     const preTaxTotalCalc =
@@ -447,8 +461,6 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
     const grandTotalCalc = hasInclusiveItems
       ? preTaxTotalCalc + deliveryCharge
       : preTaxTotalCalc + gstAmountCalc + deliveryCharge;
-
-
 
     return {
       subtotal: subtotalCalc,
@@ -465,7 +477,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
     availablePoints,
     deliveryCharge,
     gstAfterDiscount,
-    hasInclusiveItems
+    hasInclusiveItems,
   ]);
   useEffect(() => {
     const discountForTax =
@@ -474,7 +486,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
     const { gstTotal } = computeDiscountAwareTaxes(
       items,
       calculatedTaxByItemId,
-      discountForTax
+      discountForTax,
     );
 
     setGstAfterDiscount(gstTotal);
@@ -509,13 +521,13 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
           authFormData.name,
           authFormData.email,
           authFormData.phone,
-          authFormData.password
+          authFormData.password,
         );
       }
       setView("address"); // Move to address after auth
     } catch (err) {
       setAuthError(
-        err instanceof Error ? err.message : "An unknown error occurred."
+        err instanceof Error ? err.message : "An unknown error occurred.",
       );
     } finally {
       setIsProcessing(false);
@@ -552,30 +564,43 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
 
     try {
       // ✅ Discount that should reduce taxable value (before tax)
-      const discountForTax = Number(discountAmount || 0) + Number(loyaltyDiscount || 0);
+      const discountForTax =
+        Number(discountAmount || 0) + Number(loyaltyDiscount || 0);
 
       // ✅ Recalculate item taxes AFTER discount
       const { perItemTax, gstTotal } = computeDiscountAwareTaxes(
         items,
         calculatedTaxByItemId,
-        discountForTax
+        discountForTax,
       );
+      console.log("Order.tax_total", gstAfterDiscount);
+
+      console.log(
+        "Sum item_tax",
+        items.reduce((s, i) => s + getItemGST(i), 0),
+      );
+
       const preTax = Math.max(
         0,
         Number(totalPrice || 0) -
-        Number(discountAmount || 0) -
-        Number(loyaltyDiscount || 0)
+          Number(discountAmount || 0) -
+          Number(loyaltyDiscount || 0),
       );
 
       const finalTotalForPayload = hasInclusiveItems
         ? preTax + Number(deliveryCharge || 0)
         : preTax + Number(gstTotal || 0) + Number(deliveryCharge || 0);
 
-
       // ✅ Build PetPooja Tax.details summary (grouped)
       const taxSummary = buildTaxSummary(items, perItemTax);
+      console.log(
+        "Tax.details sum",
+        taxSummary.reduce((s, t) => s + Number(t.tax), 0),
+      );
+         
       // 1) Build PetPooja + backend payload
       const payload = {
+   
         userId: currentUser.id,
         orderinfo: {
           OrderInfo: {
@@ -631,7 +656,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                     ? "F"
                     : "",
 
-                tax_total: Number(gstTotal || 0).toFixed(2),
+                tax_total: Number(gstAfterDiscount || 0).toFixed(2),
                 total: Number(finalTotalForPayload || 0).toFixed(2),
 
                 created_on: getCurrentDateTime(),
@@ -644,7 +669,8 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
 
             OrderItem: {
               details: items.map((i: any) => {
-                const itemKey = getItemKey(i); // IMPORTANT: same key used in perItemTax
+                const itemKey = String(i.itemid);
+                // IMPORTANT: same key used in perItemTax
 
                 return {
                   id: String(i.itemid ?? i.id ?? ""),
@@ -661,15 +687,28 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                   })),
 
                   item_discount: "0",
-                  price: String(i.price ?? "0"),
+                  price: String(i.base_price ?? i.price ?? "0"),
                   final_price: (
-                    Number(i.price || 0) * Number(i.quantity || 1)
+                    Number(i.unit_price || 0) * Number(i.quantity || 1)
                   ).toFixed(2),
+
                   quantity: String(i.quantity ?? "1"),
 
-                  variation_name: "",
-                  variation_id: "",
-                  AddonItem: { details: [] },
+                  variation_id: String(i.selectedVariation?.variationid || ""),
+                  variation_name: String(i.selectedVariation?.name || ""),
+
+                  AddonItem: {
+                    details: Object.values(i.selectedAddons || {})
+                      .flat()
+                      .map((a: any) => ({
+                        id: String(a.id),
+                        name: String(a.name),
+                        group_id: String(a.group_id),
+                        group_name: "", // optional
+                        price: String(a.price),
+                        quantity: String(a.quantity),
+                      })),
+                  },
                 };
               }),
             },
@@ -684,16 +723,12 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
         },
       };
 
-
       // 2) Hit backend → create PetPooja order + Razorpay order
-      const res = await fetch(
-        `${BASE_URL}/payment/create-order`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        }
-      );
+      const res = await fetch(`${BASE_URL}/payment/create-order`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
 
       const data = await res.json();
       if (!data.success)
@@ -704,7 +739,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
 
       // 3) Open Razorpay Checkout
       const rzp = new (window as any).Razorpay({
-        key: "rzp_test_RhYbMtl8DSmn8I",
+        key: "rzp_test_S8PZzdGWKdlwmE",
         order_id: razorpayOrder.id,
         amount: razorpayOrder.amount,
         currency: razorpayOrder.currency,
@@ -737,7 +772,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                     loyaltyPointsToRedeem: loyaltyDiscount,
                   },
                 }),
-              }
+              },
             );
 
             const verifyData = await verifyRes.json();
@@ -797,7 +832,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
               await apiCancelOrderOnPaymentFailed(
                 brandId,
                 clientorderID,
-                "Payment cancelled by user"
+                "Payment cancelled by user",
               );
             } catch (err) {
               console.error("Payment-failed cancel error", err);
@@ -821,7 +856,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
           await apiCancelOrderOnPaymentFailed(
             brandId,
             clientorderID,
-            "Payment failed"
+            "Payment failed",
           );
         } catch (err) {
           console.error("Payment-failed cancel error", err);
@@ -856,7 +891,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
       RESTAURANT_LAT,
       RESTAURANT_LNG,
       lat,
-      lng
+      lng,
     );
 
     // ONLY responsibility: set delivery charge
@@ -874,7 +909,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
     if (!isBangalore) {
       setIsAddressServiceable(false);
       setAddressError(
-        "Currently, our culinary delights travel exclusively within Bangalore."
+        "Currently, our culinary delights travel exclusively within Bangalore.",
       );
       return;
     }
@@ -922,26 +957,26 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                       />
 
                       <div className="flex-grow">
-                        <p className="font-semibold text-white">{item.itemname}</p>
-                        <p className="text-sm text-gray-400">₹{Number(item.price).toFixed(2)}</p>
+                        <p className="font-semibold text-white">
+                          {item.itemname}
+                        </p>
+                        <p className="text-sm text-gray-400">
+                          ₹{Number(item.unit_price).toFixed(2)}
+                        </p>
 
                         {Array.isArray(calculatedTaxByItemId[itemKey]) &&
                           calculatedTaxByItemId[itemKey].length > 0 && (
                             <p className="text-xs text-gray-500">
-                              GST: ₹
-                              {(
-                                calculatedTaxByItemId[itemKey].reduce(
-                                  (s: number, t: any) => s + Number(t?.amount || 0),
-                                  0
-                                ) * Number(item.quantity || 1)
-                              ).toFixed(2)}
+                              GST: ₹{getItemGST(item).toFixed(2)}
                             </p>
                           )}
                       </div>
 
                       <div className="flex items-center gap-2">
                         <button
-                  onClick={() => updateItemQuantity(item.itemid, item.quantity - 1)}
+                          onClick={() =>
+                            updateItemQuantity(item.cartKey, item.quantity - 1)
+                          }
                           className="text-gray-400 hover:text-white"
                         >
                           <Icon type="minus-circle" className="w-6 h-6" />
@@ -952,7 +987,9 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                         </span>
 
                         <button
-                          onClick={() => updateItemQuantity(item.itemid, item.quantity + 1)}
+                          onClick={() =>
+                            updateItemQuantity(item.cartKey, item.quantity + 1)
+                          }
                           className="text-gray-400 hover:text-white"
                         >
                           <Icon type="plus-circle" className="w-6 h-6" />
@@ -960,7 +997,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                       </div>
 
                       <button
-                        onClick={() => removeItem(item.itemid)}
+                        onClick={() => removeItem(item.cartKey)}
                         className="text-red-400 hover:text-red-300"
                       >
                         <Icon type="trash" className="w-5 h-5" />
@@ -968,7 +1005,6 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                     </div>
                   );
                 })}
-
               </div>
             )}
           </>
@@ -983,8 +1019,9 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                   setIsLoginView(true);
                   setAuthError("");
                 }}
-                className={`flex-1 p-2 rounded-l-md text-sm ${isLoginView ? "bg-cyan-600 text-white" : "bg-gray-700"
-                  }`}
+                className={`flex-1 p-2 rounded-l-md text-sm ${
+                  isLoginView ? "bg-cyan-600 text-white" : "bg-gray-700"
+                }`}
               >
                 Login
               </button>
@@ -994,8 +1031,9 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                   setIsLoginView(false);
                   setAuthError("");
                 }}
-                className={`flex-1 p-2 rounded-r-md text-sm ${!isLoginView ? "bg-cyan-600 text-white" : "bg-gray-700"
-                  }`}
+                className={`flex-1 p-2 rounded-r-md text-sm ${
+                  !isLoginView ? "bg-cyan-600 text-white" : "bg-gray-700"
+                }`}
               >
                 Register
               </button>
@@ -1074,10 +1112,11 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                 {currentUser.addresses.map((addr) => (
                   <label
                     key={addr.id}
-                    className={`block p-4 rounded-lg border cursor-pointer transition-all ${selectedAddressId === addr.id
-                      ? "border-cyan-500 bg-cyan-900/20"
-                      : "border-gray-600 bg-gray-700/50 hover:border-gray-500"
-                      }`}
+                    className={`block p-4 rounded-lg border cursor-pointer transition-all ${
+                      selectedAddressId === addr.id
+                        ? "border-cyan-500 bg-cyan-900/20"
+                        : "border-gray-600 bg-gray-700/50 hover:border-gray-500"
+                    }`}
                   >
                     <div className="flex items-start gap-3">
                       <input
@@ -1130,7 +1169,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                   if (!selectedAddressId || !currentUser) return;
 
                   const selectedAddress = currentUser.addresses?.find(
-                    (a) => a.id === selectedAddressId
+                    (a) => a.id === selectedAddressId,
                   );
 
                   setIsProcessing(true);
@@ -1183,16 +1222,17 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                       setIsAddressServiceable(isBangalore);
                       if (!isBangalore && newVal.length > 5) {
                         setAddressError(
-                          "Currently, our culinary delights travel exclusively within Bangalore."
+                          "Currently, our culinary delights travel exclusively within Bangalore.",
                         );
                       } else {
                         setAddressError("");
                       }
                     }}
-                    className={`w-full bg-gray-700 p-3 pl-10 rounded-md border ${!isAddressServiceable
-                      ? "border-red-500 focus:ring-red-500"
-                      : "border-gray-600 focus:ring-cyan-500"
-                      } focus:ring-2 focus:outline-none text-white`}
+                    className={`w-full bg-gray-700 p-3 pl-10 rounded-md border ${
+                      !isAddressServiceable
+                        ? "border-red-500 focus:ring-red-500"
+                        : "border-gray-600 focus:ring-cyan-500"
+                    } focus:ring-2 focus:outline-none text-white`}
                   />
                 </div>
                 {!isAddressServiceable && (
@@ -1330,8 +1370,8 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                         max={Math.floor(
                           Math.min(
                             availablePoints,
-                            preTaxTotal + loyaltyDiscount
-                          )
+                            preTaxTotal + loyaltyDiscount,
+                          ),
                         )}
                         value={loyaltyPointsToRedeem}
                         onChange={(e) =>
@@ -1494,7 +1534,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
             )}
             {
               view === "auth" &&
-              null /* Auth view has its own submit button in form */
+                null /* Auth view has its own submit button in form */
             }
             {view === "checkout" && (
               <button
