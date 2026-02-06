@@ -262,6 +262,7 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
   // ✅ rest id comes from landing page selection
   const restId = localStorage.getItem("selectedRestaurantId") || "";
   const name = localStorage.getItem("selectedRestaurantId") || "";
+    const id= localStorage.getItem("selectedRestaurantId") || "";
   const [restaurant, setRestaurant] = useState<any>(null);
   const [restaurantLoading, setRestaurantLoading] = useState(true);
   const [restaurantError, setRestaurantError] = useState<string>("");
@@ -322,11 +323,14 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
     }
 
     const loadRestaurant = async () => {
+      const r = await apiGetRestaurantById(restId);
+      console.log("Restaurant API response:", r);
+      setRestaurant(r);
       setRestaurantLoading(true);
       setRestaurantError("");
 
       try {
-        const r = await apiGetRestaurantById(name);
+        const r = await apiGetRestaurantById(restId);
         setRestaurant(r);
       } catch (e: any) {
         setRestaurantError(e?.message || "Failed to load restaurant");
@@ -598,8 +602,8 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
 
   // ✅ map restaurant -> theme + UI fields (fallbacks)
-  const themePrimary = restaurant?.theme_primary || "#0f172a";
-  const themeAccent = restaurant?.theme_accent || "#06b6d4";
+  const themePrimary = restaurant?.theme_primary || "#ff0000";
+  const themeAccent = restaurant?.theme_accent || "#e5f502";
   const themeText = restaurant?.theme_text_on_primary || "#ffffff";
 
   const restaurantName = restaurant?.name || "Restaurant";
