@@ -22,6 +22,7 @@ import {
   apiUploadRestaurantImage,
   apiGetRestaurantById,
   apiGetOutlet,
+  apiGetAllRestaurant,
 } from "../services/apiService";
 import { BASE_URL } from "../src/config";
 import { supabase } from "../services/supabaseClient";
@@ -143,6 +144,7 @@ const AdminDashboardPage: React.FC = () => {
   // Restaurants State
   const [restaurants, setRestaurants] = useState<any[]>([]);
   const [isLoadingRestaurants, setIsLoadingRestaurants] = useState(false);
+  const [isLoadingOutlets, setIsLoadingOutlets] = useState(false);
 
   // Add Table Modal State
   const [addTableFor, setAddTableFor] = useState<string | null>(null);
@@ -157,6 +159,9 @@ const AdminDashboardPage: React.FC = () => {
   const [loadingTables, setLoadingTables] = useState(false);
   const [AllOutlet, setAllOutlet] = useState<any[]>([]);
   const [showOutlet, setshowOutlet] = useState<string | null>(null);
+  const [OutletcurrentPage, setOutletCurrentPage] = useState(1);
+  const [OutlettotalPages, setOutletTotalPages] = useState(1);
+  const [OutletperPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [perPage] = useState(10);
@@ -204,17 +209,36 @@ const AdminDashboardPage: React.FC = () => {
   async function loadResturent(restId: string) {
     setLoadingTables(true);
     const res = await apiGetRestaurantById(restId);
-    console.log(res);
-    setresturent(res);
-    setTagline(res.tagline || "");
-    setDescription(res.description || "");
-    setHeroImageUrl(res.hero_image || "");
-    setLogoUrl(res.logo || "");
-    setAboutText(res.about_text || "");
-    setAboutImageUrl(res.about_image || "");
+    console.log(res.data);
+    setresturent(res.data);
+    setTagline(res.data.tagline || "");
+    setDescription(res.data.description || "");
+    setHeroImageUrl(res.data.hero_image || "");
+    setLogoUrl(res.data.logo || "");
+    setAboutText(res.data.about_text || "");
+    setAboutImageUrl(res.data.about_image || "");
+    setThemePrimary(res.data.theme_primary || "#000000");
+    setThemeAccent(res.data.theme_accent || "#FFAB00");
+    setThemeText(res.data.theme_text_on_primary || "#FFFFFF");
     setLoadingTables(false);
   }
+  const fetchRestaurants = useCallback(async () => {
+    setIsLoadingRestaurants(true);
+    try {
+      const res = await apiGetAllRestaurant(currentPage, perPage);
+      console.log("All Res: ", res);
 
+      setRestaurants(res.data.result || []);
+      if (res.data && res.data.count) {
+        setTotalPages(Math.ceil(res.data.count / perPage));
+      }
+    } catch (err) {
+      console.error("Failed to fetch restaurants:", err);
+      setTableError("Failed to fetch restaurants");
+    } finally {
+      setIsLoadingRestaurants(false);
+    }
+  }, [currentPage, perPage]);
   useEffect(() => {
     // Subscribe to 'orders'
     const orderSubscription = supabase
@@ -282,24 +306,24 @@ const AdminDashboardPage: React.FC = () => {
       setIsLoadingComplaints(false);
     }
   }, []);
-  const fetchRestaurants = useCallback(async () => {
-    setIsLoadingRestaurants(true);
-    setTableError(null);
-    try {
-      const { data, error } = await supabase.from("restaurants").select("*");
-      if (error) {
-        console.error("Failed to fetch restaurants:", error);
-        setTableError("Failed to fetch restaurants");
-        return;
-      }
-      setRestaurants(data || []);
-    } catch (err) {
-      console.error("Failed to fetch restaurants:", err);
-      setTableError("Failed to fetch restaurants");
-    } finally {
-      setIsLoadingRestaurants(false);
-    }
-  }, []);
+  // const fetchRestaurants = useCallback(async () => {
+  //   setIsLoadingRestaurants(true);
+  //   setTableError(null);
+  //   try {
+  //     const { data, error } = await supabase.from("restaurants").select("*");
+  //     if (error) {
+  //       console.error("Failed to fetch restaurants:", error);
+  //       setTableError("Failed to fetch restaurants");
+  //       return;
+  //     }
+  //     setRestaurants(data || []);
+  //   } catch (err) {
+  //     console.error("Failed to fetch restaurants:", err);
+  //     setTableError("Failed to fetch restaurants");
+  //   } finally {
+  //     setIsLoadingRestaurants(false);
+  //   }
+  // }, []);
   const fetchRestaurantOptions = useCallback(async () => {
     setIsLoadingRestaurantOptions(true);
     try {
@@ -349,26 +373,44 @@ const AdminDashboardPage: React.FC = () => {
   }, []);
 
   const fetchOutlets = useCallback(async () => {
-    setIsLoadingRestaurants(true);
-    const allOutlet = await apiGetOutlet(currentPage, perPage);
-    console.log("Alloulet: ", allOutlet.data.result);
-    setAllOutlet(allOutlet.data.result);
-    setIsLoadingRestaurants(false);
-    if (allOutlet.data.total) {
-      setTotalPages(Math.ceil(allOutlet.data.total / perPage));
+    setIsLoadingOutlets(true);
+    try {
+      const res = await apiGetOutlet(OutletcurrentPage, OutletperPage);
+      console.log("All Res: ", res);
+
+      setAllOutlet(res.data.result || []);
+      if (res.data && res.data.count) {
+        setOutletTotalPages(Math.ceil(res.data.count / OutletperPage));
+      }
+    } catch (err) {
+      console.error("Failed to fetch outlets:", err);
+      setTableError("Failed to fetch outlets");
+    } finally {
+      setIsLoadingOutlets(false);
     }
-  }, [currentPage, perPage]);
+  }, [OutletcurrentPage, OutletperPage]);
 
   const handlePreviousPage = () => {
     setCurrentPage((prev) => Math.max(prev - 1, 1));
+    {
+      activeTab === "Outlet" &&
+        setOutletCurrentPage((prev) => Math.max(prev - 1, 1));
+    }
   };
 
   const handleNextPage = () => {
     setCurrentPage((prev) => Math.min(prev + 1, totalPages));
+    {
+      activeTab === "Outlet" &&
+        setOutletCurrentPage((prev) => Math.min(prev + 1, OutlettotalPages));
+    }
   };
 
   const handlePageClick = (pageNumber) => {
     setCurrentPage(pageNumber);
+    {
+      activeTab === "Outlet" && setOutletCurrentPage(pageNumber);
+    }
   };
 
   const Pagination = () => {
@@ -376,27 +418,48 @@ const AdminDashboardPage: React.FC = () => {
       const pages = [];
       const maxVisible = 5;
 
-      if (totalPages <= maxVisible) {
-        for (let i = 1; i <= totalPages; i++) {
+      if (
+        activeTab === "Outlet"
+          ? OutlettotalPages <= maxVisible
+          : totalPages <= maxVisible
+      ) {
+        for (
+          let i = 1;
+          i <= (activeTab === "Outlet" ? OutlettotalPages : totalPages);
+          i++
+        ) {
           pages.push(i);
         }
       } else {
         if (currentPage <= 3) {
           for (let i = 1; i <= 4; i++) pages.push(i);
           pages.push("...");
-          pages.push(totalPages);
-        } else if (currentPage >= totalPages - 2) {
+          pages.push(activeTab === "Outlet" ? OutlettotalPages : totalPages);
+        } else if (
+          currentPage >=
+          (activeTab === "Outlet" ? OutlettotalPages - 2 : totalPages - 2)
+        ) {
           pages.push(1);
           pages.push("...");
-          for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i);
+          for (
+            let i =
+              activeTab === "Outlet" ? OutlettotalPages - 3 : totalPages - 3;
+            i <= (activeTab === "Outlet" ? OutlettotalPages : totalPages);
+            i++
+          )
+            pages.push(i);
         } else {
           pages.push(1);
           pages.push("...");
-          pages.push(currentPage - 1);
-          pages.push(currentPage);
-          pages.push(currentPage + 1);
+          pages.push(
+            activeTab === "Outlet" ? OutletcurrentPage - 1 : currentPage - 1,
+          );
+          pages.push(activeTab === "Outlet" ? OutletcurrentPage : currentPage);
+          pages.push(
+            activeTab === "Outlet" ? OutletcurrentPage + 1 : currentPage + 1,
+          );
           pages.push("...");
-          pages.push(totalPages);
+          pages.push(activeTab === "Outlet" ? OutlettotalPages : totalPages);
         }
       }
 
@@ -407,14 +470,19 @@ const AdminDashboardPage: React.FC = () => {
       <div className="flex items-center justify-between px-4 py-3 border-t border-gray-700">
         <div className="flex items-center gap-2">
           <span className="text-sm text-gray-400">
-            Page {currentPage} of {totalPages}
+            Page {activeTab === "Outlet" ? OutletcurrentPage : currentPage} of{" "}
+            {activeTab === "Outlet" ? OutlettotalPages : totalPages}
           </span>
         </div>
 
         <div className="flex items-center gap-2">
           <button
             onClick={handlePreviousPage}
-            disabled={currentPage === 1}
+            disabled={
+              activeTab === "Outlet"
+                ? OutletcurrentPage === 1
+                : currentPage === 1
+            }
             className="px-3 py-1.5 text-sm font-medium text-white bg-gray-700 rounded-md hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Previous
@@ -447,7 +515,11 @@ const AdminDashboardPage: React.FC = () => {
 
           <button
             onClick={handleNextPage}
-            disabled={currentPage === totalPages}
+            disabled={
+              activeTab === "Outlet"
+                ? OutletcurrentPage === OutlettotalPages
+                : currentPage === totalPages
+            }
             className="px-3 py-1.5 text-sm font-medium text-white bg-gray-700 rounded-md hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Next
@@ -478,6 +550,11 @@ const AdminDashboardPage: React.FC = () => {
     fetchReservations,
     fetchRestaurants,
   ]);
+  useEffect(() => {
+    if (activeTab === "Outlet") {
+      fetchOutlets();
+    }
+  }, [OutletcurrentPage, activeTab]);
 
   const handleFetchRestaurantData = async () => {
     setIsFetching(true);
@@ -538,19 +615,14 @@ const AdminDashboardPage: React.FC = () => {
   };
 
   const handleUpdateRestaurant = async () => {
-    setIsSubmitting(true);
+    console.log(TableId);
+
+    setIsUploading(true);
 
     const payload = {
-      rest_id: restId,
-      name: fetchedData.restaurantname || "",
-
       // ✅ from new inputs
       tagline: tagline,
       description: description,
-
-      address: fetchedData.address || "",
-      city: fetchedData.city || "",
-
       // ✅ image urls from uploads
       logo: logoUrl,
       hero_image: heroImageUrl,
@@ -563,12 +635,10 @@ const AdminDashboardPage: React.FC = () => {
       theme_primary: themePrimary,
       theme_accent: themeAccent,
       theme_text_on_primary: themeText,
-
-      Latitude: fetchedData.latitude ? Number(fetchedData.latitude) : null,
-      Longitude: fetchedData.longitude ? Number(fetchedData.longitude) : null,
     };
+    console.log("Payload: ", payload);
 
-    const res = await apiAddRestaurant(payload);
+    const res = await apiAddRestaurant(payload, TableId);
 
     if (!res.error) {
       setFetchedData(null);
@@ -577,7 +647,9 @@ const AdminDashboardPage: React.FC = () => {
       fetchRestaurants();
     }
 
-    setIsSubmitting(false);
+    setIsUploading(false);
+    setTableId(null);
+    fetchRestaurants();
   };
 
   const handleSubmitRestaurant = async () => {
@@ -612,7 +684,7 @@ const AdminDashboardPage: React.FC = () => {
       Longitude: fetchedData.longitude ? Number(fetchedData.longitude) : null,
     };
 
-    const res = await apiAddRestaurant(payload);
+    const res = await apiAddRestaurant(payload, restId);
 
     if (!res.error) {
       setFetchedData(null);
@@ -1201,72 +1273,77 @@ const AdminDashboardPage: React.FC = () => {
                 No restaurants found.
               </p>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-700">
-                  <thead>
-                    <tr className="text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                      <th className="px-4 py-3">Name</th>
-                      <th className="px-4 py-3">Rest ID</th>
-                      <th className="px-4 py-3">Tagline</th>
-                      <th className="px-4 py-3 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-700">
-                    {restaurants.map((r) => (
-                      <tr key={r.rest_id}>
-                        <td className="px-4 py-3 text-sm text-white">
-                          {r.name}
-                        </td>
-                        <td className="px-4 py-3 text-xs font-mono text-cyan-400">
-                          {r.rest_id}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-400">
-                          {r.tagline || "-"}
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <button
-                            onClick={() => {
-                              setAddTableFor(r.rest_id);
-                              setTableNumber("");
-                              setCapacity("");
-                              setTableError(null);
-                            }}
-                            className="inline-flex items-center gap-1 bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-1.5 rounded-md text-xs font-semibold"
-                          >
-                            <Icon type="plus-circle" className="w-4 h-4" />
-                            Add Table
-                          </button>{" "}
-                          <button
-                            onClick={() => {
-                              setShowTablesFor(r.rest_id);
-                              loadTables(r.rest_id);
-                            }}
-                            className="inline-flex items-center gap-1 bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-1.5 rounded-md text-xs font-semibold"
-                          >
-                            <Icon type="plus-circle" className="w-4 h-4" />
-                            View Tables
-                          </button>
-                          {""}
-                          <button
-                            onClick={() => {
-                              setTableId(r.id);
-                              loadResturent(r.rest_id);
-                              // EditTable(r);
-                              // setTableNumber("");
-                              // setCapacity("");
-                              // setTableError(null);
-                            }}
-                            className="inline-flex items-center gap-1 bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-1.5 m-1 rounded-md text-xs font-semibold"
-                          >
-                            <Icon type="plus-circle" className="w-4 h-4" />
-                            Edit
-                          </button>
-                        </td>
+              <>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-700">
+                    <thead>
+                      <tr className="text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                        <th className="px-4 py-3">Name</th>
+                        <th className="px-4 py-3">Rest ID</th>
+                        <th className="px-4 py-3">Tagline</th>
+                        <th className="px-4 py-3 text-right">Actions</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody className="divide-y divide-gray-700">
+                      {restaurants.map((r) => (
+                        <tr key={r.rest_id}>
+                          <td className="px-4 py-3 text-sm text-white">
+                            {r.name}
+                          </td>
+                          <td className="px-4 py-3 text-xs font-mono text-cyan-400">
+                            {r.rest_id}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-400">
+                            {r.tagline || "-"}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <button
+                              onClick={() => {
+                                setAddTableFor(r.rest_id);
+                                setTableNumber("");
+                                setCapacity("");
+                                setTableError(null);
+                              }}
+                              className="inline-flex items-center gap-1 bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-1.5 rounded-md text-xs font-semibold"
+                            >
+                              <Icon type="plus-circle" className="w-4 h-4" />
+                              Add Table
+                            </button>{" "}
+                            <button
+                              onClick={() => {
+                                setShowTablesFor(r.rest_id);
+                                loadTables(r.rest_id);
+                              }}
+                              className="inline-flex items-center gap-1 bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-1.5 rounded-md text-xs font-semibold"
+                            >
+                              <Icon type="plus-circle" className="w-4 h-4" />
+                              View Tables
+                            </button>
+                            {""}
+                            <button
+                              onClick={() => {
+                                setTableId(r.id);
+                                loadResturent(r.id);
+                                console.log(r);
+
+                                // EditTable(r);
+                                // setTableNumber("");
+                                // setCapacity("");
+                                // setTableError(null);
+                              }}
+                              className="inline-flex items-center gap-1 bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-1.5 m-1 rounded-md text-xs font-semibold"
+                            >
+                              <Icon type="plus-circle" className="w-4 h-4" />
+                              Edit
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <Pagination />
+              </>
             )}
 
             {tableError && (
@@ -1651,7 +1728,7 @@ const AdminDashboardPage: React.FC = () => {
         )}
         {activeTab === "Outlet" && (
           <div className="animate-fade-in">
-            {isLoadingRestaurants ? (
+            {isLoadingOutlets ? (
               <div className="flex justify-center p-8">
                 <Spinner className="w-8 h-8" />
               </div>
@@ -1908,194 +1985,230 @@ const AdminDashboardPage: React.FC = () => {
           </div>
         </div>
       )}
-      {TableId && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <div className="bg-gray-900 border border-gray-700 rounded-lg w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto scrollbar-hide">
-            <style jsx>{`
-              .scrollbar-hide::-webkit-scrollbar {
-                display: none;
-              }
-              .scrollbar-hide {
-                -ms-overflow-style: none;
-                scrollbar-width: none;
-              }
-            `}</style>
+      {TableId &&
+        (loadingTables ? (
+          <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center">
+            <Spinner className="w-8 h-8" />
+          </div>
+        ) : (
+          <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+            <div className="bg-gray-900 border border-gray-700 rounded-lg w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto scrollbar-hide">
+              <style jsx>{`
+                .scrollbar-hide::-webkit-scrollbar {
+                  display: none;
+                }
+                .scrollbar-hide {
+                  -ms-overflow-style: none;
+                  scrollbar-width: none;
+                }
+              `}</style>
 
-            {/* Sticky Header */}
-            <div className="sticky top-0 bg-gray-900 px-6 py-4 border-b border-gray-700 flex items-center justify-between z-10">
-              <h3 className="text-lg font-semibold text-cyan-400">
-                Restaurant Details
-              </h3>
-              <button
-                onClick={() => setTableId(null)}
-                className="text-gray-400 hover:text-gray-200 transition-colors"
-                aria-label="Close"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-6 w-6"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
-            </div>
-
-            {/* Form Content */}
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="text-gray-400 text-sm">Tagline</label>
-                <input
-                  type="text"
-                  value={tagline}
-                  onChange={(e) => setTagline(e.target.value)}
-                  placeholder="Short tagline"
-                  className="w-full bg-gray-800 text-gray-200 border border-gray-700 rounded-md p-3"
-                />
-              </div>
-
-              <div>
-                <label className="text-gray-400 text-sm">Description</label>
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="About this restaurant"
-                  className="w-full bg-gray-800 text-gray-200 border border-gray-700 rounded-md p-3 h-24"
-                />
-              </div>
-
-              <div className="grid sm:grid-cols-2 gap-4">
-                {/* LOGO */}
-                <div className="space-y-2">
-                  <label className="text-gray-400 text-sm">Logo</label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    disabled={isUploading}
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-
-                      // instant preview
-                      const localUrl = URL.createObjectURL(file);
-                      setLogoUrl(localUrl);
-
-                      // upload to storage
-                      const url = await uploadImage(file, "logo");
-                      if (url) setLogoUrl(url);
-                    }}
-                    className="w-full text-sm text-gray-300"
-                  />
-                  <img
-                    src={logoUrl || DEFAULT_IMAGE}
-                    alt="Logo Preview"
-                    className="w-full h-40 object-cover border border-gray-700 rounded"
-                  />
-                </div>
-
-                {/* HERO IMAGE */}
-                <div className="space-y-2">
-                  <label className="text-gray-400 text-sm">Hero Image</label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    disabled={isUploading}
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-
-                      const localUrl = URL.createObjectURL(file);
-                      setHeroImageUrl(localUrl);
-
-                      const url = await uploadImage(file, "hero");
-                      if (url) setHeroImageUrl(url);
-                    }}
-                    className="w-full text-sm text-gray-300"
-                  />
-                  <img
-                    src={heroImageUrl || DEFAULT_IMAGE}
-                    alt="Hero Preview"
-                    className="w-full h-40 object-cover border border-gray-700 rounded"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-gray-400 text-sm">About Text</label>
-                <textarea
-                  value={aboutText}
-                  onChange={(e) => setAboutText(e.target.value)}
-                  placeholder="Story / about section"
-                  className="w-full bg-gray-800 text-gray-200 border border-gray-700 rounded-md p-3 h-24"
-                />
-              </div>
-
-              {/* ABOUT IMAGE */}
-              <div className="space-y-2">
-                <label className="text-gray-400 text-sm">About Image</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  disabled={isUploading}
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0];
-                    if (!file) return;
-
-                    const localUrl = URL.createObjectURL(file);
-                    setAboutImageUrl(localUrl);
-                    const url = await uploadImage(file, "about");
-                    if (url) setAboutImageUrl(url);
-                  }}
-                  className="w-full text-sm text-gray-300"
-                />
-                <img
-                  src={aboutImageUrl || DEFAULT_IMAGE}
-                  alt="About Preview"
-                  className="w-full h-56 object-cover border border-gray-700 rounded"
-                />
-              </div>
-
-              {uploadError ? (
-                <p className="text-sm text-red-400">{uploadError}</p>
-              ) : null}
-
-              {isUploading ? (
-                <p className="text-xs text-gray-400 flex items-center gap-2">
-                  <Spinner className="w-4 h-4" /> Uploading image...
-                </p>
-              ) : null}
-
-              {/* Action Buttons */}
-              <div className="flex gap-3 pt-4">
+              {/* Sticky Header */}
+              <div className="sticky top-0 bg-gray-900 px-6 py-4 border-b border-gray-700 flex items-center justify-between z-10">
+                <h3 className="text-lg font-semibold text-cyan-400">
+                  Restaurant Details
+                </h3>
                 <button
                   onClick={() => setTableId(null)}
-                  className="flex-1 bg-gray-700 hover:bg-gray-600 text-gray-200 px-4 py-2 rounded-md transition-colors"
+                  className="text-gray-400 hover:text-gray-200 transition-colors"
+                  aria-label="Close"
                 >
-                  Close
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-6 w-6"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
                 </button>
-                <button
-                  onClick={() => {
-                    // Add your save logic here
-                    console.log("Saving restaurant details...");
-                    // setTableId(null); // Uncomment to close after saving
-                  }}
-                  disabled={isUploading}
-                  className="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Save
-                </button>
+              </div>
+
+              {/* Form Content */}
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="text-gray-400 text-sm">Tagline</label>
+                  <input
+                    type="text"
+                    value={tagline}
+                    onChange={(e) => setTagline(e.target.value)}
+                    placeholder="Short tagline"
+                    className="w-full bg-gray-800 text-gray-200 border border-gray-700 rounded-md p-3"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-gray-400 text-sm">Description</label>
+                  <textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="About this restaurant"
+                    className="w-full bg-gray-800 text-gray-200 border border-gray-700 rounded-md p-3 h-24"
+                  />
+                </div>
+
+                <div className="grid sm:grid-cols-2 gap-4">
+                  {/* LOGO */}
+                  <div className="space-y-2">
+                    <label className="text-gray-400 text-sm">Logo</label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      disabled={isUploading}
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+
+                        // instant preview
+                        const localUrl = URL.createObjectURL(file);
+                        setLogoUrl(localUrl);
+
+                        // upload to storage
+                        const url = await uploadImage(file, "logo");
+                        if (url) setLogoUrl(url);
+                      }}
+                      className="w-full text-sm text-gray-300"
+                    />
+                    <img
+                      src={logoUrl || DEFAULT_IMAGE}
+                      alt="Logo Preview"
+                      className="w-full h-40 object-cover border border-gray-700 rounded"
+                    />
+                  </div>
+
+                  {/* HERO IMAGE */}
+                  <div className="space-y-2">
+                    <label className="text-gray-400 text-sm">Hero Image</label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      disabled={isUploading}
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+
+                        const localUrl = URL.createObjectURL(file);
+                        setHeroImageUrl(localUrl);
+
+                        const url = await uploadImage(file, "hero");
+                        if (url) setHeroImageUrl(url);
+                      }}
+                      className="w-full text-sm text-gray-300"
+                    />
+                    <img
+                      src={heroImageUrl || DEFAULT_IMAGE}
+                      alt="Hero Preview"
+                      className="w-full h-40 object-cover border border-gray-700 rounded"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-gray-400 text-sm">About Text</label>
+                  <textarea
+                    value={aboutText}
+                    onChange={(e) => setAboutText(e.target.value)}
+                    placeholder="Story / about section"
+                    className="w-full bg-gray-800 text-gray-200 border border-gray-700 rounded-md p-3 h-24"
+                  />
+                </div>
+
+                {/* ABOUT IMAGE */}
+                <div className="space-y-2">
+                  <label className="text-gray-400 text-sm">About Image</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    disabled={isUploading}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+
+                      const localUrl = URL.createObjectURL(file);
+                      setAboutImageUrl(localUrl);
+                      const url = await uploadImage(file, "about");
+                      if (url) setAboutImageUrl(url);
+                    }}
+                    className="w-full text-sm text-gray-300"
+                  />
+                  <img
+                    src={aboutImageUrl || DEFAULT_IMAGE}
+                    alt="About Preview"
+                    className="w-full h-56 object-cover border border-gray-700 rounded"
+                  />
+                </div>
+
+                {uploadError ? (
+                  <p className="text-sm text-red-400">{uploadError}</p>
+                ) : null}
+
+                {isUploading ? (
+                  <p className="text-xs text-gray-400 flex items-center gap-2">
+                    <Spinner className="w-4 h-4" /> Uploading image...
+                  </p>
+                ) : null}
+                <div className="bg-gray-900 border border-gray-700 p-5 rounded-md space-y-4">
+                  <h3 className="text-lg font-semibold text-cyan-400">
+                    Theme Configuration
+                  </h3>
+
+                  <input
+                    type="color"
+                    value={themePrimary}
+                    onChange={(e) => setThemePrimary(e.target.value)}
+                    className="w-full h-10 cursor-pointer"
+                  />
+                  <label className="text-gray-400 text-sm">Primary Color</label>
+
+                  <input
+                    type="color"
+                    value={themeAccent}
+                    onChange={(e) => setThemeAccent(e.target.value)}
+                    className="w-full h-10 cursor-pointer"
+                  />
+                  <label className="text-gray-400 text-sm">Accent Color</label>
+
+                  <input
+                    type="color"
+                    value={themeText}
+                    onChange={(e) => setThemeText(e.target.value)}
+                    className="w-full h-10 cursor-pointer"
+                  />
+                  <label className="text-gray-400 text-sm">
+                    Text Color On Primary
+                  </label>
+                </div>
+                {/* Action Buttons */}
+                <div className="flex gap-3 pt-4">
+                  <button
+                    onClick={() => setTableId(null)}
+                    className="flex-1 bg-gray-700 hover:bg-gray-600 text-gray-200 px-4 py-2 rounded-md transition-colors"
+                  >
+                    Close
+                  </button>
+                  <button
+                    onClick={() => {
+                      // Add your save logic here
+                      console.log("Saving restaurant details...");
+                      handleUpdateRestaurant();
+                      // setTableId(null); // Uncomment to close after saving
+                    }}
+                    disabled={isUploading}
+                    className="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Save
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        ))}
 
       {cancelOrderFor && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center">
