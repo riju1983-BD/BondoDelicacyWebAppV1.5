@@ -24,7 +24,12 @@ import {
   apiGetOutlet,
   apiGetAllRestaurant,
 } from "../services/apiService";
-import { BASE_URL } from "../src/config";
+import {
+  BASE_URL,
+  IMAGE_BASE_URL,
+  RESTURENT_BUCKET_NAME,
+  SUPABASE_URL,
+} from "../src/config";
 import { supabase } from "../services/supabaseClient";
 
 const Spinner: React.FC<{ className?: string }> = ({
@@ -175,10 +180,10 @@ const AdminDashboardPage: React.FC = () => {
     setIsUploading(true);
 
     try {
-      if (!restId) throw new Error("Please enter Rest ID first");
+      if (!TableId) throw new Error("Please enter Rest ID first");
 
       const form = new FormData();
-      form.append("rest_id", restId);
+      form.append("id", TableId);
       form.append("type", type);
       form.append("file", file);
 
@@ -210,13 +215,19 @@ const AdminDashboardPage: React.FC = () => {
     setLoadingTables(true);
     const res = await apiGetRestaurantById(restId);
     console.log(res.data);
+    var LogoURL = `${SUPABASE_URL}/${IMAGE_BASE_URL}/restaurant-images/${res.data.logo}`;
+    var aboutURL = `${SUPABASE_URL}/${IMAGE_BASE_URL}/restaurant-images/${res.data.about_image}`;
+    var heroURL = `${SUPABASE_URL}/${IMAGE_BASE_URL}/restaurant-images/${res.data.hero_image}`;
+    console.log("LogoURL: ", LogoURL);
+
     setresturent(res.data);
     setTagline(res.data.tagline || "");
     setDescription(res.data.description || "");
     setHeroImageUrl(res.data.hero_image || "");
-    setLogoUrl(res.data.logo || "");
+    setLogoUrl(LogoURL || "");
     setAboutText(res.data.about_text || "");
-    setAboutImageUrl(res.data.about_image || "");
+    setAboutImageUrl(aboutURL || "");
+    setHeroImageUrl(heroURL || "");
     setThemePrimary(res.data.theme_primary || "#000000");
     setThemeAccent(res.data.theme_accent || "#FFAB00");
     setThemeText(res.data.theme_text_on_primary || "#FFFFFF");
@@ -1803,7 +1814,10 @@ const AdminDashboardPage: React.FC = () => {
           <div className="bg-gray-900 border border-gray-700 p-6 rounded-lg w-full max-w-md shadow-xl">
             <h3 className="text-lg font-semibold mb-4">
               Add Table for{" "}
-              <span className="font-mono text-cyan-400">{addTableFor?.restaurants?.name || "Unknown Restaurant"} - {addTableFor?.address || "No Address"}</span>
+              <span className="font-mono text-cyan-400">
+                {addTableFor?.restaurants?.name || "Unknown Restaurant"} -{" "}
+                {addTableFor?.address || "No Address"}
+              </span>
             </h3>
 
             <div className="space-y-3">
