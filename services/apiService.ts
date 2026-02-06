@@ -212,6 +212,13 @@ export async function apiGetMenu(resturent_identifier: string, category_id: stri
     return data.data;
 }
 
+export async function apiGetOutlet(page = 1, perPage = 10) {
+  const res = await fetch(`${BASE_URL}/outlet?page=${page}&per_page=${perPage}`);
+  return res.json();
+}
+
+
+
 // --- CONSTANTS & CONFIG ---
 // const PETPOOJA_CONFIG = {
 //     BASE_URL: 'https://qle1yy2ydc.execute-api.ap-southeast-1.amazonaws.com/V1/',

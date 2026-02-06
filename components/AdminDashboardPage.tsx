@@ -21,6 +21,7 @@ import {
   apiToggleTable,
   apiUploadRestaurantImage,
   apiGetRestaurantById,
+  apiGetOutlet,
 } from "../services/apiService";
 import { BASE_URL } from "../src/config";
 import { supabase } from "../services/supabaseClient";
@@ -59,7 +60,7 @@ const AdminDashboardPage: React.FC = () => {
     | "reservations"
     | "restaurants"
     | "addRestaurant"
-    | "addOutlet"
+    | "Outlet"
   >("menu");
 
   // Menu State
@@ -154,6 +155,11 @@ const AdminDashboardPage: React.FC = () => {
   const [tables, setTables] = useState<any[]>([]);
   const [showTablesFor, setShowTablesFor] = useState<string | null>(null);
   const [loadingTables, setLoadingTables] = useState(false);
+  const [AllOutlet, setAllOutlet] = useState<any[]>([]);
+  const [showOutlet, setshowOutlet] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [perPage] = useState(10);
   const buildStoragePath = (restId: string, filename: string) => {
     const safeName = filename.replace(/\s+/g, "-").toLowerCase();
     return `restaurants/${restId || "unknown"}/${Date.now()}-${safeName}`;
@@ -297,10 +303,10 @@ const AdminDashboardPage: React.FC = () => {
   const fetchRestaurantOptions = useCallback(async () => {
     setIsLoadingRestaurantOptions(true);
     try {
- const { data, error } = await supabase
-   .from("petpooja_menu_cache")
-   .select("rest_id,payload,last_pushed_at,restaurant_name")
-   .order("last_pushed_at", { ascending: false });
+      const { data, error } = await supabase
+        .from("petpooja_menu_cache")
+        .select("rest_id,payload,last_pushed_at,restaurant_name")
+        .order("last_pushed_at", { ascending: false });
 
       if (error) throw error;
 
@@ -341,6 +347,116 @@ const AdminDashboardPage: React.FC = () => {
       setIsLoadingReservations(false);
     }
   }, []);
+
+  const fetchOutlets = useCallback(async () => {
+    setIsLoadingRestaurants(true);
+    const allOutlet = await apiGetOutlet(currentPage, perPage);
+    console.log("Alloulet: ", allOutlet.data.result);
+    setAllOutlet(allOutlet.data.result);
+    setIsLoadingRestaurants(false);
+    if (allOutlet.data.total) {
+      setTotalPages(Math.ceil(allOutlet.data.total / perPage));
+    }
+  }, [currentPage, perPage]);
+
+  const handlePreviousPage = () => {
+    setCurrentPage((prev) => Math.max(prev - 1, 1));
+  };
+
+  const handleNextPage = () => {
+    setCurrentPage((prev) => Math.min(prev + 1, totalPages));
+  };
+
+  const handlePageClick = (pageNumber) => {
+    setCurrentPage(pageNumber);
+  };
+
+  const Pagination = () => {
+    const getPageNumbers = () => {
+      const pages = [];
+      const maxVisible = 5;
+
+      if (totalPages <= maxVisible) {
+        for (let i = 1; i <= totalPages; i++) {
+          pages.push(i);
+        }
+      } else {
+        if (currentPage <= 3) {
+          for (let i = 1; i <= 4; i++) pages.push(i);
+          pages.push("...");
+          pages.push(totalPages);
+        } else if (currentPage >= totalPages - 2) {
+          pages.push(1);
+          pages.push("...");
+          for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i);
+        } else {
+          pages.push(1);
+          pages.push("...");
+          pages.push(currentPage - 1);
+          pages.push(currentPage);
+          pages.push(currentPage + 1);
+          pages.push("...");
+          pages.push(totalPages);
+        }
+      }
+
+      return pages;
+    };
+
+    return (
+      <div className="flex items-center justify-between px-4 py-3 border-t border-gray-700">
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-400">
+            Page {currentPage} of {totalPages}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handlePreviousPage}
+            disabled={currentPage === 1}
+            className="px-3 py-1.5 text-sm font-medium text-white bg-gray-700 rounded-md hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Previous
+          </button>
+
+          <div className="flex gap-1">
+            {getPageNumbers().map((page, index) =>
+              page === "..." ? (
+                <span
+                  key={`ellipsis-${index}`}
+                  className="px-3 py-1.5 text-gray-400"
+                >
+                  ...
+                </span>
+              ) : (
+                <button
+                  key={page}
+                  onClick={() => handlePageClick(page)}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-md ${
+                    currentPage === page
+                      ? "bg-cyan-600 text-white"
+                      : "bg-gray-700 text-white hover:bg-gray-600"
+                  }`}
+                >
+                  {page}
+                </button>
+              ),
+            )}
+          </div>
+
+          <button
+            onClick={handleNextPage}
+            disabled={currentPage === totalPages}
+            className="px-3 py-1.5 text-sm font-medium text-white bg-gray-700 rounded-md hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Next
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   useEffect(() => {
     if (activeTab === "menu") {
       fetchRestaurantOptions();
@@ -781,16 +897,16 @@ const AdminDashboardPage: React.FC = () => {
           </button>
           <button
             onClick={() => {
-              setActiveTab("addOutlet");
-              fetchRestaurants();
+              setActiveTab("Outlet");
+              fetchOutlets();
             }}
             className={`flex-shrink-0 py-2 px-4 font-semibold ${
-              activeTab === "addOutlet"
+              activeTab === "Outlet"
                 ? "border-b-2 border-cyan-400 text-cyan-400"
                 : "text-gray-400"
             }`}
           >
-            Add Outlet
+            Outlet
           </button>
         </div>
         {activeTab === "menu" && (
@@ -1533,88 +1649,62 @@ const AdminDashboardPage: React.FC = () => {
             </button>
           </div>
         )}
-        {activeTab === "addOutlet" && (
-          <div className="space-y-6 animate-fade-in max-w-md mx-auto">
-            <h3 className="text-lg font-semibold text-cyan-400">
-              Outlet Details
-            </h3>
-
-            <div>
-              <label className="text-gray-400 text-sm">Resturent</label>
-              <select
-                value={tagline}
-                onChange={(e) => setTagline(e.target.value)}
-                className="w-full bg-gray-800 text-gray-200 border border-gray-700 rounded-md p-3"
-              >
-                <option value="" disabled>
-                  Select a restaurant
-                </option>
-                {restaurants.map((r) => (
-                  <option value={r.id}>{r.name}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="grid sm:grid-cols-2 gap-4">
-              <div>
-                <label className="text-gray-400 text-sm">Open Time</label>
-                <input
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="About this restaurant"
-                  className="w-full bg-gray-800 text-gray-200 border border-gray-700 rounded-md p-3"
-                />
+        {activeTab === "Outlet" && (
+          <div className="animate-fade-in">
+            {isLoadingRestaurants ? (
+              <div className="flex justify-center p-8">
+                <Spinner className="w-8 h-8" />
               </div>
-
-              <div>
-                <label className="text-gray-400 text-sm">Close Time</label>
-                <input
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="About this restaurant"
-                  className="w-full bg-gray-800 text-gray-200 border border-gray-700 rounded-md p-3"
-                />
-              </div>
-            </div>
-            <div>
-              <label className="text-gray-400 text-sm">
-                Link With Petpooja Outlet
-              </label>
-              <input
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="About this restaurant"
-                className="w-full bg-gray-800 text-gray-200 border border-gray-700 rounded-md p-3"
-              />
-            </div>
-            <div>
-              <label className="text-gray-400 text-sm">Status</label>
-              <select
-                value={tagline}
-                onChange={(e) => setTagline(e.target.value)}
-                className="w-full bg-gray-800 text-gray-200 border border-gray-700 rounded-md p-3"
-              >
-                <option value="" disabled>
-                  Select a status
-                </option>
-                <option value="active">Enable</option>
-                <option value="inactive">Disable</option>
-              </select>
-            </div>
-            {/* Action Buttons */}
-            <div className="flex gap-3 pt-4">
-              <button
-                onClick={() => {
-                  // Add your save logic here
-                  console.log("Saving restaurant details...");
-                  // setTableId(null); // Uncomment to close after saving
-                }}
-                disabled={isUploading}
-                className="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Save
-              </button>
-            </div>
+            ) : AllOutlet.length === 0 ? (
+              <p className="text-center text-gray-400 py-8">
+                No restaurants found.
+              </p>
+            ) : (
+              <>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-700">
+                    <thead>
+                      <tr className="text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                        <th className="px-4 py-3">Restaurant Name</th>
+                        <th className="px-4 py-3">Petpooja Rest Id</th>
+                        <th className="px-4 py-3">Petpooja Outlet Id</th>
+                        <th className="px-4 py-3">Contact</th>
+                        <th className="px-4 py-3">Address</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-700">
+                      {AllOutlet.map((r) => (
+                        <tr key={r.id}>
+                          <td className="px-4 py-3 text-sm text-white">
+                            {r?.restaurants?.name}
+                          </td>
+                          <td className="px-4 py-3 text-xs font-mono text-cyan-400">
+                            {r?.restaurants?.petpuja_resturant_id || "-"}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-400">
+                            {r?.petpooja_outlet_id || "-"}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-400">
+                            {r?.contact || "-"}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-gray-400">
+                            {r?.address && r?.city && r?.state
+                              ? `${r?.address}, ${r?.city}, ${r?.state}`
+                              : "-"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <Pagination />
+              </>
+            )}
+            {tableError && (
+              <p className="mt-4 text-center text-sm text-red-400">
+                {tableError}
+              </p>
+            )}
           </div>
         )}
 
@@ -1711,6 +1801,58 @@ const AdminDashboardPage: React.FC = () => {
                 {isSavingTable ? "Saving..." : "Save Table"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {showOutlet && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center">
+          <div className="bg-gray-900 border border-gray-700 p-6 rounded-lg w-full max-w-md shadow-xl">
+            <h3 className="text-lg font-semibold flex items-center justify-between mb-4">
+              Tables for{" "}
+              <span className="font-mono text-cyan-400">{showOutlet}</span>
+              <button
+                className="text-gray-400 hover:text-white"
+                onClick={() => {
+                  setshowOutlet(null);
+                  setTables([]);
+                }}
+              >
+                ✕
+              </button>
+            </h3>
+
+            {loadingTables ? (
+              <p className="text-gray-400 text-sm">Loading tables...</p>
+            ) : tables.length === 0 ? (
+              <p className="text-gray-400 text-sm">No tables found.</p>
+            ) : (
+              <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                {tables.map((t) => (
+                  <div
+                    key={t.id}
+                    className="flex justify-between bg-gray-800 border border-gray-700 px-3 py-2 rounded"
+                  >
+                    <span className="text-sm">
+                      {t.table_name} ({t.capacity} seats)
+                    </span>
+
+                    <button
+                      className={`px-2 py-1 rounded text-xs text-white ${
+                        t.is_active
+                          ? "bg-green-600 hover:bg-green-500"
+                          : "bg-red-600 hover:bg-red-500"
+                      }`}
+                      onClick={async () => {
+                        await apiToggleTable(t.id, !t.is_active);
+                        loadTables(showTablesFor!);
+                      }}
+                    >
+                      {t.is_active ? "Active" : "Inactive"}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
