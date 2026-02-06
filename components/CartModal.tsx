@@ -268,7 +268,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
             amount: t.amount,
           }));
         }
-      } catch {}
+      } catch { }
     }
 
     return [];
@@ -513,9 +513,11 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
     e.preventDefault();
     setAuthError("");
     setIsProcessing(true);
+
     try {
       if (isLoginView) {
         await login(authFormData.email, authFormData.password);
+        setView("address"); // ✅ go to maps AFTER login
       } else {
         await register(
           authFormData.name,
@@ -523,8 +525,14 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
           authFormData.phone,
           authFormData.password,
         );
+
+        // ✅ AUTO SWITCH TO LOGIN TAB
+        setIsLoginView(true);
+        setAuthError("Registration successful. Please login to continue.");
+
+        // OPTIONAL: keep user on auth screen
+        setView("auth");
       }
-      setView("address"); // Move to address after auth
     } catch (err) {
       setAuthError(
         err instanceof Error ? err.message : "An unknown error occurred.",
@@ -533,6 +541,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
       setIsProcessing(false);
     }
   };
+
 
   const handleNavigate = (route: string) => {
     onClose();
@@ -583,8 +592,8 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
       const preTax = Math.max(
         0,
         Number(totalPrice || 0) -
-          Number(discountAmount || 0) -
-          Number(loyaltyDiscount || 0),
+        Number(discountAmount || 0) -
+        Number(loyaltyDiscount || 0),
       );
 
       const finalTotalForPayload = hasInclusiveItems
@@ -597,10 +606,10 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
         "Tax.details sum",
         taxSummary.reduce((s, t) => s + Number(t.tax), 0),
       );
-         
+
       // 1) Build PetPooja + backend payload
       const payload = {
-   
+
         userId: currentUser.id,
         orderinfo: {
           OrderInfo: {
@@ -736,6 +745,14 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
 
       const razorpayOrder = data.razorpayOrder;
       const clientorderID = data.clientorderID;
+      const pricing = {
+        subtotal,
+        flat_discount: discountAmount,
+        loyalty_discount: loyaltyDiscount,
+        gst_amount: gstAfterDiscount,
+        delivery_charge: deliveryCharge,
+        total_amount: grandTotal,
+      };
 
       // 3) Open Razorpay Checkout
       const rzp = new (window as any).Razorpay({
@@ -743,7 +760,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
         order_id: razorpayOrder.id,
         amount: razorpayOrder.amount,
         currency: razorpayOrder.currency,
-
+        razorpay_amount: razorpayOrder.amount,
         handler: async (paymentResponse: any) => {
           try {
             const verifyRes = await fetch(
@@ -768,8 +785,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                       phone: currentUser.phone,
                     },
                     deliveryAddress,
-                    subtotal,
-                    loyaltyPointsToRedeem: loyaltyDiscount,
+                    pricing, // ✅ THIS IS THE KEY
                   },
                 }),
               },
@@ -1019,9 +1035,8 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                   setIsLoginView(true);
                   setAuthError("");
                 }}
-                className={`flex-1 p-2 rounded-l-md text-sm ${
-                  isLoginView ? "bg-cyan-600 text-white" : "bg-gray-700"
-                }`}
+                className={`flex-1 p-2 rounded-l-md text-sm ${isLoginView ? "bg-cyan-600 text-white" : "bg-gray-700"
+                  }`}
               >
                 Login
               </button>
@@ -1031,9 +1046,8 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                   setIsLoginView(false);
                   setAuthError("");
                 }}
-                className={`flex-1 p-2 rounded-r-md text-sm ${
-                  !isLoginView ? "bg-cyan-600 text-white" : "bg-gray-700"
-                }`}
+                className={`flex-1 p-2 rounded-r-md text-sm ${!isLoginView ? "bg-cyan-600 text-white" : "bg-gray-700"
+                  }`}
               >
                 Register
               </button>
@@ -1112,11 +1126,10 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                 {currentUser.addresses.map((addr) => (
                   <label
                     key={addr.id}
-                    className={`block p-4 rounded-lg border cursor-pointer transition-all ${
-                      selectedAddressId === addr.id
-                        ? "border-cyan-500 bg-cyan-900/20"
-                        : "border-gray-600 bg-gray-700/50 hover:border-gray-500"
-                    }`}
+                    className={`block p-4 rounded-lg border cursor-pointer transition-all ${selectedAddressId === addr.id
+                      ? "border-cyan-500 bg-cyan-900/20"
+                      : "border-gray-600 bg-gray-700/50 hover:border-gray-500"
+                      }`}
                   >
                     <div className="flex items-start gap-3">
                       <input
@@ -1228,11 +1241,10 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                         setAddressError("");
                       }
                     }}
-                    className={`w-full bg-gray-700 p-3 pl-10 rounded-md border ${
-                      !isAddressServiceable
-                        ? "border-red-500 focus:ring-red-500"
-                        : "border-gray-600 focus:ring-cyan-500"
-                    } focus:ring-2 focus:outline-none text-white`}
+                    className={`w-full bg-gray-700 p-3 pl-10 rounded-md border ${!isAddressServiceable
+                      ? "border-red-500 focus:ring-red-500"
+                      : "border-gray-600 focus:ring-cyan-500"
+                      } focus:ring-2 focus:outline-none text-white`}
                   />
                 </div>
                 {!isAddressServiceable && (
@@ -1534,7 +1546,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
             )}
             {
               view === "auth" &&
-                null /* Auth view has its own submit button in form */
+              null /* Auth view has its own submit button in form */
             }
             {view === "checkout" && (
               <button

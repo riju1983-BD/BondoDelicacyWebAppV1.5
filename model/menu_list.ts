@@ -12,6 +12,7 @@ export interface ItemComputed {
 }
 export interface ItemData {
   itemid: string;
+  name: string;
   itemallowvariation: string;
   itemrank: string;
   item_categoryid: string;
