@@ -1,18 +1,11 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Icon } from "./Icon";
-import {
-
-  LoyaltyConfig,
-  Order,
-  
-  Reservation,
-} from "../types";
+import { LoyaltyConfig, Order, Reservation } from "../types";
 import {
   apiGetLoyaltyConfig,
   apiSetLoyaltyConfig,
   apiGetLiveMenu,
   apiUpdateItemAvailability,
-
   apiGetComplaints,
   apiProcessRefundApproval,
   apiRejectComplaint,
@@ -27,10 +20,10 @@ import {
   apiGetTables,
   apiToggleTable,
   apiUploadRestaurantImage,
+  apiGetRestaurantById,
 } from "../services/apiService";
 import { BASE_URL } from "../src/config";
 import { supabase } from "../services/supabaseClient";
-
 
 const Spinner: React.FC<{ className?: string }> = ({
   className = "h-5 w-5",
@@ -66,10 +59,11 @@ const AdminDashboardPage: React.FC = () => {
     | "reservations"
     | "restaurants"
     | "addRestaurant"
+    | "addOutlet"
   >("menu");
 
   // Menu State
-const [menu, setMenu] = useState<any[] | null>(null);
+  const [menu, setMenu] = useState<any[] | null>(null);
 
   const [isLoadingMenu, setIsLoadingMenu] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -151,6 +145,8 @@ const [menu, setMenu] = useState<any[] | null>(null);
 
   // Add Table Modal State
   const [addTableFor, setAddTableFor] = useState<string | null>(null);
+  const [TableId, setTableId] = useState<string | null>(null);
+  const [resturent, setresturent] = useState<string | null>(null);
   const [tableNumber, setTableNumber] = useState("");
   const [capacity, setCapacity] = useState("");
   const [isSavingTable, setIsSavingTable] = useState(false);
@@ -176,13 +172,10 @@ const [menu, setMenu] = useState<any[] | null>(null);
       form.append("file", file);
 
       // ✅ change URL if your backend prefix is different
-      const res = await fetch(
-        `${BASE_URL}/resturents/upload-image`,
-        {
-          method: "POST",
-          body: form,
-        },
-      );
+      const res = await fetch(`${BASE_URL}/resturents/upload-image`, {
+        method: "POST",
+        body: form,
+      });
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Upload failed");
@@ -200,6 +193,19 @@ const [menu, setMenu] = useState<any[] | null>(null);
     setLoadingTables(true);
     const res = await apiGetTables(restId);
     setTables(res.tables || []);
+    setLoadingTables(false);
+  }
+  async function loadResturent(restId: string) {
+    setLoadingTables(true);
+    const res = await apiGetRestaurantById(restId);
+    console.log(res);
+    setresturent(res);
+    setTagline(res.tagline || "");
+    setDescription(res.description || "");
+    setHeroImageUrl(res.hero_image || "");
+    setLogoUrl(res.logo || "");
+    setAboutText(res.about_text || "");
+    setAboutImageUrl(res.about_image || "");
     setLoadingTables(false);
   }
 
@@ -243,21 +249,21 @@ const [menu, setMenu] = useState<any[] | null>(null);
     };
   }, [activeTab]);
 
- const fetchMenu = useCallback(async (restId: string) => {
-  if (!restId) return;
+  const fetchMenu = useCallback(async (restId: string) => {
+    if (!restId) return;
 
-  setIsLoadingMenu(true);
-  setError(null);
+    setIsLoadingMenu(true);
+    setError(null);
 
-  try {
-    const adminMenu = await apiGetAdminCategoriesMenu(restId);
-    setMenu(adminMenu);
-  } catch (err) {
-    setError(err instanceof Error ? err.message : "Failed to fetch menu");
-  } finally {
-    setIsLoadingMenu(false);
-  }
-}, []);
+    try {
+      const adminMenu = await apiGetAdminCategoriesMenu(restId);
+      setMenu(adminMenu);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to fetch menu");
+    } finally {
+      setIsLoadingMenu(false);
+    }
+  }, []);
 
   const fetchComplaints = useCallback(async () => {
     setIsLoadingComplaints(true);
@@ -336,13 +342,12 @@ const [menu, setMenu] = useState<any[] | null>(null);
     }
   }, []);
   useEffect(() => {
- if (activeTab === "menu") {
-  fetchRestaurantOptions();
-  if (selectedRestaurantId) {
-    fetchMenu(selectedRestaurantId);
-  }
-}
-else if (activeTab === "orders") fetchOrders();
+    if (activeTab === "menu") {
+      fetchRestaurantOptions();
+      if (selectedRestaurantId) {
+        fetchMenu(selectedRestaurantId);
+      }
+    } else if (activeTab === "orders") fetchOrders();
     else if (activeTab === "loyalty")
       apiGetLoyaltyConfig().then(setLoyaltyConfig);
     else if (activeTab === "complaints") fetchComplaints();
@@ -414,6 +419,49 @@ else if (activeTab === "orders") fetchOrders();
         ))}
       </div>
     );
+  };
+
+  const handleUpdateRestaurant = async () => {
+    setIsSubmitting(true);
+
+    const payload = {
+      rest_id: restId,
+      name: fetchedData.restaurantname || "",
+
+      // ✅ from new inputs
+      tagline: tagline,
+      description: description,
+
+      address: fetchedData.address || "",
+      city: fetchedData.city || "",
+
+      // ✅ image urls from uploads
+      logo: logoUrl,
+      hero_image: heroImageUrl,
+
+      // ✅ about section
+      about_text: aboutText,
+      about_image: aboutImageUrl,
+
+      // theme
+      theme_primary: themePrimary,
+      theme_accent: themeAccent,
+      theme_text_on_primary: themeText,
+
+      Latitude: fetchedData.latitude ? Number(fetchedData.latitude) : null,
+      Longitude: fetchedData.longitude ? Number(fetchedData.longitude) : null,
+    };
+
+    const res = await apiAddRestaurant(payload);
+
+    if (!res.error) {
+      setFetchedData(null);
+      setRestId("");
+      setActiveTab("restaurants");
+      fetchRestaurants();
+    }
+
+    setIsSubmitting(false);
   };
 
   const handleSubmitRestaurant = async () => {
@@ -730,6 +778,19 @@ else if (activeTab === "orders") fetchOrders();
             }`}
           >
             Add Restaurant
+          </button>
+          <button
+            onClick={() => {
+              setActiveTab("addOutlet");
+              fetchRestaurants();
+            }}
+            className={`flex-shrink-0 py-2 px-4 font-semibold ${
+              activeTab === "addOutlet"
+                ? "border-b-2 border-cyan-400 text-cyan-400"
+                : "text-gray-400"
+            }`}
+          >
+            Add Outlet
           </button>
         </div>
         {activeTab === "menu" && (
@@ -1068,6 +1129,21 @@ else if (activeTab === "orders") fetchOrders();
                           >
                             <Icon type="plus-circle" className="w-4 h-4" />
                             View Tables
+                          </button>
+                          {""}
+                          <button
+                            onClick={() => {
+                              setTableId(r.id);
+                              loadResturent(r.rest_id);
+                              // EditTable(r);
+                              // setTableNumber("");
+                              // setCapacity("");
+                              // setTableError(null);
+                            }}
+                            className="inline-flex items-center gap-1 bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-1.5 m-1 rounded-md text-xs font-semibold"
+                          >
+                            <Icon type="plus-circle" className="w-4 h-4" />
+                            Edit
                           </button>
                         </td>
                       </tr>
@@ -1457,6 +1533,90 @@ else if (activeTab === "orders") fetchOrders();
             </button>
           </div>
         )}
+        {activeTab === "addOutlet" && (
+          <div className="space-y-6 animate-fade-in max-w-md mx-auto">
+            <h3 className="text-lg font-semibold text-cyan-400">
+              Outlet Details
+            </h3>
+
+            <div>
+              <label className="text-gray-400 text-sm">Resturent</label>
+              <select
+                value={tagline}
+                onChange={(e) => setTagline(e.target.value)}
+                className="w-full bg-gray-800 text-gray-200 border border-gray-700 rounded-md p-3"
+              >
+                <option value="" disabled>
+                  Select a restaurant
+                </option>
+                {restaurants.map((r) => (
+                  <option value={r.id}>{r.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div>
+                <label className="text-gray-400 text-sm">Open Time</label>
+                <input
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="About this restaurant"
+                  className="w-full bg-gray-800 text-gray-200 border border-gray-700 rounded-md p-3"
+                />
+              </div>
+
+              <div>
+                <label className="text-gray-400 text-sm">Close Time</label>
+                <input
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="About this restaurant"
+                  className="w-full bg-gray-800 text-gray-200 border border-gray-700 rounded-md p-3"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-gray-400 text-sm">
+                Link With Petpooja Outlet
+              </label>
+              <input
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="About this restaurant"
+                className="w-full bg-gray-800 text-gray-200 border border-gray-700 rounded-md p-3"
+              />
+            </div>
+            <div>
+              <label className="text-gray-400 text-sm">Status</label>
+              <select
+                value={tagline}
+                onChange={(e) => setTagline(e.target.value)}
+                className="w-full bg-gray-800 text-gray-200 border border-gray-700 rounded-md p-3"
+              >
+                <option value="" disabled>
+                  Select a status
+                </option>
+                <option value="active">Enable</option>
+                <option value="inactive">Disable</option>
+              </select>
+            </div>
+            {/* Action Buttons */}
+            <div className="flex gap-3 pt-4">
+              <button
+                onClick={() => {
+                  // Add your save logic here
+                  console.log("Saving restaurant details...");
+                  // setTableId(null); // Uncomment to close after saving
+                }}
+                disabled={isUploading}
+                className="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="text-center mt-8">
           <button
@@ -1606,6 +1766,194 @@ else if (activeTab === "orders") fetchOrders();
           </div>
         </div>
       )}
+      {TableId && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+          <div className="bg-gray-900 border border-gray-700 rounded-lg w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto scrollbar-hide">
+            <style jsx>{`
+              .scrollbar-hide::-webkit-scrollbar {
+                display: none;
+              }
+              .scrollbar-hide {
+                -ms-overflow-style: none;
+                scrollbar-width: none;
+              }
+            `}</style>
+
+            {/* Sticky Header */}
+            <div className="sticky top-0 bg-gray-900 px-6 py-4 border-b border-gray-700 flex items-center justify-between z-10">
+              <h3 className="text-lg font-semibold text-cyan-400">
+                Restaurant Details
+              </h3>
+              <button
+                onClick={() => setTableId(null)}
+                className="text-gray-400 hover:text-gray-200 transition-colors"
+                aria-label="Close"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-6 w-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
+
+            {/* Form Content */}
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="text-gray-400 text-sm">Tagline</label>
+                <input
+                  type="text"
+                  value={tagline}
+                  onChange={(e) => setTagline(e.target.value)}
+                  placeholder="Short tagline"
+                  className="w-full bg-gray-800 text-gray-200 border border-gray-700 rounded-md p-3"
+                />
+              </div>
+
+              <div>
+                <label className="text-gray-400 text-sm">Description</label>
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="About this restaurant"
+                  className="w-full bg-gray-800 text-gray-200 border border-gray-700 rounded-md p-3 h-24"
+                />
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-4">
+                {/* LOGO */}
+                <div className="space-y-2">
+                  <label className="text-gray-400 text-sm">Logo</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    disabled={isUploading}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+
+                      // instant preview
+                      const localUrl = URL.createObjectURL(file);
+                      setLogoUrl(localUrl);
+
+                      // upload to storage
+                      const url = await uploadImage(file, "logo");
+                      if (url) setLogoUrl(url);
+                    }}
+                    className="w-full text-sm text-gray-300"
+                  />
+                  <img
+                    src={logoUrl || DEFAULT_IMAGE}
+                    alt="Logo Preview"
+                    className="w-full h-40 object-cover border border-gray-700 rounded"
+                  />
+                </div>
+
+                {/* HERO IMAGE */}
+                <div className="space-y-2">
+                  <label className="text-gray-400 text-sm">Hero Image</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    disabled={isUploading}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+
+                      const localUrl = URL.createObjectURL(file);
+                      setHeroImageUrl(localUrl);
+
+                      const url = await uploadImage(file, "hero");
+                      if (url) setHeroImageUrl(url);
+                    }}
+                    className="w-full text-sm text-gray-300"
+                  />
+                  <img
+                    src={heroImageUrl || DEFAULT_IMAGE}
+                    alt="Hero Preview"
+                    className="w-full h-40 object-cover border border-gray-700 rounded"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-gray-400 text-sm">About Text</label>
+                <textarea
+                  value={aboutText}
+                  onChange={(e) => setAboutText(e.target.value)}
+                  placeholder="Story / about section"
+                  className="w-full bg-gray-800 text-gray-200 border border-gray-700 rounded-md p-3 h-24"
+                />
+              </div>
+
+              {/* ABOUT IMAGE */}
+              <div className="space-y-2">
+                <label className="text-gray-400 text-sm">About Image</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  disabled={isUploading}
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+
+                    const localUrl = URL.createObjectURL(file);
+                    setAboutImageUrl(localUrl);
+                    const url = await uploadImage(file, "about");
+                    if (url) setAboutImageUrl(url);
+                  }}
+                  className="w-full text-sm text-gray-300"
+                />
+                <img
+                  src={aboutImageUrl || DEFAULT_IMAGE}
+                  alt="About Preview"
+                  className="w-full h-56 object-cover border border-gray-700 rounded"
+                />
+              </div>
+
+              {uploadError ? (
+                <p className="text-sm text-red-400">{uploadError}</p>
+              ) : null}
+
+              {isUploading ? (
+                <p className="text-xs text-gray-400 flex items-center gap-2">
+                  <Spinner className="w-4 h-4" /> Uploading image...
+                </p>
+              ) : null}
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => setTableId(null)}
+                  className="flex-1 bg-gray-700 hover:bg-gray-600 text-gray-200 px-4 py-2 rounded-md transition-colors"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={() => {
+                    // Add your save logic here
+                    console.log("Saving restaurant details...");
+                    // setTableId(null); // Uncomment to close after saving
+                  }}
+                  disabled={isUploading}
+                  className="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {cancelOrderFor && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center">
@@ -1708,6 +2056,6 @@ else if (activeTab === "orders") fetchOrders();
       )}
     </div>
   );
-};;
+};
 
 export default AdminDashboardPage;
