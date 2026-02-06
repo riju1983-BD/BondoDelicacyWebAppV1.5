@@ -537,48 +537,48 @@ const AdminDashboardPage: React.FC = () => {
     );
   };
 
-  const handleUpdateRestaurant = async () => {
-    setIsSubmitting(true);
+  // const handleUpdateRestaurant = async () => {
+  //   setIsSubmitting(true);
 
-    const payload = {
-      rest_id: restId,
-      name: fetchedData.restaurantname || "",
+  //   const payload = {
+  //     rest_id: restId,
+  //     name: fetchedData.restaurantname || "",
 
-      // ✅ from new inputs
-      tagline: tagline,
-      description: description,
+  //     // ✅ from new inputs
+  //     tagline: tagline,
+  //     description: description,
 
-      address: fetchedData.address || "",
-      city: fetchedData.city || "",
+  //     address: fetchedData.address || "",
+  //     city: fetchedData.city || "",
 
-      // ✅ image urls from uploads
-      logo: logoUrl,
-      hero_image: heroImageUrl,
+  //     // ✅ image urls from uploads
+  //     logo: logoUrl,
+  //     hero_image: heroImageUrl,
 
-      // ✅ about section
-      about_text: aboutText,
-      about_image: aboutImageUrl,
+  //     // ✅ about section
+  //     about_text: aboutText,
+  //     about_image: aboutImageUrl,
 
-      // theme
-      theme_primary: themePrimary,
-      theme_accent: themeAccent,
-      theme_text_on_primary: themeText,
+  //     // theme
+  //     theme_primary: themePrimary,
+  //     theme_accent: themeAccent,
+  //     theme_text_on_primary: themeText,
 
-      Latitude: fetchedData.latitude ? Number(fetchedData.latitude) : null,
-      Longitude: fetchedData.longitude ? Number(fetchedData.longitude) : null,
-    };
+  //     Latitude: fetchedData.latitude ? Number(fetchedData.latitude) : null,
+  //     Longitude: fetchedData.longitude ? Number(fetchedData.longitude) : null,
+  //   };
 
-    const res = await apiAddRestaurant(payload);
+  //   const res = await apiAddRestaurant(payload);
 
-    if (!res.error) {
-      setFetchedData(null);
-      setRestId("");
-      setActiveTab("restaurants");
-      fetchRestaurants();
-    }
+  //   if (!res.error) {
+  //     setFetchedData(null);
+  //     setRestId("");
+  //     setActiveTab("restaurants");
+  //     fetchRestaurants();
+  //   }
 
-    setIsSubmitting(false);
-  };
+  //   setIsSubmitting(false);
+  // };
 
   const handleSubmitRestaurant = async () => {
     if (!fetchedData) return;

@@ -99,7 +99,8 @@ const App: React.FC = () => {
     return <LandingPage onSelectBrand={handleSelectRestaurant} />;
   }
 
-  return <BrandPage brandData={restaurant} onBack={handleGoBack} />;
+  return <BrandPage restId={selectedRestaurantId} onBack={handleGoBack} />;
+
 };
 
 export default App;

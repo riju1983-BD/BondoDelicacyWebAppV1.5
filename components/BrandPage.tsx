@@ -26,10 +26,10 @@ const buildCartKey = (item: any) => {
 
   const addonPart = item.selectedAddons
     ? Object.values(item.selectedAddons)
-        .flat()
-        .map((a: any) => `${a.id}:${a.quantity}`)
-        .sort()
-        .join("|")
+      .flat()
+      .map((a: any) => `${a.id}:${a.quantity}`)
+      .sort()
+      .join("|")
     : "no-addons";
 
   return `${item.itemid}__${variationPart}__${addonPart}`;
@@ -230,13 +230,12 @@ const TableMap: React.FC<{
           >
             <Icon
               type="users"
-              className={`w-8 h-8 mb-2 ${
-                isBooked
-                  ? "text-red-500"
-                  : isSelected
-                    ? "text-[var(--accent-color)]"
-                    : "text-gray-500"
-              }`}
+              className={`w-8 h-8 mb-2 ${isBooked
+                ? "text-red-500"
+                : isSelected
+                  ? "text-[var(--accent-color)]"
+                  : "text-gray-500"
+                }`}
             />
             <span className="font-semibold text-white">{table.name}</span>
             <span className="text-xs text-gray-400">
@@ -313,18 +312,18 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
 
   // ✅ load restaurant details
   useEffect(() => {
+    if (!restId) {
+      setRestaurantError(
+        "Restaurant not selected. Please go back and choose a restaurant."
+      );
+      setRestaurant(null);
+      setRestaurantLoading(false);
+      return;
+    }
+
     const loadRestaurant = async () => {
       setRestaurantLoading(true);
       setRestaurantError("");
-
-      if (!name) {
-        setRestaurantError(
-          "Restaurant ID not found. Please go back and select a restaurant.",
-        );
-        setRestaurant(null);
-        setRestaurantLoading(false);
-        return;
-      }
 
       try {
         const r = await apiGetRestaurantById(name);
@@ -338,7 +337,8 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
     };
 
     loadRestaurant();
-  }, [name]);
+  }, [restId]);
+
 
   // ✅ load categories + first menu
   useEffect(() => {
@@ -444,27 +444,27 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
       .filter((cat: any) => cat.items.length > 0);
   }, [searchQuery, menuData]);
 
-const handleAddToCart = (item: any) => {
-  const cartKey = buildCartKey(item);
+  const handleAddToCart = (item: any) => {
+    const cartKey = buildCartKey(item);
 
-  addItem({
-    ...item,
-    cartKey,
-    // ✅ VARIATION (THIS FIXES variation_id empty)
-    variation_id: item.selectedVariation?.variationid || "",
-    variation_name: item.selectedVariation?.name || "",
+    addItem({
+      ...item,
+      cartKey,
+      // ✅ VARIATION (THIS FIXES variation_id empty)
+      variation_id: item.selectedVariation?.variationid || "",
+      variation_name: item.selectedVariation?.name || "",
 
-    // ✅ ADDONS (THIS FIXES empty AddonItem.details)
-    selected_addons: Object.values(item.selectedAddons || {}).flat(),
-    item_tax: item.item_tax ?? [],
+      // ✅ ADDONS (THIS FIXES empty AddonItem.details)
+      selected_addons: Object.values(item.selectedAddons || {}).flat(),
+      item_tax: item.item_tax ?? [],
 
-    unit_price: item.computed?.final_price ?? Number(item.price),
-    base_price: item.computed?.base_price ?? Number(item.price),
-    addon_price: item.computed?.addon_price ?? 0,
+      unit_price: item.computed?.final_price ?? Number(item.price),
+      base_price: item.computed?.base_price ?? Number(item.price),
+      addon_price: item.computed?.addon_price ?? 0,
 
-    quantity: 1,
-  } as CartItem);
-};
+      quantity: 1,
+    } as CartItem);
+  };
 
 
   const timeSlots = useMemo(() => {
@@ -619,8 +619,8 @@ const handleAddToCart = (item: any) => {
     Array.isArray(restaurant?.gallery) && restaurant.gallery.length > 0
       ? restaurant.gallery
       : Array.from({ length: 8 }).map(
-          (_, i) => [heroImage, aboutImage, logo][i % 3],
-        );
+        (_, i) => [heroImage, aboutImage, logo][i % 3],
+      );
 
   const contactAddress = restaurant?.address
     ? [restaurant.address, restaurant?.city].filter(Boolean).join(", ")
@@ -800,10 +800,9 @@ const handleAddToCart = (item: any) => {
                     key={cat.id}
                     onClick={() => handleCategoryChange(cat)}
                     className={`px-4 py-2 rounded-md font-semibold transition-all 
-                      ${
-                        activeCategory === cat.id
-                          ? "text-[var(--text-on-primary-color)]"
-                          : "bg-gray-700 text-white hover:bg-gray-600"
+                      ${activeCategory === cat.id
+                        ? "text-[var(--text-on-primary-color)]"
+                        : "bg-gray-700 text-white hover:bg-gray-600"
                       }`}
                     style={
                       activeCategory === cat.id
@@ -871,8 +870,8 @@ const handleAddToCart = (item: any) => {
 
                                       const variationPrices = hasVariation
                                         ? item.variation
-                                            .map((v: any) => Number(v.price))
-                                            .filter((p: number) => p > 0)
+                                          .map((v: any) => Number(v.price))
+                                          .filter((p: number) => p > 0)
                                         : [];
 
                                       const minVariationPrice =
@@ -1115,9 +1114,9 @@ const handleAddToCart = (item: any) => {
                       onSubmit={
                         otpSent
                           ? (e) => {
-                              e.preventDefault();
-                              confirmBooking();
-                            }
+                            e.preventDefault();
+                            confirmBooking();
+                          }
                           : sendOtp
                       }
                       className="space-y-4"

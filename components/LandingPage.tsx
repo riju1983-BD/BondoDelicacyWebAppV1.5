@@ -4,7 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import HelpBuddyIcon from "./HelpBuddyIcon";
 import HelpBuddyModal from "./HelpBuddyModal";
 import { Icon } from "./Icon";
-import { apiGetRestaurants, apiResolveRestaurantByName } from "../services/apiService";
+import { apiGetOutlet, apiResolveRestaurantByName } from "../services/apiService";
 
 interface LandingPageProps {
   onSelectBrand: (brandId: string) => void;
@@ -48,7 +48,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
     lat: number;
     lng: number;
   } | null>(null);
-
+  const [resolvedOutlet, setResolvedOutlet] = useState<any | null>(null);
+  const [resolveError, setResolveError] = useState<string | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [locationName, setLocationName] = useState<string | null>(null);
   const handleNavigate = (hash: string) => {
@@ -86,6 +87,32 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
     fetchLocationName();
   }, [location]);
 
+  useEffect(() => {
+    if (!location || restaurants.length === 0) return;
+
+    const resolveNearest = async () => {
+      try {
+        const firstRestaurant = restaurants[0]?.restaurants?.name;
+        if (!firstRestaurant) return;
+
+        const resolved = await apiResolveRestaurantByName({
+          restaurant_name: firstRestaurant,
+          lat: location.lat,
+          lng: location.lng,
+        });
+
+        setResolvedOutlet(resolved);
+
+        // store for later flows (menu, checkout, etc.)
+        localStorage.setItem("selectedRestaurantId", resolved.rest_id);
+        localStorage.setItem("selectedOutletId", resolved.outlet_id);
+      } catch (e: any) {
+        setResolveError(e.message || "No nearby outlet found");
+      }
+    };
+
+    resolveNearest();
+  }, [location, restaurants]);
 
   const loadRestaurants = async () => {
     if (isFirstLoad.current) {
@@ -94,8 +121,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
 
     setRestaurantsError(null);
     try {
-      const data = await apiGetRestaurants();
-      setRestaurants(Array.isArray(data) ? data : []);
+      const data = await apiGetOutlet();
+      setRestaurants(Array.isArray(data?.data?.result) ? data.data.result : []);
     } catch (e: any) {
       setRestaurantsError(e?.message || "Failed to load restaurants");
       setRestaurants([]);
@@ -150,15 +177,12 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
 
   useEffect(() => {
     loadRestaurants();
-
-    // refresh to reflect isclosed updates
-    const t = setInterval(() => {
-      loadRestaurants();
-    }, 5000);
-
-    return () => clearInterval(t);
   }, []);
-
+  const closestOutlet = resolvedOutlet
+    ? restaurants.find(
+      r => r.petpooja_outlet_id === resolvedOutlet.rest_id
+    )
+    : null;
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       {/* FIXED NAVBAR */}
@@ -263,7 +287,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {isLoadingRestaurants ? (
             <>
-              {Array.from({ length: 8 }).map((_, i) => (
+              {Array.from({ length: 4 }).map((_, i) => (
                 <RestaurantCardSkeleton key={i} />
               ))}
             </>
@@ -275,134 +299,92 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
             <div className="col-span-full text-center text-gray-400 py-10">
               No restaurants found.
             </div>
-          ) : (
-            restaurants.map((r) => {
-              const hero =
-                r.hero_image ||
-                "https://images.unsplash.com/photo-1604329760661-e71dc83f8f26?q=80&w=2070&auto=format&fit=crop";
+          ) : !resolvedOutlet ? (
+            <div className="col-span-full text-center text-gray-400 py-10">
+              Finding nearest outlet…
+            </div>
+          ) : (() => {
+            const outlet = restaurants.find(
+              r => r.petpooja_outlet_id === resolvedOutlet.rest_id
+            );
 
-              const logo =
-                r.logo?.trim?.() && r.logo.length > 0
-                  ? r.logo
-                  : "https://placehold.co/160x60?text=Logo";
-
-
-
+            if (!outlet) {
               return (
-                <div
-                  key={r.rest_id}
-                  onClick={async () => {
-                    if (!location) return;
-
-                    try {
-                      const resolved = await apiResolveRestaurantByName({
-                        restaurant_name: r.name,
-                        lat: location.lat,
-                        lng: location.lng,
-                      });
-
-                      // resolved.menusharing_id comes from backend
-                      localStorage.setItem(
-                        "selectedRestaurantId",
-                        resolved.rest_id
-                      );
-
-                      onSelectBrand(resolved.rest_id);
-                    } catch (err: any) {
-                      alert(err.message || "No open outlet nearby");
-                    }
-                  }}
-
-                  className={[
-                    "group relative h-[350px] rounded-2xl overflow-hidden shadow-2xl transition-all duration-500",
-                    closed
-                      ? "cursor-not-allowed pointer-events-none grayscale"
-                      : "cursor-pointer transform hover:-translate-y-2",
-                  ].join(" ")}
-                  aria-disabled={closed}
-                  role="button"
-                  tabIndex={closed ? -1 : 0}
-                >
-                  <div className="absolute inset-0">
-                    <img
-                      src={hero}
-                      alt={r.name}
-                      className={[
-                        "w-full h-full object-cover transition-transform duration-700",
-                        closed ? "" : "group-hover:scale-110",
-                      ].join(" ")}
-                    />
-
-                    {/* shadow overlay only when closed */}
-                    {closed ? (
-                      <div className="absolute inset-0 bg-black/70" />
-                    ) : (
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-80 group-hover:opacity-90 transition-opacity" />
-                    )}
-                  </div>
-
-                  {/* CLOSED badge */}
-                  {closed && (
-                    <div className="absolute top-4 right-4 z-20 text-xs font-semibold px-3 py-1 rounded-full bg-red-600/90">
-                      Closed
-                    </div>
-                  )}
-
-                  <div className="absolute inset-0 p-6 flex flex-col justify-end">
-                    <div
-                      className={
-                        closed
-                          ? ""
-                          : "transform translate-y-4 group-hover:translate-y-0 transition-transform duration-500"
-                      }
-                    >
-                      <img
-                        src={logo}
-                        alt={`${r.name} logo`}
-                        className="h-12 w-auto mb-4 opacity-90 bg-white/10 rounded px-2 py-1"
-                      />
-
-                      <h3 className="text-2xl font-serif font-bold text-white mb-2">
-                        {r.name}
-                      </h3>
-
-                      <div
-                        className={[
-                          "h-1 w-16 mb-3 origin-left duration-500",
-                          closed
-                            ? ""
-                            : "transform scale-x-0 group-hover:scale-x-100 transition-transform",
-                        ].join(" ")}
-                        style={{ backgroundColor: r.theme_accent || "#06B6D4" }}
-                      />
-
-                      <p
-                        className={
-                          closed
-                            ? "text-gray-300 text-sm line-clamp-3"
-                            : "text-gray-300 text-sm opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-100 line-clamp-3"
-                        }
-                      >
-                        {r.tagline || r.description || ""}
-                      </p>
-
-                      <p
-                        className={
-                          closed
-                            ? "text-xs text-gray-400 mt-2 font-mono"
-                            : "text-xs text-gray-400 mt-2 font-mono opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-150"
-                        }
-                      >
-                        {r.rest_id}
-                      </p>
-                    </div>
-                  </div>
+                <div className="col-span-full text-center text-gray-400 py-10">
+                  No service available in your area
                 </div>
               );
-            })
-          )}
+            }
+
+            const restaurant = outlet.restaurants;
+            const closed = !outlet.is_active;
+
+            const hero =
+              restaurant.hero_image ||
+              "https://images.unsplash.com/photo-1604329760661-e71dc83f8f26?q=80&w=2070";
+
+            const logo =
+              restaurant.logo ||
+              "https://placehold.co/160x60?text=Logo";
+
+            return (
+              <div
+                key={outlet.id}
+                onClick={() => {
+                  if (closed) return;
+
+                  // keep outlet context if needed later
+                  localStorage.setItem(
+                    "selectedPetpoojaOutletId",
+                    outlet.petpooja_outlet_id
+                  );
+
+                  // IMPORTANT: pass restaurant UUID
+                  onSelectBrand(restaurant.id);
+                }}
+                className={[
+                  "group relative h-[350px] rounded-2xl overflow-hidden shadow-2xl transition-all duration-500",
+                  closed
+                    ? "cursor-not-allowed grayscale"
+                    : "cursor-pointer transform hover:-translate-y-2",
+                ].join(" ")}
+              >
+                <div className="absolute inset-0">
+                  <img
+                    src={hero}
+                    alt={restaurant.name}
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+                </div>
+
+                {closed && (
+                  <div className="absolute top-4 right-4 z-20 text-xs font-semibold px-3 py-1 rounded-full bg-red-600/90">
+                    Closed
+                  </div>
+                )}
+
+                <div className="absolute inset-0 p-6 flex flex-col justify-end">
+                  <img
+                    src={logo}
+                    alt={`${restaurant.name} logo`}
+                    className="h-12 w-auto mb-4 bg-white/10 rounded px-2 py-1"
+                  />
+
+                  <h3 className="text-2xl font-serif font-bold text-white mb-2">
+                    {restaurant.name}
+                  </h3>
+
+                  <p className="text-gray-300 text-sm line-clamp-3">
+                    {restaurant.tagline || restaurant.description}
+                  </p>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       </main>
+
 
       {/* FOOTER */}
       <footer className="bg-gray-950 py-12 text-center text-gray-500">
