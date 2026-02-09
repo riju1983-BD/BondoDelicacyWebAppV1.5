@@ -122,13 +122,38 @@ export const apiAddRestaurant = async (payload: any, restId: string) => {
 
   return res.json();
 };
-export async function apiAddTable(
-  restId: string,
-  payload: { table_number: number; capacity: number; table_name: string },
+export async function apiAddTable(payload: {
+  table_number: number;
+  capacity: number;
+  is_booked: boolean;
+  outlet_id?: string;
+  is_active?: boolean;
+}) {
+  try {
+    const res = await fetch(`${BASE_URL}/outlet-table`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    return await res.json();
+  } catch (err: any) {
+    return { error: err.message };
+  }
+}
+export async function apiUpdateTable(
+  tableId: string,
+  payload: {
+    table_number: number;
+    capacity: number;
+    is_booked: boolean;
+    outlet_id?: string;
+    is_active?: boolean;
+  },
 ) {
   try {
-    const res = await fetch(`${BASE_URL}/resturents/${restId}/addTable`, {
-      method: "POST",
+    const res = await fetch(`${BASE_URL}/outlet-table/${tableId}`, {
+      method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
@@ -165,20 +190,21 @@ export async function apiGetAdminCategoriesMenu(resturent_identifier: string) {
     })),
   }));
 }
-export async function apiGetTables(restId: string) {
-  const res = await fetch(`${BASE_URL}/resturents/${restId}/tables`);
+export async function apiGetAddTable(outletId: string) {
+  const res = await fetch(`${BASE_URL}/outlet-table/${outletId}/tables`);
+  return res.json();
+}
+export async function apiGetTables(outletId: string) {
+  const res = await fetch(`${BASE_URL}/outlet-table/${outletId}/tables`);
   return res.json();
 }
 
 export async function apiToggleTable(tableId: string, newState: boolean) {
-  const res = await fetch(
-    `${BASE_URL}/resturents/table/${tableId}/toggleStatus`,
-    {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ is_active: newState }),
-    },
-  );
+  const res = await fetch(`${BASE_URL}/outlet-table/${tableId}/toggle-status`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ is_active: newState }),
+  });
 
   return res.json();
 }
@@ -226,6 +252,12 @@ export async function apiGetMenu(
 export async function apiGetOutlet(page = 1, perPage = 1) {
   const res = await fetch(
     `${BASE_URL}/outlet?page=${page}&per_page=${perPage}`,
+  );
+  return res.json();
+}
+export async function apiGetOutletTable(page = 1, perPage = 1) {
+  const res = await fetch(
+    `${BASE_URL}/outlet-table?page=${page}&per_page=${perPage}`,
   );
   return res.json();
 }

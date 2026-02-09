@@ -4,7 +4,10 @@ import { useAuth } from "../context/AuthContext";
 import HelpBuddyIcon from "./HelpBuddyIcon";
 import HelpBuddyModal from "./HelpBuddyModal";
 import { Icon } from "./Icon";
-import { apiGetOutlet, apiResolveRestaurantByName } from "../services/apiService";
+import {
+  apiGetOutlet,
+  apiResolveRestaurantByName,
+} from "../services/apiService";
 
 interface LandingPageProps {
   onSelectBrand: (petpoojaOutletId: string, resturentId: string) => void;
@@ -64,7 +67,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
     const fetchLocationName = async () => {
       try {
         const res = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${location.lat}&lon=${location.lng}`
+          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${location.lat}&lon=${location.lng}`,
         );
         const data = await res.json();
 
@@ -95,16 +98,15 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
         // const firstRestaurant = restaurants[0]?.restaurants?.name;
         // if (!firstRestaurant) return;
 
-    const resolved = await apiResolveRestaurantByName({
-      restaurant_id: restaurants[0].restaurants.id,
-      lat: location.lat,
-      lng: location.lng,
-    });
+        const resolved = await apiResolveRestaurantByName({
+          restaurant_id: restaurants[0].restaurants.id,
+          lat: location.lat,
+          lng: location.lng,
+        });
 
-    setResolvedOutlet(resolved);
+        setResolvedOutlet(resolved);
 
         // store for later flows (menu, checkout, etc.)
-
       } catch (e: any) {
         setResolveError(e.message || "No nearby outlet found");
       }
@@ -140,7 +142,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
         currentUser.addresses.find((a) => a.isDefault) ||
         currentUser.addresses[0];
 
-      if (defaultAddress?.coordinates?.lat && defaultAddress?.coordinates?.lng) {
+      if (
+        defaultAddress?.coordinates?.lat &&
+        defaultAddress?.coordinates?.lng
+      ) {
         setLocation({
           lat: defaultAddress.coordinates.lat,
           lng: defaultAddress.coordinates.lng,
@@ -169,19 +174,18 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
         enableHighAccuracy: true,
         timeout: 10000,
         maximumAge: 0,
-      }
+      },
     );
   }, [currentUser]);
-
 
   useEffect(() => {
     loadRestaurants();
   }, []);
-const closestOutlet = resolvedOutlet
-  ? restaurants.find(
-      (r) => r.petpooja_outlet_id === resolvedOutlet.petpooja_outlet_id,
-    )
-  : null;
+  const closestOutlet = resolvedOutlet
+    ? restaurants.find(
+        (r) => r.petpooja_outlet_id === resolvedOutlet.petpooja_outlet_id,
+      )
+    : null;
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
@@ -298,7 +302,7 @@ const closestOutlet = resolvedOutlet
               No restaurants found.
             </div>
           ) : !resolvedOutlet ? (
-            <div >
+            <div>
               {Array.from({ length: 1 }).map((_, i) => (
                 <RestaurantCardSkeleton key={i} />
               ))}
@@ -339,12 +343,16 @@ const closestOutlet = resolvedOutlet
                       "selectedPetpoojaOutletId",
                       outlet.petpooja_outlet_id,
                     );
-    localStorage.setItem("selectedRestaurantId", outlet.restaurants.id);
+                    localStorage.setItem(
+                      "selectedRestaurantId",
+                      outlet.restaurants.id,
+                    );
 
                     // IMPORTANT: pass restaurant UUID
                     onSelectBrand(
                       outlet.petpooja_outlet_id,
                       outlet.restaurants.id,
+                      outlet.id,
                     );
                   }}
                   className={[
@@ -418,10 +426,3 @@ const closestOutlet = resolvedOutlet
 };
 
 export default LandingPage;
-
-
-
-
-
-
-
