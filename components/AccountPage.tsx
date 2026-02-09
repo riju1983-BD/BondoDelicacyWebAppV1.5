@@ -19,7 +19,8 @@ import {
   apiRaiseComplaint,
   apiGetUserReservations,
   apiGetUserAIRecommendation,
-  apiGetRestaurants, // ✅ use restaurants from Supabase (same as LandingPage)
+  apiGetRestaurants,
+  apiGetOutlet, // ✅ use restaurants from Supabase (same as LandingPage)
 } from "../services/apiService";
 import { normalizeOrderStatus } from "../model/status";
 
@@ -78,9 +79,8 @@ const RatingModal: React.FC<{
               >
                 <Icon
                   type="star"
-                  className={`w-8 h-8 ${
-                    rating >= star ? "text-yellow-400" : "text-gray-500"
-                  }`}
+                  className={`w-8 h-8 ${rating >= star ? "text-yellow-400" : "text-gray-500"
+                    }`}
                 />
               </button>
             ))}
@@ -239,19 +239,25 @@ const AccountPage: React.FC = () => {
   const [profileData, setProfileData] = useState<Partial<User>>({});
   const [profileMessage, setProfileMessage] = useState({ type: "", text: "" });
 
-  useEffect(() => {
-    if (!isAuthenticated) window.location.hash = "#login";
-  }, [isAuthenticated]);
+useEffect(() => {
+  if (isLoading) return;        // ⛔ wait
+  if (!isAuthenticated) {
+    window.location.hash = "#login";
+  }
+}, [isLoading, isAuthenticated]);
 
   // ✅ load restaurants from Supabase (same as landing)
   useEffect(() => {
     const loadRestaurants = async () => {
       try {
-        const data = await apiGetRestaurants();
-        const list = Array.isArray(data) ? data : [];
+        const res = await apiGetOutlet();
+
+        const list = res?.data?.result || [];
+
         setRestaurants(list);
+
         if (list.length && !selectedRestaurantId) {
-          setSelectedRestaurantId(list[0].rest_id);
+          setSelectedRestaurantId(list[0].petpooja_outlet_id);
         }
       } catch (e) {
         console.error("Failed to load restaurants:", e);
@@ -260,18 +266,22 @@ const AccountPage: React.FC = () => {
     };
 
     loadRestaurants();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
 
   // build map: rest_id -> name (used for reservations display)
   const restaurantNameById = useMemo(() => {
     const m: Record<string, string> = {};
-    for (const r of restaurants) {
-      if (r?.rest_id) m[r.rest_id] = r.name || r.rest_id;
+
+    for (const outlet of restaurants) {
+      if (outlet?.petpooja_outlet_id) {
+        m[outlet.petpooja_outlet_id] =
+          outlet.restaurants?.name || outlet.petpooja_outlet_id;
+      }
     }
+
     return m;
   }, [restaurants]);
-
   useEffect(() => {
     if (currentUser) {
       setIsLoading(true);
@@ -396,13 +406,17 @@ const AccountPage: React.FC = () => {
   const activeOrders = userOrders.filter(
     (o) =>
       normalizeOrderStatus(o.status) !== "Delivered" &&
-      normalizeOrderStatus(o.status) !== "Cancelled",
+      normalizeOrderStatus(o.status) !== "Cancelled" &&
+      normalizeOrderStatus(o.status) !== "Refunded",
   );
 
   const pastOrders = userOrders.filter(
+
     (o) =>
       normalizeOrderStatus(o.status) === "Delivered" ||
-      normalizeOrderStatus(o.status) === "Cancelled",
+      normalizeOrderStatus(o.status) === "Cancelled" ||
+      normalizeOrderStatus(o.status) === "Refunded",
+
   );
 
   // Reservation logic (unchanged UI)
@@ -468,11 +482,10 @@ const AccountPage: React.FC = () => {
             <button
               key={tab}
               onClick={() => setActiveTab(tab as any)}
-              className={`flex-shrink-0 py-2 px-4 font-semibold capitalize ${
-                activeTab === tab
-                  ? "border-b-2 border-cyan-400 text-cyan-400"
-                  : "text-gray-400"
-              }`}
+              className={`flex-shrink-0 py-2 px-4 font-semibold capitalize ${activeTab === tab
+                ? "border-b-2 border-cyan-400 text-cyan-400"
+                : "text-gray-400"
+                }`}
             >
               {tab.replace("-", " ")}{" "}
               {tab === "active" && `(${activeOrders.length})`}
@@ -505,8 +518,11 @@ const AccountPage: React.FC = () => {
                       className="block w-full rounded-md border-gray-600 bg-gray-800 py-2 px-3 text-white mt-1"
                     >
                       {restaurants.map((r) => (
-                        <option key={r.rest_id} value={r.rest_id}>
-                          {r.name}
+                        <option
+                          key={r.petpooja_outlet_id}
+                          value={r.petpooja_outlet_id}
+                        >
+                          {r.restaurants?.name} ({r.state})
                         </option>
                       ))}
                     </select>
@@ -607,9 +623,8 @@ const AccountPage: React.FC = () => {
                         </div>
 
                         <span
-                          className={`px-2 py-1 text-xs font-bold rounded-full ${
-                            isDelivered ? "bg-green-600" : "bg-red-600"
-                          }`}
+                          className={`px-2 py-1 text-xs font-bold rounded-full ${isDelivered ? "bg-green-600" : "bg-red-600"
+                            }`}
                         >
                           {order.status}
                         </span>
@@ -637,6 +652,12 @@ const AccountPage: React.FC = () => {
                         <span className="font-bold">
                           Total: ₹{order.totalAmount.toFixed(2)}
                         </span>
+                        {order?.refundAmount != null && (
+                          <span className="font-bold">
+                            Refund Amount: ₹{order.refundAmount.toFixed(2)}
+                          </span>
+                        )}
+
 
                         {isDelivered && (
                           <>
@@ -646,11 +667,10 @@ const AccountPage: React.FC = () => {
                                   <Icon
                                     key={i}
                                     type="star"
-                                    className={`w-5 h-5 ${
-                                      i < order.rating!
-                                        ? "text-yellow-400"
-                                        : "text-gray-600"
-                                    }`}
+                                    className={`w-5 h-5 ${i < order.rating!
+                                      ? "text-yellow-400"
+                                      : "text-gray-600"
+                                      }`}
                                   />
                                 ))}
                               </div>
@@ -666,7 +686,7 @@ const AccountPage: React.FC = () => {
                               </button>
                             )}
 
-                            {within24hrs && (
+                            {within24hrs && (!order.complaint || Object.keys(order.complaint).length === 0) && (
                               <button
                                 onClick={() => {
                                   setSelectedOrder(order);
@@ -677,6 +697,7 @@ const AccountPage: React.FC = () => {
                                 Raise Complaint
                               </button>
                             )}
+
                           </>
                         )}
                       </div>
@@ -752,11 +773,10 @@ const AccountPage: React.FC = () => {
                       {pastReservations.map((res: any) => (
                         <div
                           key={res.id}
-                          className={`bg-gray-900 p-4 rounded-lg border-l-4 flex justify-between items-center ${
-                            res.displayStatus === "completed"
-                              ? "border-gray-600"
-                              : "border-red-800"
-                          }`}
+                          className={`bg-gray-900 p-4 rounded-lg border-l-4 flex justify-between items-center ${res.displayStatus === "completed"
+                            ? "border-gray-600"
+                            : "border-red-800"
+                            }`}
                         >
                           <div>
                             {/* ✅ restaurant name from Supabase list */}
@@ -774,11 +794,10 @@ const AccountPage: React.FC = () => {
                             </p>
                           </div>
                           <span
-                            className={`px-2 py-1 rounded-full text-xs font-bold uppercase ${
-                              res.displayStatus === "completed"
-                                ? "bg-gray-700 text-gray-300"
-                                : "bg-red-900/50 text-red-400"
-                            }`}
+                            className={`px-2 py-1 rounded-full text-xs font-bold uppercase ${res.displayStatus === "completed"
+                              ? "bg-gray-700 text-gray-300"
+                              : "bg-red-900/50 text-red-400"
+                              }`}
                           >
                             {res.displayStatus === "expired"
                               ? "Expired / No-Show"
@@ -830,11 +849,10 @@ const AccountPage: React.FC = () => {
 
                 {profileMessage.text && (
                   <p
-                    className={`text-sm text-center mb-4 ${
-                      profileMessage.type === "success"
-                        ? "text-green-400"
-                        : "text-red-400"
-                    }`}
+                    className={`text-sm text-center mb-4 ${profileMessage.type === "success"
+                      ? "text-green-400"
+                      : "text-red-400"
+                      }`}
                   >
                     {profileMessage.text}
                   </p>

@@ -73,7 +73,7 @@ const App: React.FC = () => {
 
   if (route === 'admin') {
     if (currentUser?.isAdmin) return <AdminDashboardPage />;
-    window.location.hash = '#admin-login';
+    window.location.hash = '#admin';
     return null;
   }
 

@@ -189,7 +189,7 @@ export async function apiGetRestaurants() {
   const { data, error } = await supabase
     .from("restaurants")
     .select(
-      "rest_id,name,tagline,description,logo,hero_image,about_text,about_image,theme_primary,theme_accent,theme_text_on_primary",
+      "name,tagline,description,logo,hero_image,about_text,about_image,theme_primary,theme_accent,theme_text_on_primary",
     )
     .order("name", { ascending: true });
 
@@ -538,6 +538,7 @@ const mapDbOrderToType = (dbOrder: any): Order => ({
   refundStatus: dbOrder.refund_status,
   deliveryInfo: dbOrder.delivery_info,
   externalOrderId: dbOrder.external_order_id,
+  refundAmount: dbOrder.refund_amount,
 });
 
 export const apiGetOrderById = async (

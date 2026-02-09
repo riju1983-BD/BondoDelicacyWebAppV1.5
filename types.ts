@@ -154,7 +154,7 @@ export interface Order {
 
   pointsEarned?: number;
   createdAt: string;
-
+  refundAmount?: number | null;
   status:
     | 'Order Placed'
     | 'Accepted'

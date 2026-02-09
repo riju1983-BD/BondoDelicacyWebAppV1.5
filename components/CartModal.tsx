@@ -364,9 +364,17 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
       autocomplete.addListener("place_changed", async () => {
         const place = autocomplete.getPlace();
         if (!place.geometry?.location) return;
-
+  const formatted = place.formatted_address || "";
         const dropLat = place.geometry.location.lat();
         const dropLng = place.geometry.location.lng();
+  // ❌ HARD STOP if not Bangalore
+  if (!checkIsBangalore(formatted)) {
+    setIsAddressServiceable(false);
+    setAddressError(
+      "Currently, our culinary delights travel exclusively within Bangalore."
+    );
+    return;
+  }
 
         // Save address + coordinates
         setNewAddressData((prev) => ({

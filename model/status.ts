@@ -6,6 +6,7 @@ export const backendToFrontendStatus = new Map<string, string>([
   ['DISPATCHED', 'Out For Delivery'],
   ['DELIVERED', 'Delivered'],
   ['CANCELLED', 'Cancelled'],
+    ['REFUNDED', 'Refunded'],
 ]);
 
 export const normalizeOrderStatus = (backendStatus: string): string =>
