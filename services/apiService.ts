@@ -23,7 +23,7 @@ export const apiFetchRestaurantMapping = async (rest_id: string) => {
   return res.json();
 };
 export async function apiResolveRestaurantByName(payload: {
-  restaurant_name: string;
+  restaurant_id: string;
   lat: number;
   lng: number;
 }) {
@@ -204,8 +204,8 @@ export async function apiGetAllRestaurant(page = 1, perPage = 1) {
   );
   return res.json();
 }
-export async function apiGetRestaurantById(restId: string) {
-  const res = await fetch(`${BASE_URL}/resturents/${restId}`);
+export async function apiGetRestaurantById(id: string) {
+  const res = await fetch(`${BASE_URL}/resturents/${id}`);
   return res.json();
 }
 

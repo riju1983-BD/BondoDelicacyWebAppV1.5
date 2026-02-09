@@ -23,7 +23,14 @@ export interface MenuCategory {
 /* =========================
    CART
 ========================= */
-
+export interface SelectedAddonInCart {
+  id: string;
+  name: string;
+  price: number;
+  quantity: number;
+  group_id: string;
+  group_name: string;
+}
 export interface CartItem extends ItemData {
   cartKey: string; // ✅ UNIQUE per cart line
 
@@ -35,7 +42,12 @@ export interface CartItem extends ItemData {
 
   variation_id?: string;
   variation_name?: string;
-  selected_addons?: any[];
+
+  // ✅ Properly typed addons array
+  selected_addons?: SelectedAddonInCart[];
+
+  // Keep for backward compatibility during development
+  selectedAddons?: Record<string, SelectedAddonInCart[]>;
 }
 
 

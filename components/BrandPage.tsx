@@ -20,20 +20,25 @@ import {
   apiGetRestaurantById, // ✅ must exist in apiService
 } from "../services/apiService";
 import { ItemData } from "@/model/menu_list";
-import AddonModal from "./AddonModal";
+import AddonModal, { EnrichedItemData } from "./AddonModal";
 const buildCartKey = (item: any) => {
-  const variationPart = item.selectedVariation?.id ?? "no-variation";
+  const variationPart = item.selectedVariation?.variationid ?? "no-variation";
 
-  const addonPart = item.selectedAddons
-    ? Object.values(item.selectedAddons)
-      .flat()
-      .map((a: any) => `${a.id}:${a.quantity}`)
-      .sort()
-      .join("|")
-    : "no-addons";
+  const addonsArray = item.selectedAddons
+    ? Object.values(item.selectedAddons).flat()
+    : [];
+
+  const addonPart =
+    addonsArray.length > 0
+      ? addonsArray
+          .map((a: any) => `${a.id}:${a.quantity}`)
+          .sort()
+          .join("|")
+      : "no-addons";
 
   return `${item.itemid}__${variationPart}__${addonPart}`;
 };
+
 const ShimmerCard: React.FC = () => (
   <div className="animate-pulse bg-gray-900 rounded-lg overflow-hidden shadow-md">
     <div className="h-48 bg-gray-700 w-full"></div>
@@ -230,12 +235,13 @@ const TableMap: React.FC<{
           >
             <Icon
               type="users"
-              className={`w-8 h-8 mb-2 ${isBooked
-                ? "text-red-500"
-                : isSelected
-                  ? "text-[var(--accent-color)]"
-                  : "text-gray-500"
-                }`}
+              className={`w-8 h-8 mb-2 ${
+                isBooked
+                  ? "text-red-500"
+                  : isSelected
+                    ? "text-[var(--accent-color)]"
+                    : "text-gray-500"
+              }`}
             />
             <span className="font-semibold text-white">{table.name}</span>
             <span className="text-xs text-gray-400">
@@ -259,10 +265,10 @@ interface BrandPageProps {
 }
 
 const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
+  const id = localStorage.getItem("selectedRestaurantId") || "";
   // ✅ rest id comes from landing page selection
-  const restId = localStorage.getItem("selectedRestaurantId") || "";
-  const name = localStorage.getItem("selectedRestaurantId") || "";
-    const id= localStorage.getItem("selectedRestaurantId") || "";
+  const restId = localStorage.getItem("selectedPetpoojaOutletId") || "";
+
   const [restaurant, setRestaurant] = useState<any>(null);
   const [restaurantLoading, setRestaurantLoading] = useState(true);
   const [restaurantError, setRestaurantError] = useState<string>("");
@@ -274,7 +280,9 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
   const [activeCategory, setActiveCategory] = useState<string>("");
   const [isRecommenderOpen, setIsRecommenderOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [addonItem, setAddonItem] = useState<ItemData | null>(null);
+  const [addonItem, setAddonItem] = useState<
+    EnrichedItemData | ItemData | null
+  >(null);
   const [isAddonModalOpen, setIsAddonModalOpen] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -286,8 +294,8 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
 
   const { currentUser } = useAuth();
   useEffect(() => {
-    if (restId) {
-      switchRestaurant(restId);
+    if (id) {
+      switchRestaurant(id);
     }
   }, [restId]);
   const [resStep, setResStep] = useState<1 | 2 | 3 | 4>(1);
@@ -313,9 +321,9 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
 
   // ✅ load restaurant details
   useEffect(() => {
-    if (!restId) {
+    if (!id) {
       setRestaurantError(
-        "Restaurant not selected. Please go back and choose a restaurant."
+        "Restaurant not selected. Please go back and choose a restaurant.",
       );
       setRestaurant(null);
       setRestaurantLoading(false);
@@ -323,14 +331,11 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
     }
 
     const loadRestaurant = async () => {
-      const r = await apiGetRestaurantById(restId);
-      console.log("Restaurant API response:", r);
-      setRestaurant(r);
       setRestaurantLoading(true);
       setRestaurantError("");
 
       try {
-        const r = await apiGetRestaurantById(restId);
+        const r = await apiGetRestaurantById(id); // ✅ ACTUAL CALL
         setRestaurant(r);
       } catch (e: any) {
         setRestaurantError(e?.message || "Failed to load restaurant");
@@ -341,8 +346,7 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
     };
 
     loadRestaurant();
-  }, [restId]);
-
+  }, [id]);
 
   // ✅ load categories + first menu
   useEffect(() => {
@@ -451,25 +455,35 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
   const handleAddToCart = (item: any) => {
     const cartKey = buildCartKey(item);
 
-    addItem({
+    const flatAddons = item.selectedAddons
+      ? Object.values(item.selectedAddons).flat()
+      : [];
+
+    const cartItem: CartItem = {
+      // 🔒 FORCE canonical fields
+      itemid: item.itemid,
+      itemname: item.itemname,
+      itemdescription: item.itemdescription,
+      item_image_url: item.item_image_url,
+
+      // keep everything else
       ...item,
+
       cartKey,
-      // ✅ VARIATION (THIS FIXES variation_id empty)
+      quantity: 1,
+
       variation_id: item.selectedVariation?.variationid || "",
       variation_name: item.selectedVariation?.name || "",
 
-      // ✅ ADDONS (THIS FIXES empty AddonItem.details)
-      selected_addons: Object.values(item.selectedAddons || {}).flat(),
-      item_tax: item.item_tax ?? [],
+      selected_addons: flatAddons,
 
-      unit_price: item.computed?.final_price ?? Number(item.price),
-      base_price: item.computed?.base_price ?? Number(item.price),
+      unit_price: item.computed?.final_price ?? Number(item.price || 0),
+      base_price: item.computed?.base_price ?? Number(item.price || 0),
       addon_price: item.computed?.addon_price ?? 0,
+    };
 
-      quantity: 1,
-    } as CartItem);
+    addItem(cartItem);
   };
-
 
   const timeSlots = useMemo(() => {
     const slots: string[] = [];
@@ -623,8 +637,8 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
     Array.isArray(restaurant?.gallery) && restaurant.gallery.length > 0
       ? restaurant.gallery
       : Array.from({ length: 8 }).map(
-        (_, i) => [heroImage, aboutImage, logo][i % 3],
-      );
+          (_, i) => [heroImage, aboutImage, logo][i % 3],
+        );
 
   const contactAddress = restaurant?.address
     ? [restaurant.address, restaurant?.city].filter(Boolean).join(", ")
@@ -804,9 +818,10 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
                     key={cat.id}
                     onClick={() => handleCategoryChange(cat)}
                     className={`px-4 py-2 rounded-md font-semibold transition-all 
-                      ${activeCategory === cat.id
-                        ? "text-[var(--text-on-primary-color)]"
-                        : "bg-gray-700 text-white hover:bg-gray-600"
+                      ${
+                        activeCategory === cat.id
+                          ? "text-[var(--text-on-primary-color)]"
+                          : "bg-gray-700 text-white hover:bg-gray-600"
                       }`}
                     style={
                       activeCategory === cat.id
@@ -874,8 +889,8 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
 
                                       const variationPrices = hasVariation
                                         ? item.variation
-                                          .map((v: any) => Number(v.price))
-                                          .filter((p: number) => p > 0)
+                                            .map((v: any) => Number(v.price))
+                                            .filter((p: number) => p > 0)
                                         : [];
 
                                       const minVariationPrice =
@@ -908,23 +923,53 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
 
                                 <button
                                   onClick={() => {
-                                    if (
+                                    const hasVariations =
                                       Array.isArray(item.variation) &&
-                                      item.variation.length > 0
-                                    ) {
-                                      // item has variations (with or without addons)
+                                      item.variation.length > 0;
+                                    const hasAddons =
+                                      Array.isArray(item.addons) &&
+                                      item.addons.length > 0;
+
+                                    if (hasVariations || hasAddons) {
+                                      // Item needs addon/variation modal
                                       setAddonItem(item);
                                       setIsAddonModalOpen(true);
                                     } else {
-                                      // simple item
-                                      handleAddToCart(item);
+                                      // Simple item - add directly with computed values
+                                      const basePrice = Number(item.price || 0);
+                                      const gstPercentage = Array.isArray(
+                                        item.tax_breakup,
+                                      )
+                                        ? item.tax_breakup.reduce(
+                                            (sum, t) =>
+                                              sum +
+                                              Number(t.tax_percentage || 0),
+                                            0,
+                                          )
+                                        : 0;
+                                      const gstAmount =
+                                        (basePrice * gstPercentage) / 100;
+
+                                      handleAddToCart({
+                                        ...item,
+                                        selectedVariation: null,
+                                        selectedAddons: {},
+                                        computed: {
+                                          base_price: basePrice,
+                                          addon_price: 0,
+                                          taxable_amount: basePrice,
+                                          gst_percentage: gstPercentage,
+                                          gst_amount: gstAmount,
+                                          final_price: basePrice + gstAmount,
+                                        },
+                                      });
                                     }
                                   }}
                                   disabled={!isAvailable}
                                   className="mt-4 w-full py-2 rounded-md border-2 font-semibold transition-all 
-  text-[var(--primary-color)]
-  disabled:opacity-50 disabled:cursor-not-allowed 
-  hover:bg-[var(--primary-color)] hover:text-white"
+    text-[var(--primary-color)]
+    disabled:opacity-50 disabled:cursor-not-allowed 
+    hover:bg-[var(--primary-color)] hover:text-white"
                                   style={{
                                     borderColor: "var(--primary-color)",
                                   }}
@@ -1118,9 +1163,9 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
                       onSubmit={
                         otpSent
                           ? (e) => {
-                            e.preventDefault();
-                            confirmBooking();
-                          }
+                              e.preventDefault();
+                              confirmBooking();
+                            }
                           : sendOtp
                       }
                       className="space-y-4"
@@ -1331,12 +1376,12 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
       />
       {isAddonModalOpen && addonItem && (
         <AddonModal
-          item={addonItem}
+          item={addonItem as ItemData} // Type assertion needed here
           onClose={() => {
             setIsAddonModalOpen(false);
             setAddonItem(null);
           }}
-          onConfirm={(finalItem) => {
+          onConfirm={(finalItem: EnrichedItemData) => {
             handleAddToCart(finalItem);
             setIsAddonModalOpen(false);
             setAddonItem(null);

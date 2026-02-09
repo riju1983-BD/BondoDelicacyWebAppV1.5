@@ -7,7 +7,7 @@ import { Icon } from "./Icon";
 import { apiGetOutlet, apiResolveRestaurantByName } from "../services/apiService";
 
 interface LandingPageProps {
-  onSelectBrand: (brandId: string) => void;
+  onSelectBrand: (petpoojaOutletId: string, resturentId: string) => void;
 }
 
 /** Skeleton card */
@@ -92,20 +92,19 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
 
     const resolveNearest = async () => {
       try {
-        const firstRestaurant = restaurants[0]?.restaurants?.name;
-        if (!firstRestaurant) return;
+        // const firstRestaurant = restaurants[0]?.restaurants?.name;
+        // if (!firstRestaurant) return;
 
-        const resolved = await apiResolveRestaurantByName({
-          restaurant_name: firstRestaurant,
-          lat: location.lat,
-          lng: location.lng,
-        });
+    const resolved = await apiResolveRestaurantByName({
+      restaurant_id: restaurants[0].restaurants.id,
+      lat: location.lat,
+      lng: location.lng,
+    });
 
-        setResolvedOutlet(resolved);
+    setResolvedOutlet(resolved);
 
         // store for later flows (menu, checkout, etc.)
-        localStorage.setItem("selectedRestaurantId", resolved.rest_id);
-        localStorage.setItem("selectedOutletId", resolved.outlet_id);
+
       } catch (e: any) {
         setResolveError(e.message || "No nearby outlet found");
       }
@@ -178,11 +177,12 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
   useEffect(() => {
     loadRestaurants();
   }, []);
-  const closestOutlet = resolvedOutlet
-    ? restaurants.find(
-      r => r.petpooja_outlet_id === resolvedOutlet.rest_id
+const closestOutlet = resolvedOutlet
+  ? restaurants.find(
+      (r) => r.petpooja_outlet_id === resolvedOutlet.petpooja_outlet_id,
     )
-    : null;
+  : null;
+
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       {/* FIXED NAVBAR */}
@@ -275,9 +275,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
           )}
 
           {locationError && (
-            <p className="text-xs text-red-400 mt-2">
-              {locationError}
-            </p>
+            <p className="text-xs text-red-400 mt-2">{locationError}</p>
           )}
         </div>
       </header>
@@ -300,96 +298,104 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
               No restaurants found.
             </div>
           ) : !resolvedOutlet ? (
-            <div className="col-span-full text-center text-gray-400 py-10">
-              Finding nearest outlet…
+            <div >
+              {Array.from({ length: 1 }).map((_, i) => (
+                <RestaurantCardSkeleton key={i} />
+              ))}
             </div>
-          ) : (() => {
-            const outlet = restaurants.find(
-              r => r.petpooja_outlet_id === resolvedOutlet.rest_id
-            );
+          ) : (
+            (() => {
+              const outlet = restaurants.find(
+                (r) =>
+                  r.petpooja_outlet_id === resolvedOutlet.petpooja_outlet_id,
+              );
 
-            if (!outlet) {
+              if (!outlet) {
+                return (
+                  <div className="col-span-full text-center text-gray-400 py-10">
+                    No service available in your area
+                  </div>
+                );
+              }
+
+              const restaurant = outlet.restaurants;
+              const closed = !outlet.is_active;
+
+              const hero =
+                restaurant.hero_image ||
+                "https://images.unsplash.com/photo-1604329760661-e71dc83f8f26?q=80&w=2070";
+
+              const logo =
+                restaurant.logo || "https://placehold.co/160x60?text=Logo";
+
               return (
-                <div className="col-span-full text-center text-gray-400 py-10">
-                  No service available in your area
+                <div
+                  key={outlet.id}
+                  onClick={() => {
+                    if (closed) return;
+
+                    // keep outlet context if needed later
+                    localStorage.setItem(
+                      "selectedPetpoojaOutletId",
+                      outlet.petpooja_outlet_id,
+                    );
+    localStorage.setItem("selectedRestaurantId", outlet.restaurants.id);
+
+                    // IMPORTANT: pass restaurant UUID
+                    onSelectBrand(
+                      outlet.petpooja_outlet_id,
+                      outlet.restaurants.id,
+                    );
+                  }}
+                  className={[
+                    "group relative h-[350px] rounded-2xl overflow-hidden shadow-2xl transition-all duration-500",
+                    closed
+                      ? "cursor-not-allowed grayscale"
+                      : "cursor-pointer transform hover:-translate-y-2",
+                  ].join(" ")}
+                >
+                  <div className="absolute inset-0">
+                    <img
+                      src={`https://nldgaczpzfmwamivniua.supabase.co/storage/v1/object/public/restaurant-images/${hero}`}
+                      alt={restaurant.name}
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+                  </div>
+
+                  {closed && (
+                    <div className="absolute top-4 right-4 z-20 text-xs font-semibold px-3 py-1 rounded-full bg-red-600/90">
+                      Closed
+                    </div>
+                  )}
+
+                  <div className="absolute inset-0 p-6 flex flex-col justify-end">
+                    <img
+                      src={`https://nldgaczpzfmwamivniua.supabase.co/storage/v1/object/public/restaurant-images/${logo}`}
+                      alt={`${restaurant.name} logo`}
+                      className="h-12 w-auto mb-4 bg-white/10 rounded px-2 py-1"
+                    />
+
+                    <h3 className="text-2xl font-serif font-bold text-white mb-2">
+                      {restaurant.name}
+                    </h3>
+
+                    <p className="text-gray-300 text-sm line-clamp-3">
+                      {restaurant.tagline || restaurant.description}
+                    </p>
+                  </div>
                 </div>
               );
-            }
-
-            const restaurant = outlet.restaurants;
-            const closed = !outlet.is_active;
-
-            const hero =
-              restaurant.hero_image ||
-              "https://images.unsplash.com/photo-1604329760661-e71dc83f8f26?q=80&w=2070";
-
-            const logo =
-              restaurant.logo ||
-              "https://placehold.co/160x60?text=Logo";
-
-            return (
-              <div
-                key={outlet.id}
-                onClick={() => {
-                  if (closed) return;
-
-                  // keep outlet context if needed later
-                  localStorage.setItem(
-                    "selectedPetpoojaOutletId",
-                    outlet.petpooja_outlet_id
-                  );
-
-                  // IMPORTANT: pass restaurant UUID
-                  onSelectBrand(restaurant.id);
-                }}
-                className={[
-                  "group relative h-[350px] rounded-2xl overflow-hidden shadow-2xl transition-all duration-500",
-                  closed
-                    ? "cursor-not-allowed grayscale"
-                    : "cursor-pointer transform hover:-translate-y-2",
-                ].join(" ")}
-              >
-                <div className="absolute inset-0">
-                  <img
-                    src={hero}
-                    alt={restaurant.name}
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
-                </div>
-
-                {closed && (
-                  <div className="absolute top-4 right-4 z-20 text-xs font-semibold px-3 py-1 rounded-full bg-red-600/90">
-                    Closed
-                  </div>
-                )}
-
-                <div className="absolute inset-0 p-6 flex flex-col justify-end">
-                  <img
-                    src={logo}
-                    alt={`${restaurant.name} logo`}
-                    className="h-12 w-auto mb-4 bg-white/10 rounded px-2 py-1"
-                  />
-
-                  <h3 className="text-2xl font-serif font-bold text-white mb-2">
-                    {restaurant.name}
-                  </h3>
-
-                  <p className="text-gray-300 text-sm line-clamp-3">
-                    {restaurant.tagline || restaurant.description}
-                  </p>
-                </div>
-              </div>
-            );
-          })()}
+            })()
+          )}
         </div>
       </main>
-
 
       {/* FOOTER */}
       <footer className="bg-gray-950 py-12 text-center text-gray-500">
         <p>
-          © {new Date().getFullYear()} Bongo Delicacy Group. All rights reserved.
+          © {new Date().getFullYear()} Bongo Delicacy Group. All rights
+          reserved.
         </p>
         <div className="mt-4 flex justify-center gap-4">
           <button

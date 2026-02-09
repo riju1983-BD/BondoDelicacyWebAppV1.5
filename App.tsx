@@ -95,7 +95,7 @@ const App: React.FC = () => {
   }
 
   if (!restaurant) {
-    console.error(`Invalid restaurant id: ${selectedRestaurantId}`);
+    // console.error(`Invalid restaurant id: ${selectedRestaurantId}`);
     return <LandingPage onSelectBrand={handleSelectRestaurant} />;
   }
 

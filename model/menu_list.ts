@@ -2,17 +2,39 @@ export interface Main {
   message: string;
   data: ItemData[];
 }
-export interface ItemComputed {
-  base_price: number;
-  addon_price: number;
-  taxable_amount: number;
-  gst_percentage: number;
-  gst_amount: number;
-  final_price: number;
+// model/menu_list.ts
+
+export interface AddonItemDetail {
+  id: string;
+  name: string;
+  price: number;
+  rank: string;
+  active: string;
+  attributes?: string;
 }
+
+export interface AddonGroup {
+  addon_group_id: string;
+  addon_group_name: string;
+  addon_group_rank: string;
+  selection_min: number;
+  selection_max: number;
+  active: string;
+  items: AddonItemDetail[];
+}
+
+export interface SelectedAddon {
+  id: string;
+  name: string;
+  price: number;
+  quantity: number;
+  group_id: string;
+  group_name: string;
+}
+
 export interface ItemData {
   itemid: string;
-  name: string;
+  itemname: string;
   itemallowvariation: string;
   itemrank: string;
   item_categoryid: string;
@@ -27,6 +49,7 @@ export interface ItemData {
   cuisine: any[];
   variation_groupname: string;
   is_combo: string;
+  
   variation: {
     id: string;
     name: string;
@@ -37,7 +60,6 @@ export interface ItemData {
     variationallowaddon: number;
     item_packingcharges: string;
     groupname: string;
-
     addon?: {
       addon_group_id: string;
       addon_item_selection_min: string;
@@ -47,7 +69,6 @@ export interface ItemData {
 
   addon: any[];
   is_recommend: string;
-  itemname: string;
   item_attributeid: string;
   itemdescription: string;
   minimumpreparationtime: string;
@@ -58,27 +79,33 @@ export interface ItemData {
   item_info: ItemInfo;
   item_image_url: string;
 
-  // existing
-  item_tax: Array<{
+  // Tax fields
+  item_tax: string; // "3174,3175"
+  tax_breakup?: Array<{
     id: string;
     name: string;
     tax_percentage: string;
     amount: string;
   }>;
-  // "3174,3175"
   tax_inclusive: boolean;
   gst_type: string;
 
-  // ✅ new (expanded from API)
-  item_tax_breakup?: ItemTaxBreakup[];
+  // ✅ NEW: Expanded addons from backend
+  addons?: AddonGroup[];
+
+  // ✅ Computed fields (set by AddonModal)
   computed?: ItemComputed;
+  selectedVariation?: any;
+  selectedAddons?: Record<string, SelectedAddon[]>;
 }
 
-export interface ItemTaxBreakup {
-  id: string; // "3174"
-  name: string; // "CGST"
-  tax_percentage: string; // "2.5"
-  amount: string; // "11.25" (for 1 qty price)
+export interface ItemComputed {
+  base_price: number;
+  addon_price: number;
+  taxable_amount: number;
+  gst_percentage: number;
+  gst_amount: number;
+  final_price: number;
 }
 
 export interface ItemInfo {

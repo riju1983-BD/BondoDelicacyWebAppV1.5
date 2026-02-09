@@ -268,7 +268,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
             amount: t.amount,
           }));
         }
-      } catch { }
+      } catch {}
     }
 
     return [];
@@ -542,7 +542,6 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
     }
   };
 
-
   const handleNavigate = (route: string) => {
     onClose();
     window.location.hash = route;
@@ -592,8 +591,8 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
       const preTax = Math.max(
         0,
         Number(totalPrice || 0) -
-        Number(discountAmount || 0) -
-        Number(loyaltyDiscount || 0),
+          Number(discountAmount || 0) -
+          Number(loyaltyDiscount || 0),
       );
 
       const finalTotalForPayload = hasInclusiveItems
@@ -609,7 +608,6 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
 
       // 1) Build PetPooja + backend payload
       const payload = {
-
         userId: currentUser.id,
         orderinfo: {
           OrderInfo: {
@@ -679,7 +677,6 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
             OrderItem: {
               details: items.map((i: any) => {
                 const itemKey = String(i.itemid);
-                // IMPORTANT: same key used in perItemTax
 
                 return {
                   id: String(i.itemid ?? i.id ?? ""),
@@ -703,20 +700,20 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
 
                   quantity: String(i.quantity ?? "1"),
 
-                  variation_id: String(i.selectedVariation?.variationid || ""),
-                  variation_name: String(i.selectedVariation?.name || ""),
+                  // ✅ Use the cart item's variation fields directly
+                  variation_id: String(i.variation_id || ""),
+                  variation_name: String(i.variation_name || ""),
 
                   AddonItem: {
-                    details: Object.values(i.selectedAddons || {})
-                      .flat()
-                      .map((a: any) => ({
-                        id: String(a.id),
-                        name: String(a.name),
-                        group_id: String(a.group_id),
-                        group_name: "", // optional
-                        price: String(a.price),
-                        quantity: String(a.quantity),
-                      })),
+                    // ✅ Use selected_addons (flat array) instead of nested selectedAddons
+                    details: (i.selected_addons || []).map((a: any) => ({
+                      id: String(a.id),
+                      name: String(a.name),
+                      group_id: String(a.group_id),
+                      group_name: String(a.group_name || ""),
+                      price: String(a.price),
+                      quantity: String(a.quantity),
+                    })),
                   },
                 };
               }),
@@ -1035,8 +1032,9 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                   setIsLoginView(true);
                   setAuthError("");
                 }}
-                className={`flex-1 p-2 rounded-l-md text-sm ${isLoginView ? "bg-cyan-600 text-white" : "bg-gray-700"
-                  }`}
+                className={`flex-1 p-2 rounded-l-md text-sm ${
+                  isLoginView ? "bg-cyan-600 text-white" : "bg-gray-700"
+                }`}
               >
                 Login
               </button>
@@ -1046,8 +1044,9 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                   setIsLoginView(false);
                   setAuthError("");
                 }}
-                className={`flex-1 p-2 rounded-r-md text-sm ${!isLoginView ? "bg-cyan-600 text-white" : "bg-gray-700"
-                  }`}
+                className={`flex-1 p-2 rounded-r-md text-sm ${
+                  !isLoginView ? "bg-cyan-600 text-white" : "bg-gray-700"
+                }`}
               >
                 Register
               </button>
@@ -1126,10 +1125,11 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                 {currentUser.addresses.map((addr) => (
                   <label
                     key={addr.id}
-                    className={`block p-4 rounded-lg border cursor-pointer transition-all ${selectedAddressId === addr.id
-                      ? "border-cyan-500 bg-cyan-900/20"
-                      : "border-gray-600 bg-gray-700/50 hover:border-gray-500"
-                      }`}
+                    className={`block p-4 rounded-lg border cursor-pointer transition-all ${
+                      selectedAddressId === addr.id
+                        ? "border-cyan-500 bg-cyan-900/20"
+                        : "border-gray-600 bg-gray-700/50 hover:border-gray-500"
+                    }`}
                   >
                     <div className="flex items-start gap-3">
                       <input
@@ -1241,10 +1241,11 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                         setAddressError("");
                       }
                     }}
-                    className={`w-full bg-gray-700 p-3 pl-10 rounded-md border ${!isAddressServiceable
-                      ? "border-red-500 focus:ring-red-500"
-                      : "border-gray-600 focus:ring-cyan-500"
-                      } focus:ring-2 focus:outline-none text-white`}
+                    className={`w-full bg-gray-700 p-3 pl-10 rounded-md border ${
+                      !isAddressServiceable
+                        ? "border-red-500 focus:ring-red-500"
+                        : "border-gray-600 focus:ring-cyan-500"
+                    } focus:ring-2 focus:outline-none text-white`}
                   />
                 </div>
                 {!isAddressServiceable && (
@@ -1546,7 +1547,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
             )}
             {
               view === "auth" &&
-              null /* Auth view has its own submit button in form */
+                null /* Auth view has its own submit button in form */
             }
             {view === "checkout" && (
               <button
