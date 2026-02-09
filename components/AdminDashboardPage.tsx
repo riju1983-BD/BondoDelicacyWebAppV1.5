@@ -23,6 +23,7 @@ import {
   apiGetRestaurantById,
   apiGetOutlet,
   apiGetAllRestaurant,
+  apiUpdateTable,
 } from "../services/apiService";
 import {
   BASE_URL,
@@ -154,6 +155,7 @@ const AdminDashboardPage: React.FC = () => {
   // Add Table Modal State
   const [addTableFor, setAddTableFor] = useState<string | null>(null);
   const [TableId, setTableId] = useState<string | null>(null);
+  const [restaurentid, setrestaurentid] = useState<string | null>(null);
   const [resturent, setresturent] = useState<string | null>(null);
   const [tableNumber, setTableNumber] = useState("");
   const [capacity, setCapacity] = useState("");
@@ -205,10 +207,10 @@ const AdminDashboardPage: React.FC = () => {
     }
   };
 
-  async function loadTables(restId: string) {
+  async function loadTables(outletId: string) {
     setLoadingTables(true);
-    const res = await apiGetTables(restId);
-    setTables(res.tables || []);
+    const res = await apiGetTables(outletId);
+    setTables(res.data || []);
     setLoadingTables(false);
   }
   async function loadResturent(restId: string) {
@@ -659,7 +661,7 @@ const AdminDashboardPage: React.FC = () => {
     }
 
     setIsUploading(false);
-    setTableId(null);
+    setrestaurentid(null);
     fetchRestaurants();
   };
 
@@ -1310,7 +1312,7 @@ const AdminDashboardPage: React.FC = () => {
                           <td className="px-4 py-3 text-right">
                             <button
                               onClick={() => {
-                                setTableId(r.id);
+                                setrestaurentid(r.id);
                                 loadResturent(r.id);
                                 console.log(r);
 
@@ -1774,8 +1776,8 @@ const AdminDashboardPage: React.FC = () => {
                             </button>{" "}
                             <button
                               onClick={() => {
-                                setShowTablesFor(r.rest_id);
-                                loadTables(r.rest_id);
+                                setShowTablesFor(r);
+                                loadTables(r.id);
                               }}
                               className="inline-flex items-center gap-1 bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-1.5 rounded-md text-xs font-semibold"
                             >
@@ -1811,7 +1813,7 @@ const AdminDashboardPage: React.FC = () => {
       </div>
       {addTableFor && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center">
-          <div className="bg-gray-900 border border-gray-700 p-6 rounded-lg w-full max-w-md shadow-xl">
+          <div className="bg-gray-900 border border-gray-700 p-6 rounded-lg w-full max-w-lg shadow-xl">
             <h3 className="text-lg font-semibold mb-4">
               Add Table for{" "}
               <span className="font-mono text-cyan-400">
@@ -1826,7 +1828,6 @@ const AdminDashboardPage: React.FC = () => {
                   Table Number
                 </label>
                 <input
-                  type="number"
                   className="w-full bg-gray-800 text-gray-200 border border-gray-700 rounded-md p-2"
                   value={tableNumber}
                   onChange={(e) => setTableNumber(e.target.value)}
@@ -1837,7 +1838,6 @@ const AdminDashboardPage: React.FC = () => {
                   Capacity
                 </label>
                 <input
-                  type="number"
                   className="w-full bg-gray-800 text-gray-200 border border-gray-700 rounded-md p-2"
                   value={capacity}
                   onChange={(e) => setCapacity(e.target.value)}
@@ -1869,16 +1869,14 @@ const AdminDashboardPage: React.FC = () => {
                     setTableError("Table number and capacity are required.");
                     return;
                   }
-
                   setIsSavingTable(true);
                   setTableError(null);
-
-                  const tableName = `Table ${tableNumber}`;
-
-                  const res = await apiAddTable(addTableFor!, {
-                    table_number: Number(tableNumber),
+                  const res = await apiAddTable({
+                    table_number: tableNumber,
                     capacity: Number(capacity),
-                    table_name: tableName, // 🔥 passes table_name properly
+                    is_booked: false,
+                    is_active: true,
+                    outlet_id: addTableFor?.id || null,
                   });
 
                   if (res.error) {
@@ -1894,6 +1892,87 @@ const AdminDashboardPage: React.FC = () => {
                 }}
               >
                 {isSavingTable ? "Saving..." : "Save Table"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {TableId && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center">
+          <div className="bg-gray-900 border border-gray-700 p-6 rounded-lg w-full max-w-lg shadow-xl">
+            <h3 className="text-lg font-semibold mb-4">
+              Update Table {TableId?.table_number}
+            </h3>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm text-gray-300 mb-1">
+                  Table Number
+                </label>
+                <input
+                  className="w-full bg-gray-800 text-gray-200 border border-gray-700 rounded-md p-2"
+                  value={tableNumber}
+                  onChange={(e) => setTableNumber(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-300 mb-1">
+                  Capacity
+                </label>
+                <input
+                  className="w-full bg-gray-800 text-gray-200 border border-gray-700 rounded-md p-2"
+                  value={capacity}
+                  onChange={(e) => setCapacity(e.target.value)}
+                />
+              </div>
+              {tableError && (
+                <p className="text-sm text-red-400">{tableError}</p>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                className="px-4 py-2 text-sm rounded-md border border-gray-600 text-gray-200 hover:bg-gray-800"
+                disabled={isSavingTable}
+                onClick={() => {
+                  setTableId(null);
+                  setTableNumber("");
+                  setCapacity("");
+                  setTableError(null);
+                }}
+              >
+                Close
+              </button>
+              <button
+                className="px-4 py-2 text-sm rounded-md bg-cyan-600 text-white hover:bg-cyan-500 disabled:opacity-60"
+                disabled={isSavingTable}
+                onClick={async () => {
+                  if (!tableNumber || !capacity || !TableId?.table_number || !TableId?.capacity) {
+                    setTableError("Table number and capacity are required.");
+                    return;
+                  }
+                  setIsSavingTable(true);
+                  setTableError(null);
+                  const res = await apiUpdateTable(TableId?.id || "", {
+                    table_number: tableNumber || TableId?.table_number || "",
+                    capacity: Number(capacity) || TableId?.capacity || 0,
+                    is_booked: false,
+                    is_active: true,
+                    outlet_id: TableId?.outlet_id || null,
+                  });
+
+                  if (res.error) {
+                    setTableError(res.error);
+                  } else {
+                    setTableId(null);
+                    setTableNumber("");
+                    setCapacity("");
+                    await fetchRestaurants(); // reload restaurants
+                  }
+                  setIsSavingTable(false);
+                }}
+              >
+                {isSavingTable ? "Updating..." : "Update Table"}
               </button>
             </div>
           </div>
@@ -1953,10 +2032,15 @@ const AdminDashboardPage: React.FC = () => {
       )}
       {showTablesFor && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center">
-          <div className="bg-gray-900 border border-gray-700 p-6 rounded-lg w-full max-w-md shadow-xl">
+          <div className="bg-gray-900 border border-gray-700 p-6 rounded-lg w-full max-w-[52rem] shadow-xl">
             <h3 className="text-lg font-semibold flex items-center justify-between mb-4">
               Tables for{" "}
-              <span className="font-mono text-cyan-400">{showTablesFor}</span>
+              <span className="font-mono text-cyan-400">
+                {" "}
+                {showTablesFor?.restaurants?.name ||
+                  "Unknown Restaurant"} -{" "}
+                {showTablesFor?.address || "No Address"}
+              </span>
               <button
                 className="text-gray-400 hover:text-white"
                 onClick={() => {
@@ -1980,22 +2064,48 @@ const AdminDashboardPage: React.FC = () => {
                     className="flex justify-between bg-gray-800 border border-gray-700 px-3 py-2 rounded"
                   >
                     <span className="text-sm">
-                      {t.table_name} ({t.capacity} seats)
+                      {t.table_number} ({t.capacity} seats)
                     </span>
-
-                    <button
-                      className={`px-2 py-1 rounded text-xs text-white ${
-                        t.is_active
-                          ? "bg-green-600 hover:bg-green-500"
-                          : "bg-red-600 hover:bg-red-500"
-                      }`}
-                      onClick={async () => {
-                        await apiToggleTable(t.id, !t.is_active);
-                        loadTables(showTablesFor!);
-                      }}
-                    >
-                      {t.is_active ? "Active" : "Inactive"}
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        className={`px-2 py-1 rounded text-xs text-white ${
+                          t.is_active
+                            ? "bg-green-600 hover:bg-green-500"
+                            : "bg-red-600 hover:bg-red-500"
+                        }`}
+                        onClick={async () => {
+                          console.log(t);
+                          await apiToggleTable(t.id, !t.is_active);
+                          loadTables(showTablesFor.id!);
+                        }}
+                      >
+                        {t.is_active ? "Active" : "Inactive"}
+                      </button>
+                      <button
+                        className={`px-2 py-1 rounded text-xs text-white ${
+                          !t.is_booked
+                            ? "bg-green-600 hover:bg-green-500"
+                            : "bg-red-600 hover:bg-red-500"
+                        }`}
+                        // onClick={async () => {
+                        //   await apiToggleTable(t.id, !t.is_booked);
+                        //   loadTables(showTablesFor.id!);
+                        // }}
+                      >
+                        Seats {t.is_booked ? "Booked" : "Available"}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setTableId(t);
+                          setTableNumber(t.table_number);
+                          setCapacity(t.capacity);                          
+                          setShowTablesFor(null);
+                        }}
+                        className={`px-2 py-1 rounded text-xs text-white bg-cyan-600 hover:bg-cyan-500`}
+                      >
+                        Edit
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -2003,7 +2113,7 @@ const AdminDashboardPage: React.FC = () => {
           </div>
         </div>
       )}
-      {TableId &&
+      {restaurentid &&
         (loadingTables ? (
           <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center">
             <Spinner className="w-8 h-8" />
@@ -2027,7 +2137,7 @@ const AdminDashboardPage: React.FC = () => {
                   Restaurant Details
                 </h3>
                 <button
-                  onClick={() => setTableId(null)}
+                  onClick={() => setrestaurentid(null)}
                   className="text-gray-400 hover:text-gray-200 transition-colors"
                   aria-label="Close"
                 >
@@ -2205,17 +2315,14 @@ const AdminDashboardPage: React.FC = () => {
                 {/* Action Buttons */}
                 <div className="flex gap-3 pt-4">
                   <button
-                    onClick={() => setTableId(null)}
+                    onClick={() => setrestaurentid(null)}
                     className="flex-1 bg-gray-700 hover:bg-gray-600 text-gray-200 px-4 py-2 rounded-md transition-colors"
                   >
                     Close
                   </button>
                   <button
                     onClick={() => {
-                      // Add your save logic here
-                      console.log("Saving restaurant details...");
                       handleUpdateRestaurant();
-                      // setTableId(null); // Uncomment to close after saving
                     }}
                     disabled={isUploading}
                     className="flex-1 bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
