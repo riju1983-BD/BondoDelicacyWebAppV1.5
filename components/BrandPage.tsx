@@ -21,6 +21,7 @@ import {
 } from "../services/apiService";
 import { ItemData } from "@/model/menu_list";
 import AddonModal, { EnrichedItemData } from "./AddonModal";
+import { IMAGE_BASE_URL, SUPABASE_URL } from "../src/config";
 const buildCartKey = (item: any) => {
   const variationPart = item.selectedVariation?.variationid ?? "no-variation";
 
@@ -266,6 +267,8 @@ interface BrandPageProps {
 
 const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
   const id = localStorage.getItem("selectedRestaurantId") || "";
+  console.log(id);
+
   // ✅ rest id comes from landing page selection
   const restId = localStorage.getItem("selectedPetpoojaOutletId") || "";
 
@@ -330,24 +333,26 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
       return;
     }
 
-    const loadRestaurant = async () => {
-      setRestaurantLoading(true);
-      setRestaurantError("");
-
-      try {
-        const r = await apiGetRestaurantById(id); // ✅ ACTUAL CALL
-        setRestaurant(r);
-      } catch (e: any) {
-        setRestaurantError(e?.message || "Failed to load restaurant");
-        setRestaurant(null);
-      } finally {
-        setRestaurantLoading(false);
-      }
-    };
-
     loadRestaurant();
   }, [id]);
+  const loadRestaurant = async () => {
+    console.log("hii");
 
+    setRestaurantLoading(true);
+    setRestaurantError("");
+
+    try {
+      const r = await apiGetRestaurantById(id);
+      console.log(r);
+      // ✅ ACTUAL CALL
+      setRestaurant(r.data);
+    } catch (e: any) {
+      setRestaurantError(e?.message || "Failed to load restaurant");
+      setRestaurant(null);
+    } finally {
+      setRestaurantLoading(false);
+    }
+  };
   // ✅ load categories + first menu
   useEffect(() => {
     const loadMenu = async () => {
@@ -614,7 +619,9 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
 
   const handleScrollTo = (id: string) =>
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
-
+  var LogoURL = `${SUPABASE_URL}/${IMAGE_BASE_URL}/restaurant-images/${restaurant?.logo}`;
+  var aboutURL = `${SUPABASE_URL}/${IMAGE_BASE_URL}/restaurant-images/${restaurant?.about_image}`;
+  var heroURL = `${SUPABASE_URL}/${IMAGE_BASE_URL}/restaurant-images/${restaurant?.hero_image}`;
   // ✅ map restaurant -> theme + UI fields (fallbacks)
   const themePrimary = restaurant?.theme_primary || "#ff0000";
   const themeAccent = restaurant?.theme_accent || "#e5f502";
@@ -624,13 +631,13 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
   const restaurantTagline = restaurant?.tagline || restaurantName;
 
   const heroImage =
-    restaurant?.hero_image ||
+    heroURL ||
     "https://images.unsplash.com/photo-1604329760661-e71dc83f8f26?q=80&w=2070&auto=format&fit=crop";
 
-  const aboutImage = restaurant?.about_image || heroImage;
+  const aboutImage = aboutURL || heroImage;
   const aboutText = restaurant?.about_text || restaurant?.description || "";
 
-  const logo = restaurant?.logo || "https://placehold.co/160x60?text=Logo";
+  const logo = LogoURL || "https://placehold.co/160x60?text=Logo";
 
   // if you have a gallery column as array/json, use it; else fallback
   const gallery =
