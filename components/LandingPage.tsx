@@ -8,7 +8,7 @@ import {
   apiGetOutlet,
   apiResolveRestaurantByName,
 } from "../services/apiService";
-
+import { IMAGE_BASE_URL, SUPABASE_URL } from "../src/config";
 interface LandingPageProps {
   onSelectBrand: (petpoojaOutletId: string, resturentId: string) => void;
 }
@@ -55,6 +55,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
   const [resolveError, setResolveError] = useState<string | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [locationName, setLocationName] = useState<string | null>(null);
+
   const handleNavigate = (hash: string) => {
     window.location.hash = hash;
   };
@@ -183,8 +184,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
   }, []);
   const closestOutlet = resolvedOutlet
     ? restaurants.find(
-        (r) => r.petpooja_outlet_id === resolvedOutlet.petpooja_outlet_id,
-      )
+      (r) => r.petpooja_outlet_id === resolvedOutlet.petpooja_outlet_id,
+    )
     : null;
 
   return (
@@ -333,12 +334,12 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
                 restaurant.logo || "https://placehold.co/160x60?text=Logo";
 
               return (
+
                 <div
                   key={outlet.id}
                   onClick={() => {
                     if (closed) return;
 
-                    // keep outlet context if needed later
                     localStorage.setItem(
                       "selectedPetpoojaOutletId",
                       outlet.petpooja_outlet_id,
@@ -348,7 +349,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
                       outlet.restaurants.id,
                     );
 
-                    // IMPORTANT: pass restaurant UUID
                     onSelectBrand(
                       outlet.petpooja_outlet_id,
                       outlet.restaurants.id,
@@ -356,43 +356,51 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
                     );
                   }}
                   className={[
-                    "group relative h-[350px] rounded-2xl overflow-hidden shadow-2xl transition-all duration-500",
+                    "group relative h-[320px] rounded-2xl overflow-hidden transition-all duration-500 shadow-xl",
                     closed
                       ? "cursor-not-allowed grayscale"
                       : "cursor-pointer transform hover:-translate-y-2",
                   ].join(" ")}
                 >
+                  {/* Background image */}
                   <div className="absolute inset-0">
                     <img
-                      src={`https://nldgaczpzfmwamivniua.supabase.co/storage/v1/object/public/restaurant-images/${hero}`}
+                      src={`${SUPABASE_URL}/${IMAGE_BASE_URL}/restaurant-images/${hero}`}
                       alt={restaurant.name}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent opacity-85 group-hover:opacity-95 transition-opacity" />
                   </div>
 
+                  {/* Closed badge */}
                   {closed && (
-                    <div className="absolute top-4 right-4 z-20 text-xs font-semibold px-3 py-1 rounded-full bg-red-600/90">
+                    <div className="absolute top-4 right-4 z-20 text-xs font-semibold px-3 py-1 rounded-full bg-red-600/90 text-white">
                       Closed
                     </div>
                   )}
 
-                  <div className="absolute inset-0 p-6 flex flex-col justify-end">
-                    <img
-                      src={`https://nldgaczpzfmwamivniua.supabase.co/storage/v1/object/public/restaurant-images/${logo}`}
-                      alt={`${restaurant.name} logo`}
-                      className="h-12 w-auto mb-4 bg-white/10 rounded px-2 py-1"
-                    />
+                  {/* Content */}
+                  <div className="absolute inset-0 p-5 flex flex-col justify-end">
+                    <div className="transform translate-y-2 group-hover:translate-y-0 transition-transform duration-500">
+                      <img
+                        src={`${SUPABASE_URL}/${IMAGE_BASE_URL}/restaurant-images/${logo}`}
+                        alt={`${restaurant.name} logo`}
+                        className="h-10 w-auto mb-3 bg-white/10 rounded px-2 py-1"
+                      />
 
-                    <h3 className="text-2xl font-serif font-bold text-white mb-2">
-                      {restaurant.name}
-                    </h3>
+                      <h3 className="text-2xl font-serif font-bold text-white mb-2">
+                        {restaurant.name}
+                      </h3>
 
-                    <p className="text-gray-300 text-sm line-clamp-3">
-                      {restaurant.tagline || restaurant.description}
-                    </p>
+                      <div className="h-1 w-16 bg-cyan-500 mb-3 transform scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-500" />
+
+                      <p className="text-gray-300 text-sm opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-75 line-clamp-3">
+                        {restaurant.tagline || restaurant.description}
+                      </p>
+                    </div>
                   </div>
                 </div>
+
               );
             })()
           )}

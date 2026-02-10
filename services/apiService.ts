@@ -27,8 +27,9 @@ export async function apiResolveRestaurantByName(payload: {
   lat: number;
   lng: number;
 }) {
+
   const res = await fetch(
-    `http://localhost:3000/api/resturents/resolve-by-name`,
+    `${BASE_URL}/resturents/resolve-by-name`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -485,6 +486,7 @@ export const apiGetUserById = async (userId: string): Promise<User | null> => {
     .select("*")
     .eq("id", userId)
     .maybeSingle();
+
   if (profileError || !profile) return null;
 
   // 2. Check admin status
@@ -498,45 +500,66 @@ export const apiGetUserById = async (userId: string): Promise<User | null> => {
   // 3. Fetch addresses
   const addresses = await apiGetUserAddresses(userId);
 
+  // ✅ Normalize dietary preferences (CRITICAL)
+  const dietary = profile.dietary_preferences || {};
+  const normalize = (v: any) =>
+    Array.isArray(v) ? v : v ? [v] : [];
+
+  const dietaryPreferences = {
+    likes: normalize(dietary.likes),
+    dislikes: normalize(dietary.dislikes),
+    allergies: normalize(dietary.allergies),
+  };
+
   return {
     id: profile.id,
     name: profile.name,
     email: profile.email || "",
     phone: profile.phone,
     passwordHash: "",
-    isAdmin: isAdmin,
+    isAdmin,
     loyaltyPoints: profile.loyalty_points || [],
     dob: profile.dob,
     anniversaryDate: profile.anniversary_date,
-    dietaryPreferences: profile.dietary_preferences,
-    addresses: addresses,
+    dietaryPreferences,
+    addresses,
   };
 };
 
+
 export const apiUpdateUser = async (
   userId: string,
-  updates: Partial<User>,
+  updates: Partial<User>
 ): Promise<User> => {
   const dbUpdates: any = {};
+
   if (updates.name) dbUpdates.name = updates.name;
   if (updates.phone) dbUpdates.phone = updates.phone;
   if (updates.dob) dbUpdates.dob = updates.dob;
   if (updates.anniversaryDate)
     dbUpdates.anniversary_date = updates.anniversaryDate;
-  if (updates.dietaryPreferences)
-    dbUpdates.dietary_preferences = updates.dietaryPreferences;
-  // Address updates are now handled via apiSaveUserAddress, but we keep this for other profile fields
+
+  // ✅ Ensure dietaryPreferences always stored as arrays
+  if (updates.dietaryPreferences) {
+    dbUpdates.dietary_preferences = {
+      likes: updates.dietaryPreferences.likes || [],
+      dislikes: updates.dietaryPreferences.dislikes || [],
+      allergies: updates.dietaryPreferences.allergies || [],
+    };
+  }
 
   if (Object.keys(dbUpdates).length > 0) {
     const { error } = await supabase
       .from("profiles")
       .update(dbUpdates)
       .eq("id", userId);
+
     if (error) handleSupabaseError(error, "Update User");
   }
 
   return apiGetUserById(userId) as Promise<User>;
 };
+
 
 // --- Order API ---
 export const apiGetUserOrders = async (userId: string): Promise<Order[]> => {

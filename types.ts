@@ -94,10 +94,11 @@ export interface User {
   dob?: string;
   anniversaryDate?: string;
 
+
   dietaryPreferences?: {
-    likes?: string;
-    dislikes?: string;
-    allergies?: string;
+    likes: string[];
+    dislikes: string[];
+    allergies: string[];
   };
 
   addresses?: DeliveryAddress[];

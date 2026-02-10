@@ -151,17 +151,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         // Always update the profile row when it is created by trigger
         setTimeout(async () => {
+            const safeDiet = {
+                likes: Array.isArray(dietaryPreferences?.likes) ? dietaryPreferences.likes : [],
+                dislikes: Array.isArray(dietaryPreferences?.dislikes) ? dietaryPreferences.dislikes : [],
+                allergies: Array.isArray(dietaryPreferences?.allergies) ? dietaryPreferences.allergies : [],
+            };
+
             const { error } = await supabase.from("profiles").update({
                 dob: dob || null,
-                dietary_preferences: {
-                    likes: dietaryPreferences?.likes || "",
-                    dislikes: dietaryPreferences?.dislikes || "",
-                    allergies: dietaryPreferences?.allergies || ""
-                }
+                dietary_preferences: safeDiet
             }).eq("id", data.user.id);
 
             if (error) console.error("Profile update failed:", error);
         }, 1500);
+
     };
 
 
