@@ -182,10 +182,10 @@ const AdminDashboardPage: React.FC = () => {
     setIsUploading(true);
 
     try {
-      if (!TableId) throw new Error("Please enter Rest ID first");
+      if (!restaurentid) throw new Error("Please enter Rest ID first");
 
       const form = new FormData();
-      form.append("id", TableId);
+      form.append("id", restaurentid);
       form.append("type", type);
       form.append("file", file);
 
@@ -962,7 +962,7 @@ const AdminDashboardPage: React.FC = () => {
             All Restaurants
           </button>
 
-          <button
+          {/* <button
             onClick={() => setActiveTab("addRestaurant")}
             className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "addRestaurant"
                 ? "border-b-2 border-cyan-400 text-cyan-400"
@@ -970,7 +970,7 @@ const AdminDashboardPage: React.FC = () => {
               }`}
           >
             Add Restaurant
-          </button>
+          </button> */}
           <button
             onClick={() => {
               setActiveTab("Outlet");
@@ -1055,215 +1055,216 @@ const AdminDashboardPage: React.FC = () => {
             )}
           </div>
         )}
-        {activeTab === "addRestaurant" && (
-          <div className="animate-fade-in max-w-2xl mx-auto space-y-6">
-            <h2 className="text-2xl font-semibold text-center">
-              Add Restaurant
-            </h2>
+    
+    {activeTab === "addRestaurant" && (
+          // <div className="animate-fade-in max-w-2xl mx-auto space-y-6">
+          //   <h2 className="text-2xl font-semibold text-center">
+          //     Add Restaurant
+          //   </h2>
 
-            {/* STEP 1: ENTER REST ID */}
-            <div className="space-y-2">
-              <label className="text-gray-300 text-sm">
-                PetPuja Restaurant ID
-              </label>
-              <input
-                type="text"
-                value={restId}
-                onChange={(e) => {
-                  setRestId(e.target.value);
-                  setFetchedData(null);
-                }}
-                placeholder="e.g. c9ignw2k50"
-                className="w-full bg-gray-800 text-gray-200 border border-gray-700 rounded-md p-3"
-              />
+          //   {/* STEP 1: ENTER REST ID */}
+          //   <div className="space-y-2">
+          //     <label className="text-gray-300 text-sm">
+          //       PetPuja Restaurant ID
+          //     </label>
+          //     <input
+          //       type="text"
+          //       value={restId}
+          //       onChange={(e) => {
+          //         setRestId(e.target.value);
+          //         setFetchedData(null);
+          //       }}
+          //       placeholder="e.g. c9ignw2k50"
+          //       className="w-full bg-gray-800 text-gray-200 border border-gray-700 rounded-md p-3"
+          //     />
 
-              <button
-                onClick={handleFetchRestaurantData}
-                disabled={!restId || isFetching}
-                className="bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-md disabled:opacity-60 flex items-center gap-2"
-              >
-                {isFetching ? <Spinner className="w-4 h-4" /> : null}
-                Fetch Data
-              </button>
-            </div>
+          //     <button
+          //       onClick={handleFetchRestaurantData}
+          //       disabled={!restId || isFetching}
+          //       className="bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-md disabled:opacity-60 flex items-center gap-2"
+          //     >
+          //       {isFetching ? <Spinner className="w-4 h-4" /> : null}
+          //       Fetch Data
+          //     </button>
+          //   </div>
 
-            {/* STEP 2: SHOW AUTO-FETCHED DATA */}
-            {/* STEP 2.5: EDIT FIELDS + UPLOADS */}
-            {fetchedData && (
-              <div className="bg-gray-900 border border-gray-700 rounded-md p-5 space-y-4">
-                <h3 className="text-lg font-semibold text-cyan-400">
-                  Restaurant Details
-                </h3>
+          //   {/* STEP 2: SHOW AUTO-FETCHED DATA */}
+          //   {/* STEP 2.5: EDIT FIELDS + UPLOADS */}
+          //   {fetchedData && (
+          //     <div className="bg-gray-900 border border-gray-700 rounded-md p-5 space-y-4">
+          //       <h3 className="text-lg font-semibold text-cyan-400">
+          //         Restaurant Details
+          //       </h3>
 
-                <div>
-                  <label className="text-gray-400 text-sm">Tagline</label>
-                  <input
-                    type="text"
-                    value={tagline}
-                    onChange={(e) => setTagline(e.target.value)}
-                    placeholder="Short tagline"
-                    className="w-full bg-gray-800 text-gray-200 border border-gray-700 rounded-md p-3"
-                  />
-                </div>
+          //       <div>
+          //         <label className="text-gray-400 text-sm">Tagline</label>
+          //         <input
+          //           type="text"
+          //           value={tagline}
+          //           onChange={(e) => setTagline(e.target.value)}
+          //           placeholder="Short tagline"
+          //           className="w-full bg-gray-800 text-gray-200 border border-gray-700 rounded-md p-3"
+          //         />
+          //       </div>
 
-                <div>
-                  <label className="text-gray-400 text-sm">Description</label>
-                  <textarea
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="About this restaurant"
-                    className="w-full bg-gray-800 text-gray-200 border border-gray-700 rounded-md p-3 h-24"
-                  />
-                </div>
+          //       <div>
+          //         <label className="text-gray-400 text-sm">Description</label>
+          //         <textarea
+          //           value={description}
+          //           onChange={(e) => setDescription(e.target.value)}
+          //           placeholder="About this restaurant"
+          //           className="w-full bg-gray-800 text-gray-200 border border-gray-700 rounded-md p-3 h-24"
+          //         />
+          //       </div>
 
-                <div className="grid sm:grid-cols-2 gap-4">
-                  {/* LOGO */}
-                  <div className="space-y-2">
-                    <label className="text-gray-400 text-sm">Logo</label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      disabled={isUploading}
-                      onChange={async (e) => {
-                        const file = e.target.files?.[0];
-                        if (!file) return;
+          //       <div className="grid sm:grid-cols-2 gap-4">
+          //         {/* LOGO */}
+          //         <div className="space-y-2">
+          //           <label className="text-gray-400 text-sm">Logo</label>
+          //           <input
+          //             type="file"
+          //             accept="image/*"
+          //             disabled={isUploading}
+          //             onChange={async (e) => {
+          //               const file = e.target.files?.[0];
+          //               if (!file) return;
 
-                        // instant preview
-                        const localUrl = URL.createObjectURL(file);
-                        setLogoUrl(localUrl);
+          //               // instant preview
+          //               const localUrl = URL.createObjectURL(file);
+          //               setLogoUrl(localUrl);
 
-                        // upload to storage
-                        const url = await uploadImage(file, "logo");
-                        if (url) setLogoUrl(url);
-                      }}
-                      className="w-full text-sm text-gray-300"
-                    />
-                    <img
-                      src={logoUrl || DEFAULT_IMAGE}
-                      alt="Logo Preview"
-                      className="w-full h-40 object-cover border border-gray-700 rounded"
-                    />
-                  </div>
+          //               // upload to storage
+          //               const url = await uploadImage(file, "logo");
+          //               if (url) setLogoUrl(url);
+          //             }}
+          //             className="w-full text-sm text-gray-300"
+          //           />
+          //           <img
+          //             src={logoUrl || DEFAULT_IMAGE}
+          //             alt="Logo Preview"
+          //             className="w-full h-40 object-cover border border-gray-700 rounded"
+          //           />
+          //         </div>
 
-                  {/* HERO IMAGE */}
-                  <div className="space-y-2">
-                    <label className="text-gray-400 text-sm">Hero Image</label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      disabled={isUploading}
-                      onChange={async (e) => {
-                        const file = e.target.files?.[0];
-                        if (!file) return;
+          //         {/* HERO IMAGE */}
+          //         <div className="space-y-2">
+          //           <label className="text-gray-400 text-sm">Hero Image</label>
+          //           <input
+          //             type="file"
+          //             accept="image/*"
+          //             disabled={isUploading}
+          //             onChange={async (e) => {
+          //               const file = e.target.files?.[0];
+          //               if (!file) return;
 
-                        const localUrl = URL.createObjectURL(file);
-                        setHeroImageUrl(localUrl);
+          //               const localUrl = URL.createObjectURL(file);
+          //               setHeroImageUrl(localUrl);
 
-                        const url = await uploadImage(file, "hero");
-                        if (url) setHeroImageUrl(url);
-                      }}
-                      className="w-full text-sm text-gray-300"
-                    />
-                    <img
-                      src={heroImageUrl || DEFAULT_IMAGE}
-                      alt="Hero Preview"
-                      className="w-full h-40 object-cover border border-gray-700 rounded"
-                    />
-                  </div>
-                </div>
+          //               const url = await uploadImage(file, "hero");
+          //               if (url) setHeroImageUrl(url);
+          //             }}
+          //             className="w-full text-sm text-gray-300"
+          //           />
+          //           <img
+          //             src={heroImageUrl || DEFAULT_IMAGE}
+          //             alt="Hero Preview"
+          //             className="w-full h-40 object-cover border border-gray-700 rounded"
+          //           />
+          //         </div>
+          //       </div>
 
-                <div>
-                  <label className="text-gray-400 text-sm">About Text</label>
-                  <textarea
-                    value={aboutText}
-                    onChange={(e) => setAboutText(e.target.value)}
-                    placeholder="Story / about section"
-                    className="w-full bg-gray-800 text-gray-200 border border-gray-700 rounded-md p-3 h-24"
-                  />
-                </div>
+          //       <div>
+          //         <label className="text-gray-400 text-sm">About Text</label>
+          //         <textarea
+          //           value={aboutText}
+          //           onChange={(e) => setAboutText(e.target.value)}
+          //           placeholder="Story / about section"
+          //           className="w-full bg-gray-800 text-gray-200 border border-gray-700 rounded-md p-3 h-24"
+          //         />
+          //       </div>
 
-                {/* ABOUT IMAGE */}
-                <div className="space-y-2">
-                  <label className="text-gray-400 text-sm">About Image</label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    disabled={isUploading}
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
+          //       {/* ABOUT IMAGE */}
+          //       <div className="space-y-2">
+          //         <label className="text-gray-400 text-sm">About Image</label>
+          //         <input
+          //           type="file"
+          //           accept="image/*"
+          //           disabled={isUploading}
+          //           onChange={async (e) => {
+          //             const file = e.target.files?.[0];
+          //             if (!file) return;
 
-                      const localUrl = URL.createObjectURL(file);
-                      setAboutImageUrl(localUrl);
-                      const url = await uploadImage(file, "about");
-                      if (url) setAboutImageUrl(url);
-                    }}
-                    className="w-full text-sm text-gray-300"
-                  />
-                  <img
-                    src={aboutImageUrl || DEFAULT_IMAGE}
-                    alt="About Preview"
-                    className="w-full h-56 object-cover border border-gray-700 rounded"
-                  />
-                </div>
+          //             const localUrl = URL.createObjectURL(file);
+          //             setAboutImageUrl(localUrl);
+          //             const url = await uploadImage(file, "about");
+          //             if (url) setAboutImageUrl(url);
+          //           }}
+          //           className="w-full text-sm text-gray-300"
+          //         />
+          //         <img
+          //           src={aboutImageUrl || DEFAULT_IMAGE}
+          //           alt="About Preview"
+          //           className="w-full h-56 object-cover border border-gray-700 rounded"
+          //         />
+          //       </div>
 
-                {uploadError ? (
-                  <p className="text-sm text-red-400">{uploadError}</p>
-                ) : null}
+          //       {uploadError ? (
+          //         <p className="text-sm text-red-400">{uploadError}</p>
+          //       ) : null}
 
-                {isUploading ? (
-                  <p className="text-xs text-gray-400 flex items-center gap-2">
-                    <Spinner className="w-4 h-4" /> Uploading image...
-                  </p>
-                ) : null}
-              </div>
-            )}
+          //       {isUploading ? (
+          //         <p className="text-xs text-gray-400 flex items-center gap-2">
+          //           <Spinner className="w-4 h-4" /> Uploading image...
+          //         </p>
+          //       ) : null}
+          //     </div>
+          //   )}
 
-            {/* STEP 3: THEME INPUTS */}
-            <div className="bg-gray-900 border border-gray-700 p-5 rounded-md space-y-4">
-              <h3 className="text-lg font-semibold text-cyan-400">
-                Theme Configuration
-              </h3>
+          //   {/* STEP 3: THEME INPUTS */}
+          //   <div className="bg-gray-900 border border-gray-700 p-5 rounded-md space-y-4">
+          //     <h3 className="text-lg font-semibold text-cyan-400">
+          //       Theme Configuration
+          //     </h3>
 
-              <input
-                type="color"
-                value={themePrimary}
-                onChange={(e) => setThemePrimary(e.target.value)}
-                className="w-full h-10 cursor-pointer"
-              />
-              <label className="text-gray-400 text-sm">Primary Color</label>
+          //     <input
+          //       type="color"
+          //       value={themePrimary}
+          //       onChange={(e) => setThemePrimary(e.target.value)}
+          //       className="w-full h-10 cursor-pointer"
+          //     />
+          //     <label className="text-gray-400 text-sm">Primary Color</label>
 
-              <input
-                type="color"
-                value={themeAccent}
-                onChange={(e) => setThemeAccent(e.target.value)}
-                className="w-full h-10 cursor-pointer"
-              />
-              <label className="text-gray-400 text-sm">Accent Color</label>
+          //     <input
+          //       type="color"
+          //       value={themeAccent}
+          //       onChange={(e) => setThemeAccent(e.target.value)}
+          //       className="w-full h-10 cursor-pointer"
+          //     />
+          //     <label className="text-gray-400 text-sm">Accent Color</label>
 
-              <input
-                type="color"
-                value={themeText}
-                onChange={(e) => setThemeText(e.target.value)}
-                className="w-full h-10 cursor-pointer"
-              />
-              <label className="text-gray-400 text-sm">
-                Text Color On Primary
-              </label>
-            </div>
+          //     <input
+          //       type="color"
+          //       value={themeText}
+          //       onChange={(e) => setThemeText(e.target.value)}
+          //       className="w-full h-10 cursor-pointer"
+          //     />
+          //     <label className="text-gray-400 text-sm">
+          //       Text Color On Primary
+          //     </label>
+          //   </div>
 
-            {/* STEP 4: SUBMIT */}
-            <button
-              disabled={!fetchedData || isSubmitting || isUploading}
-              onClick={handleSubmitRestaurant}
-              className="w-full bg-green-600 hover:bg-green-500 text-white px-4 py-3 rounded-md font-semibold disabled:opacity-50 flex justify-center gap-2"
-            >
-              {isSubmitting ? <Spinner className="w-5 h-5" /> : null}
-              Save Restaurant
-            </button>
-          </div>
+          //   {/* STEP 4: SUBMIT */}
+          //   <button
+          //     disabled={!fetchedData || isSubmitting || isUploading}
+          //     onClick={handleSubmitRestaurant}
+          //     className="w-full bg-green-600 hover:bg-green-500 text-white px-4 py-3 rounded-md font-semibold disabled:opacity-50 flex justify-center gap-2"
+          //   >
+          //     {isSubmitting ? <Spinner className="w-5 h-5" /> : null}
+          //     Save Restaurant
+          //   </button>
+          // </div>
+          <></>
         )}
-
         {activeTab === "restaurants" && (
           <div className="animate-fade-in">
             {isLoadingRestaurants ? (

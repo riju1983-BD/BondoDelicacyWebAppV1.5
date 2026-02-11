@@ -1013,6 +1013,7 @@ export const apiCreateReservation = async (
     guests: number;
     requests: string;
     tableId?: string;
+    tablenumber?: string;
   },
 ) => {
   const payload = {
@@ -1023,7 +1024,8 @@ export const apiCreateReservation = async (
     date: form.date,
     time: form.time,
     guests: form.guests,
-    tableId: form.tableId, // ✅ backend expects tableId
+    tableId: form.tableId, 
+    tablenumber: form.tablenumber,// ✅ backend expects tableId
     requests: form.requests || null,
   };
 
@@ -1050,7 +1052,7 @@ export const apiUpdateReservation = async (
     .update(updates)
     .eq("id", resId)
     .select()
-    .single();
+ .maybeSingle();
   if (error) handleSupabaseError(error, "Update Reservation");
   return mapDbReservation(data);
 };

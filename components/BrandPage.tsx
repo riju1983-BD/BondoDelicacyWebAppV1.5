@@ -204,6 +204,7 @@ const CartIcon: React.FC<{ onClick: () => void }> = ({ onClick }) => {
   );
 };
 
+// ✅ Better TableMap - shows booked/small tables as disabled with reason
 const TableMap: React.FC<{
   tables: RestaurantTable[];
   selectedTableId: string | undefined;
@@ -212,55 +213,98 @@ const TableMap: React.FC<{
   if (tables.length === 0)
     return (
       <div className="text-center p-6 bg-gray-700/50 rounded-md border border-dashed border-gray-600 text-gray-400">
-        No tables available for this slot. Please try another time.
+        No tables found. Please try another time.
       </div>
     );
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-4">
-      {tables.map((table: any) => {
-        const isBooked = table._status === "booked";
-        const isSelected = selectedTableId === table.id && !isBooked;
+    <>
+      {/* Legend */}
+      <div className="flex gap-4 text-xs text-gray-400 mb-3">
+        <span className="flex items-center gap-1">
+          <span className="w-3 h-3 rounded-full bg-green-500 inline-block" />{" "}
+          Available
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="w-3 h-3 rounded-full bg-red-500 inline-block" />{" "}
+          Booked
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="w-3 h-3 rounded-full bg-yellow-600 inline-block" />{" "}
+          Too Small
+        </span>
+      </div>
 
-        return (
-          <button
-            key={table.id}
-            type="button"
-            disabled={isBooked}
-            onClick={() => !isBooked && onSelect(table.id)}
-            className={`p-4 rounded-lg border-2 flex flex-col items-center justify-center transition-all
-              ${isBooked ? "opacity-50 cursor-not-allowed border-red-500 bg-red-900/20" : ""}
-              ${isSelected ? "border-[var(--accent-color)] bg-[var(--primary-color)]/20" : ""}
-              ${!isSelected && !isBooked ? "border-gray-600 bg-gray-800 hover:border-gray-500" : ""}
-            `}
-          >
-            <Icon
-              type="users"
-              className={`w-8 h-8 mb-2 ${
-                isBooked
-                  ? "text-red-500"
-                  : isSelected
-                    ? "text-[var(--accent-color)]"
-                    : "text-gray-500"
-              }`}
-            />
-            <span className="font-semibold text-white">{table.name}</span>
-            <span className="text-xs text-gray-400">
-              {table.capacity} Seats
-            </span>
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-2">
+        {tables.map((table: any) => {
+          const isBooked = table._status === "booked";
+          const isTooSmall = table._status === "too_small";
+          const isDisabled = isBooked || isTooSmall;
+          const isSelected = selectedTableId === table.id && !isDisabled;
 
-            {isBooked && (
-              <span className="mt-1 text-xs text-red-400 font-semibold">
-                Booked
+          return (
+            <button
+              key={table.id}
+              type="button"
+              disabled={isDisabled}
+              onClick={() => !isDisabled && onSelect(table.id)}
+              className={`
+                p-4 rounded-lg border-2 flex flex-col items-center justify-center transition-all relative
+                ${isBooked ? "opacity-60 cursor-not-allowed border-red-500 bg-red-900/20" : ""}
+                ${isTooSmall ? "opacity-60 cursor-not-allowed border-yellow-700 bg-yellow-900/10" : ""}
+                ${isSelected ? "border-[var(--accent-color)] bg-[var(--primary-color)]/20 scale-105 shadow-lg" : ""}
+                ${!isSelected && !isDisabled ? "border-gray-600 bg-gray-800 hover:border-green-500 hover:bg-gray-700" : ""}
+              `}
+            >
+              {/* Status dot */}
+              <span
+                className={`
+                absolute top-2 right-2 w-2.5 h-2.5 rounded-full
+                ${isBooked ? "bg-red-500" : isTooSmall ? "bg-yellow-600" : isSelected ? "bg-[var(--accent-color)]" : "bg-green-500"}
+              `}
+              />
+
+              <Icon
+                type="users"
+                className={`w-8 h-8 mb-2 ${
+                  isBooked
+                    ? "text-red-400"
+                    : isTooSmall
+                      ? "text-yellow-600"
+                      : isSelected
+                        ? "text-[var(--accent-color)]"
+                        : "text-green-400"
+                }`}
+              />
+              <span className="font-semibold text-white text-sm">
+                {table.name}
               </span>
-            )}
-          </button>
-        );
-      })}
-    </div>
+              <span className="text-xs text-gray-400">
+                {table.capacity} Seats
+              </span>
+
+              {isBooked && (
+                <span className="mt-1 text-xs text-red-400 font-semibold">
+                  Booked
+                </span>
+              )}
+              {isTooSmall && (
+                <span className="mt-1 text-xs text-yellow-500 font-semibold">
+                  Too Small
+                </span>
+              )}
+              {isSelected && (
+                <span className="mt-1 text-xs text-[var(--accent-color)] font-semibold">
+                  Selected ✓
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </>
   );
 };
-
 interface BrandPageProps {
   onBack: () => void;
 }
@@ -271,7 +315,9 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
 
   // ✅ rest id comes from landing page selection
   const restId = localStorage.getItem("selectedPetpoojaOutletId") || "";
-
+  console.log(restId);
+  const outletid = localStorage.getItem("SelectedOuletId") || "";
+  console.log(outletid, "outletid");
   const [restaurant, setRestaurant] = useState<any>(null);
   const [restaurantLoading, setRestaurantLoading] = useState(true);
   const [restaurantError, setRestaurantError] = useState<string>("");
@@ -508,31 +554,34 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
   maxDate.setDate(today.getDate() + 14);
   const maxDateStr = toLocalISOString(maxDate);
 
-  const availableTimeSlots = useMemo(() => {
-    if (!resForm.date) return timeSlots;
-    const selectedDate = new Date(resForm.date);
-    const now = new Date();
-    const isToday = selectedDate.toDateString() === now.toDateString();
-    if (isToday) {
-      const currentHour = now.getHours();
-      return timeSlots.filter(
-        (slot) => parseInt(slot.split(":")[0]) > currentHour + 1,
-      );
-    }
-    return timeSlots;
-  }, [resForm.date, timeSlots]);
+  // const [availableTimeSlots, setAvailableTimeSlots] = useState<string[]>([]);
+  // const [loadingSlots, setLoadingSlots] = useState(false);
 
+  const [availableTimeSlots, setAvailableTimeSlots] = useState<string[]>([]);
+
+  // ✅ Auto-populate slots when date is selected
   useEffect(() => {
-    if (currentUser) {
-      setResForm((prev) => ({
-        ...prev,
-        name: currentUser.name,
-        email: currentUser.email,
-        phone: currentUser.phone,
-      }));
+    if (!resForm.date) {
+      setAvailableTimeSlots([]);
+      return;
     }
-  }, [currentUser]);
 
+    const now = new Date();
+    const selectedDate = resForm.date;
+    const todayStr = toLocalISOString(now);
+    const isToday = selectedDate === todayStr;
+
+    const slots: string[] = [];
+    for (let hour = 11; hour <= 22; hour++) {
+      // If today, only show future slots (with 30min buffer)
+      if (isToday && hour <= now.getHours()) continue;
+      slots.push(`${String(hour).padStart(2, "0")}:00`);
+    }
+
+    setAvailableTimeSlots(slots);
+    // Reset time if previously selected slot no longer valid
+    setResForm((prev) => ({ ...prev, time: "" }));
+  }, [resForm.date]);
   const handleResFormChange = (
     e: React.ChangeEvent<
       HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
@@ -554,9 +603,12 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
     setIsLoadingTables(true);
     setResError("");
 
+    // ✅ Reset previously selected table when fetching fresh
+    setResForm((prev) => ({ ...prev, tableId: "" }));
+
     try {
       const tables = await apiGetAvailableTables(
-        restId,
+        outletid,
         resForm.date,
         resForm.time,
         resForm.guests,
@@ -564,7 +616,6 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
       setAvailableTables(tables);
       setResStep(2);
     } catch (err: unknown) {
-      console.error("fetchTables error:", err);
       setResError(
         err instanceof Error ? err.message : "Could not load tables.",
       );
@@ -590,28 +641,42 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
 
   const confirmBooking = async () => {
     if (isBooking) return;
-
     setIsBooking(true);
     setResError("");
 
     try {
       const valid = await apiVerifyReservationOTP(resForm.phone, otp);
       if (!valid) {
-        setResError("Invalid OTP");
+        setResError("Invalid OTP. Please try again.");
         return;
       }
 
-      const reservation = await apiCreateReservation(
-        restId,
-        currentUser?.id,
-        resForm,
-      );
+   const reservation = await apiCreateReservation(
+     outletid, // ✅ outlet_id, not brand id
+     currentUser?.id,
+     {
+       ...resForm,
+       brand_id: restId, // ✅ pass brand separately if needed
+     },
+   );
       setLastReservationId(reservation.bookingId);
-
-      await fetchTables();
       setResStep(4);
-    } catch {
-      setResError("Booking failed. Please try again.");
+    } catch (err: any) {
+      // ✅ Show exact backend error message
+      const msg =
+        err?.response?.data?.error || err?.message || "Booking failed.";
+
+      if (msg.toLowerCase().includes("already booked")) {
+        setResError(
+          "⚠️ This table was just booked by someone else. Please go back and select a different table or time.",
+        );
+        // ✅ Send user back to table selection
+        setResStep(2);
+        // ✅ Refresh tables to show updated availability
+        await fetchTables();
+      } else {
+        setResError(msg);
+      }
     } finally {
       setIsBooking(false);
     }
@@ -1033,16 +1098,18 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
                     {resError}
                   </p>
                 )}
-
                 {resStep === 1 && (
                   <div className="space-y-4 animate-fade-in">
                     <h4 className="text-xl font-semibold text-white mb-4">
                       Step 1: Booking Details
                     </h4>
 
+                    {/* DATE + GUESTS */}
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="text-xs text-gray-400">Date</label>
+                        <label className="text-xs text-gray-400 block mb-1">
+                          Date
+                        </label>
                         <input
                           type="date"
                           name="date"
@@ -1055,7 +1122,9 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
                         />
                       </div>
                       <div>
-                        <label className="text-xs text-gray-400">Guests</label>
+                        <label className="text-xs text-gray-400 block mb-1">
+                          Guests
+                        </label>
                         <select
                           name="guests"
                           value={resForm.guests}
@@ -1070,10 +1139,10 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
                         </select>
                       </div>
                     </div>
-
+                    {/* TIME — simple fixed dropdown */}
                     <div>
-                      <label className="text-xs text-gray-400">
-                        Time (Hourly Slots)
+                      <label className="text-xs text-gray-400 block mb-1">
+                        Time Slot
                       </label>
                       <select
                         name="time"
@@ -1083,22 +1152,49 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
                         className="w-full bg-gray-700 p-3 rounded-md border border-gray-600 text-white focus:ring-2 focus:ring-[var(--primary-color)]"
                       >
                         <option value="">Select Time</option>
-                        {availableTimeSlots.length > 0 ? (
-                          availableTimeSlots.map((t) => (
-                            <option key={t} value={t}>
-                              {t}
+                        {Array.from({ length: 12 }, (_, i) => {
+                          const hour = 11 + i;
+                          const slot = `${String(hour).padStart(2, "0")}:00`;
+                          const endSlot = `${String(hour + 2).padStart(2, "0")}:00`;
+
+                          const now = new Date();
+                          const isPast =
+                            resForm.date === toLocalISOString(now) &&
+                            hour <= now.getHours();
+
+                          return (
+                            <option key={slot} value={slot} disabled={isPast}>
+                              {slot} – {endSlot}
+                              {isPast ? " (Passed)" : ""}
                             </option>
-                          ))
-                        ) : (
-                          <option disabled>No slots available today</option>
-                        )}
+                          );
+                        })}
                       </select>
                     </div>
+                    {/* Summary */}
+                    {resForm.time && resForm.date && (
+                      <div className="p-3 bg-gray-700/50 rounded-md border border-gray-600 text-sm text-gray-300">
+                        📅{" "}
+                        {new Date(resForm.date).toLocaleDateString("en-IN", {
+                          weekday: "long",
+                          day: "numeric",
+                          month: "long",
+                        })}
+                        {" · "}
+                        🕐 {resForm.time} –{" "}
+                        {String(
+                          Number(resForm.time.split(":")[0]) + 2,
+                        ).padStart(2, "0")}
+                        :00
+                        {" · "}
+                        👥 {resForm.guests} Guests
+                      </div>
+                    )}
 
                     <button
                       onClick={fetchTables}
                       disabled={
-                        isLoadingTables || availableTimeSlots.length === 0
+                        isLoadingTables || !resForm.date || !resForm.time
                       }
                       className="w-full font-bold py-3 px-4 rounded-md transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
                       style={{
@@ -1106,7 +1202,11 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
                         color: "var(--text-on-primary-color)",
                       }}
                     >
-                      {isLoadingTables ? <Spinner /> : "Find Tables"}
+                      {isLoadingTables ? (
+                        <Spinner />
+                      ) : (
+                        "Find Available Tables →"
+                      )}
                     </button>
                   </div>
                 )}
@@ -1151,7 +1251,6 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
                     </button>
                   </div>
                 )}
-
                 {resStep === 3 && (
                   <div className="space-y-4 animate-fade-in">
                     <div className="flex justify-between items-center">
@@ -1237,7 +1336,6 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
                     </form>
                   </div>
                 )}
-
                 {resStep === 4 && (
                   <div className="animate-fade-in text-center py-8 space-y-4">
                     <Icon

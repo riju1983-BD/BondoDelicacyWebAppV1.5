@@ -184,8 +184,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
   }, []);
   const closestOutlet = resolvedOutlet
     ? restaurants.find(
-      (r) => r.petpooja_outlet_id === resolvedOutlet.petpooja_outlet_id,
-    )
+        (r) => r.petpooja_outlet_id === resolvedOutlet.petpooja_outlet_id,
+      )
     : null;
 
   return (
@@ -334,7 +334,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
                 restaurant.logo || "https://placehold.co/160x60?text=Logo";
 
               return (
-
                 <div
                   key={outlet.id}
                   onClick={() => {
@@ -348,7 +347,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
                       "selectedRestaurantId",
                       outlet.restaurants.id,
                     );
-
+                    localStorage.setItem("SelectedOuletId", outlet.id);
                     onSelectBrand(
                       outlet.petpooja_outlet_id,
                       outlet.restaurants.id,
@@ -400,7 +399,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
                     </div>
                   </div>
                 </div>
-
               );
             })()
           )}
