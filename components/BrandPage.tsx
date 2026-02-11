@@ -32,9 +32,9 @@ const buildCartKey = (item: any) => {
   const addonPart =
     addonsArray.length > 0
       ? addonsArray
-          .map((a: any) => `${a.id}:${a.quantity}`)
-          .sort()
-          .join("|")
+        .map((a: any) => `${a.id}:${a.quantity}`)
+        .sort()
+        .join("|")
       : "no-addons";
 
   return `${item.itemid}__${variationPart}__${addonPart}`;
@@ -236,25 +236,26 @@ const TableMap: React.FC<{
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-2">
-        {tables.map((table: any) => {
+        {tables.map((table) => {
+          const isAvailable = table._status === "available";
           const isBooked = table._status === "booked";
           const isTooSmall = table._status === "too_small";
-          const isDisabled = isBooked || isTooSmall;
-          const isSelected = selectedTableId === table.id && !isDisabled;
+          const isSelected = selectedTableId === table.id && isAvailable;
 
           return (
             <button
               key={table.id}
               type="button"
-              disabled={isDisabled}
-              onClick={() => !isDisabled && onSelect(table.id)}
+              disabled={!isAvailable}   // 🔥 only available can be clicked
+              onClick={() => isAvailable && onSelect(table.id)}
               className={`
-                p-4 rounded-lg border-2 flex flex-col items-center justify-center transition-all relative
-                ${isBooked ? "opacity-60 cursor-not-allowed border-red-500 bg-red-900/20" : ""}
-                ${isTooSmall ? "opacity-60 cursor-not-allowed border-yellow-700 bg-yellow-900/10" : ""}
-                ${isSelected ? "border-[var(--accent-color)] bg-[var(--primary-color)]/20 scale-105 shadow-lg" : ""}
-                ${!isSelected && !isDisabled ? "border-gray-600 bg-gray-800 hover:border-green-500 hover:bg-gray-700" : ""}
-              `}
+        p-4 rounded-lg border-2 flex flex-col items-center justify-center transition-all relative
+
+        ${isBooked ? "opacity-60 cursor-not-allowed border-red-500 bg-red-900/20" : ""}
+        ${isTooSmall ? "opacity-60 cursor-not-allowed border-yellow-700 bg-yellow-900/10" : ""}
+        ${isSelected ? "border-green-500 bg-green-900/20 scale-105 shadow-lg" : ""}
+        ${isAvailable && !isSelected ? "border-gray-600 bg-gray-800 hover:border-green-500 hover:bg-gray-700" : ""}
+      `}
             >
               {/* Status dot */}
               <span
@@ -266,15 +267,14 @@ const TableMap: React.FC<{
 
               <Icon
                 type="users"
-                className={`w-8 h-8 mb-2 ${
-                  isBooked
-                    ? "text-red-400"
-                    : isTooSmall
-                      ? "text-yellow-600"
-                      : isSelected
-                        ? "text-[var(--accent-color)]"
-                        : "text-green-400"
-                }`}
+                className={`w-8 h-8 mb-2 ${isBooked
+                  ? "text-red-400"
+                  : isTooSmall
+                    ? "text-yellow-600"
+                    : isSelected
+                      ? "text-[var(--accent-color)]"
+                      : "text-green-400"
+                  }`}
               />
               <span className="font-semibold text-white text-sm">
                 {table.name}
@@ -623,64 +623,105 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
       setIsLoadingTables(false);
     }
   };
+  const formatIndianPhone = (phone: string) => {
+    let cleaned = phone.replace(/\D/g, ""); // remove spaces, symbols
+
+    if (cleaned.startsWith("91") && cleaned.length === 12) {
+      return `+${cleaned}`;
+    }
+
+    if (cleaned.length === 10) {
+      return `+91${cleaned}`;
+    }
+
+    if (cleaned.startsWith("0") && cleaned.length === 11) {
+      return `+91${cleaned.slice(1)}`;
+    }
+
+    return `+${cleaned}`;
+  };
 
   const sendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
+    setResError("");
+
     if (!resForm.name || !resForm.phone) {
       setResError("Name and Phone are required.");
       return;
     }
-    try {
-      await apiSendReservationOTP(resForm.phone);
-      setOtpSent(true);
-      alert("Mock OTP: 1234");
-    } catch {
-      setResError("Failed to send OTP.");
-    }
-  };
 
-  const confirmBooking = async () => {
-    if (isBooking) return;
-    setIsBooking(true);
-    setResError("");
+    const formattedPhone = formatIndianPhone(resForm.phone);
 
     try {
-      const valid = await apiVerifyReservationOTP(resForm.phone, otp);
-      if (!valid) {
-        setResError("Invalid OTP. Please try again.");
+      const success = await apiSendReservationOTP(formattedPhone);
+
+      if (!success) {
+        setResError("Failed to send OTP.");
         return;
       }
 
-   const reservation = await apiCreateReservation(
-     outletid, // ✅ outlet_id, not brand id
-     currentUser?.id,
-     {
-       ...resForm,
-       brand_id: restId, // ✅ pass brand separately if needed
-     },
-   );
+      setOtpSent(true);
+
+    } catch (err: any) {
+      setResError(err?.message || "Failed to send OTP.");
+    }
+  };
+
+
+
+
+  const confirmBooking = async () => {
+    if (isBooking) return;
+
+    setIsBooking(true);
+    setResError("");
+
+    const formattedPhone = formatIndianPhone(resForm.phone);
+
+    try {
+      const success = await apiVerifyReservationOTP(
+        formattedPhone,
+        otp
+      );
+
+      if (!success) {
+        setResError("Invalid or expired OTP.");
+        return;
+      }
+
+      const reservation = await apiCreateReservation(
+        outletid,
+        currentUser?.id,
+        {
+          ...resForm,
+          brand_id: restId,     // ✅ correct
+          outlet_id: outletid,
+        }
+      );
+
       setLastReservationId(reservation.bookingId);
       setResStep(4);
-    } catch (err: any) {
-      // ✅ Show exact backend error message
-      const msg =
-        err?.response?.data?.error || err?.message || "Booking failed.";
 
-      if (msg.toLowerCase().includes("already booked")) {
-        setResError(
-          "⚠️ This table was just booked by someone else. Please go back and select a different table or time.",
-        );
-        // ✅ Send user back to table selection
-        setResStep(2);
-        // ✅ Refresh tables to show updated availability
-        await fetchTables();
-      } else {
-        setResError(msg);
+    } catch (err: any) {
+      const message = err?.message || "Booking failed.";
+
+      // 🔥 If OTP expired → reset to resend state
+      if (message.toLowerCase().includes("expired")) {
+        setResError("OTP expired. Please request a new one.");
+
+        setOtp("");
+        setOtpSent(false);   // 👈 go back to Send OTP button
+        return;
       }
+
+      setResError(message);
+
     } finally {
       setIsBooking(false);
     }
   };
+
+
 
   const handleScrollTo = (id: string) =>
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
@@ -709,8 +750,8 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
     Array.isArray(restaurant?.gallery) && restaurant.gallery.length > 0
       ? restaurant.gallery
       : Array.from({ length: 8 }).map(
-          (_, i) => [heroImage, aboutImage, logo][i % 3],
-        );
+        (_, i) => [heroImage, aboutImage, logo][i % 3],
+      );
 
   const contactAddress = restaurant?.address
     ? [restaurant.address, restaurant?.city].filter(Boolean).join(", ")
@@ -890,10 +931,9 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
                     key={cat.id}
                     onClick={() => handleCategoryChange(cat)}
                     className={`px-4 py-2 rounded-md font-semibold transition-all 
-                      ${
-                        activeCategory === cat.id
-                          ? "text-[var(--text-on-primary-color)]"
-                          : "bg-gray-700 text-white hover:bg-gray-600"
+                      ${activeCategory === cat.id
+                        ? "text-[var(--text-on-primary-color)]"
+                        : "bg-gray-700 text-white hover:bg-gray-600"
                       }`}
                     style={
                       activeCategory === cat.id
@@ -961,8 +1001,8 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
 
                                       const variationPrices = hasVariation
                                         ? item.variation
-                                            .map((v: any) => Number(v.price))
-                                            .filter((p: number) => p > 0)
+                                          .map((v: any) => Number(v.price))
+                                          .filter((p: number) => p > 0)
                                         : [];
 
                                       const minVariationPrice =
@@ -1013,11 +1053,11 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
                                         item.tax_breakup,
                                       )
                                         ? item.tax_breakup.reduce(
-                                            (sum, t) =>
-                                              sum +
-                                              Number(t.tax_percentage || 0),
-                                            0,
-                                          )
+                                          (sum, t) =>
+                                            sum +
+                                            Number(t.tax_percentage || 0),
+                                          0,
+                                        )
                                         : 0;
                                       const gstAmount =
                                         (basePrice * gstPercentage) / 100;
@@ -1157,19 +1197,14 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
                           const slot = `${String(hour).padStart(2, "0")}:00`;
                           const endSlot = `${String(hour + 2).padStart(2, "0")}:00`;
 
-                          const now = new Date();
-                          const isPast =
-                            resForm.date === toLocalISOString(now) &&
-                            hour <= now.getHours();
-
                           return (
-                            <option key={slot} value={slot} disabled={isPast}>
+                            <option key={slot} value={slot}>
                               {slot} – {endSlot}
-                              {isPast ? " (Passed)" : ""}
                             </option>
                           );
                         })}
                       </select>
+
                     </div>
                     {/* Summary */}
                     {resForm.time && resForm.date && (
@@ -1269,9 +1304,9 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
                       onSubmit={
                         otpSent
                           ? (e) => {
-                              e.preventDefault();
-                              confirmBooking();
-                            }
+                            e.preventDefault();
+                            confirmBooking();
+                          }
                           : sendOtp
                       }
                       className="space-y-4"

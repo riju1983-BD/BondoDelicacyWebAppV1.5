@@ -13,6 +13,7 @@ import {
   DeliveryAddress,
   RestaurantMenu,
 } from "../types";
+
 // import { brandsData } from '../data';
 import { supabase } from "./supabaseClient";
 import { BASE_URL } from "../src/config";
@@ -939,20 +940,58 @@ export const apiGetAvailableTables = async (
 };
 
 export const apiSendReservationOTP = async (
-  contact: string,
+  phone: string
 ): Promise<boolean> => {
-  await simulateDelay(1000);
-  console.log(`[MOCK OTP] Sent 1234 to ${contact}`);
+  const res = await fetch(`${BASE_URL}/otp/send`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phone }),
+  });
+
+  let data: any = {};
+  try {
+    data = await res.json();
+  } catch {
+    // response not JSON
+  }
+
+  if (!res.ok || !data?.success) {
+    throw new Error(
+      data?.error || data?.message || "Failed to send OTP"
+    );
+  }
+
   return true;
 };
 
+
+
 export const apiVerifyReservationOTP = async (
-  contact: string,
+  phone: string,
   otp: string,
 ): Promise<boolean> => {
-  await simulateDelay(500);
-  return otp === "1234";
+  const res = await fetch(`${BASE_URL}/otp/verify`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phone, otp }),
+  });
+
+  let data: any = {};
+  try {
+    data = await res.json();
+  } catch {
+    // ignore JSON parse errors
+  }
+
+  if (!res.ok || !data?.success) {
+    throw new Error(
+      data?.error || data?.message || "Invalid or expired OTP"
+    );
+  }
+
+  return true;
 };
+
 // apiService.ts
 
 export async function apiGetUserAIRecommendation(

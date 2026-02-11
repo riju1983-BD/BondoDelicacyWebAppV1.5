@@ -626,7 +626,7 @@ const AdminDashboardPage: React.FC = () => {
   };
 
   const handleUpdateRestaurant = async () => {
-    console.log(TableId);
+    console.log(restaurentid);
 
     setIsUploading(true);
 
@@ -649,7 +649,7 @@ const AdminDashboardPage: React.FC = () => {
     };
     console.log("Payload: ", payload);
 
-    const res = await apiAddRestaurant(payload, TableId);
+    const res = await apiAddRestaurant(payload, restaurentid);
 
     if (!res.error) {
       setFetchedData(null);
