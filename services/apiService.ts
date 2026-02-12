@@ -884,18 +884,18 @@ export const apiGetUserReservations = async (
 };
 
 // NEW: Get all active reservations for Admin
-export const apiGetAllActiveReservations = async (): Promise<Reservation[]> => {
+export const apiGetAllReservations = async (): Promise<Reservation[]> => {
   const { data, error } = await supabase
     .from("reservations")
     .select("*")
-    .in("status", ["confirmed", "pending"])
     .order("date", { ascending: true })
     .order("time", { ascending: true });
 
   if (error) {
-    console.error("Error fetching active reservations:", error);
+    console.error("Error fetching reservations:", error);
     return [];
   }
+
   return (data || []).map(mapDbReservation);
 };
 
@@ -905,6 +905,8 @@ const mapDbReservation = (data: any): Reservation => ({
   restId: data.rest_id,
   userId: data.user_id,
   tableId: data.table_id,
+  tableNumber:data.table_number,
+  endtime:data.end_time,
   name: data.name,
   email: data.email,
   phone: data.phone,

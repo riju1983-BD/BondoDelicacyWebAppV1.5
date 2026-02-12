@@ -9,7 +9,7 @@ import {
   apiGetComplaints,
   apiProcessRefundApproval,
   apiRejectComplaint,
-  apiGetAllActiveReservations,
+
   apiUpdateReservation,
   apiGetAdminCategoriesMenu,
   apiGetOrders,
@@ -24,6 +24,7 @@ import {
   apiGetOutlet,
   apiGetAllRestaurant,
   apiUpdateTable,
+  apiGetAllReservations,
 } from "../services/apiService";
 import {
   BASE_URL,
@@ -75,7 +76,7 @@ const AdminDashboardPage: React.FC = () => {
 
   const [isLoadingMenu, setIsLoadingMenu] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
+  const [reservationTab, setReservationTab] = useState<"active" | "history">("active");
   // Restaurants dropdown for Live Menu
   const [restaurantOptions, setRestaurantOptions] = useState<
     { rest_id: string; name: string }[]
@@ -206,6 +207,19 @@ const AdminDashboardPage: React.FC = () => {
       setIsUploading(false);
     }
   };
+  const formatTimeToAMPM = (time: string) => {
+    if (!time) return "";
+
+    const [hourStr, minuteStr] = time.split(":");
+    let hour = parseInt(hourStr, 10);
+    const minutes = minuteStr;
+
+    const ampm = hour >= 12 ? "PM" : "AM";
+    hour = hour % 12;
+    hour = hour === 0 ? 12 : hour;
+
+    return `${hour}:${minutes} ${ampm}`;
+  };
 
   async function loadTables(outletId: string) {
     setLoadingTables(true);
@@ -291,6 +305,19 @@ const AdminDashboardPage: React.FC = () => {
       supabase.removeChannel(reservationSubscription);
     };
   }, [activeTab]);
+  const filteredReservations = reservations.filter((res) => {
+    const status = res.status?.toLowerCase().trim();
+
+    if (reservationTab === "active") {
+      return ["confirmed", "pending"].includes(status);
+    }
+
+    if (reservationTab === "history") {
+      return ["completed", "cancelled"].includes(status);
+    }
+
+    return true;
+  });
 
   const fetchMenu = useCallback(async (restId: string) => {
     if (!restId) return;
@@ -376,7 +403,7 @@ const AdminDashboardPage: React.FC = () => {
   const fetchReservations = useCallback(async () => {
     setIsLoadingReservations(true);
     try {
-      const res = await apiGetAllActiveReservations();
+      const res = await apiGetAllReservations();
       setReservations(res);
     } catch (err) {
       console.error("Failed to fetch reservations:", err);
@@ -515,8 +542,8 @@ const AdminDashboardPage: React.FC = () => {
                   key={page}
                   onClick={() => handlePageClick(page)}
                   className={`px-3 py-1.5 text-sm font-medium rounded-md ${currentPage === page
-                      ? "bg-cyan-600 text-white"
-                      : "bg-gray-700 text-white hover:bg-gray-600"
+                    ? "bg-cyan-600 text-white"
+                    : "bg-gray-700 text-white hover:bg-gray-600"
                     }`}
                 >
                   {page}
@@ -910,8 +937,8 @@ const AdminDashboardPage: React.FC = () => {
           <button
             onClick={() => setActiveTab("menu")}
             className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "menu"
-                ? "border-b-2 border-cyan-400 text-cyan-400"
-                : "text-gray-400"
+              ? "border-b-2 border-cyan-400 text-cyan-400"
+              : "text-gray-400"
               }`}
           >
             Live Menu
@@ -919,8 +946,8 @@ const AdminDashboardPage: React.FC = () => {
           <button
             onClick={() => setActiveTab("orders")}
             className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "orders"
-                ? "border-b-2 border-cyan-400 text-cyan-400"
-                : "text-gray-400"
+              ? "border-b-2 border-cyan-400 text-cyan-400"
+              : "text-gray-400"
               }`}
           >
             Orders
@@ -928,8 +955,8 @@ const AdminDashboardPage: React.FC = () => {
           <button
             onClick={() => setActiveTab("reservations")}
             className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "reservations"
-                ? "border-b-2 border-cyan-400 text-cyan-400"
-                : "text-gray-400"
+              ? "border-b-2 border-cyan-400 text-cyan-400"
+              : "text-gray-400"
               }`}
           >
             Reservations ({reservations.length})
@@ -937,8 +964,8 @@ const AdminDashboardPage: React.FC = () => {
           <button
             onClick={() => setActiveTab("complaints")}
             className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "complaints"
-                ? "border-b-2 border-cyan-400 text-cyan-400"
-                : "text-gray-400"
+              ? "border-b-2 border-cyan-400 text-cyan-400"
+              : "text-gray-400"
               }`}
           >
             Complaints
@@ -946,8 +973,8 @@ const AdminDashboardPage: React.FC = () => {
           <button
             onClick={() => setActiveTab("loyalty")}
             className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "loyalty"
-                ? "border-b-2 border-cyan-400 text-cyan-400"
-                : "text-gray-400"
+              ? "border-b-2 border-cyan-400 text-cyan-400"
+              : "text-gray-400"
               }`}
           >
             Loyalty
@@ -955,8 +982,8 @@ const AdminDashboardPage: React.FC = () => {
           <button
             onClick={() => setActiveTab("restaurants")}
             className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "restaurants"
-                ? "border-b-2 border-cyan-400 text-cyan-400"
-                : "text-gray-400"
+              ? "border-b-2 border-cyan-400 text-cyan-400"
+              : "text-gray-400"
               }`}
           >
             All Restaurants
@@ -977,8 +1004,8 @@ const AdminDashboardPage: React.FC = () => {
               fetchOutlets();
             }}
             className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "Outlet"
-                ? "border-b-2 border-cyan-400 text-cyan-400"
-                : "text-gray-400"
+              ? "border-b-2 border-cyan-400 text-cyan-400"
+              : "text-gray-400"
               }`}
           >
             Outlet
@@ -1036,8 +1063,8 @@ const AdminDashboardPage: React.FC = () => {
                             <button
                               // onClick={() => handleToggleAvailability(item.name)}
                               className={`px-2 py-1 text-xs font-bold rounded transition-colors ${item.isAvailable
-                                  ? "bg-green-900 text-green-300 hover:bg-green-800"
-                                  : "bg-red-900 text-red-300 hover:bg-red-800"
+                                ? "bg-green-900 text-green-300 hover:bg-green-800"
+                                : "bg-red-900 text-red-300 hover:bg-red-800"
                                 }`}
                             >
                               {item.isAvailable ? "In Stock" : "Unavailable"}
@@ -1055,8 +1082,8 @@ const AdminDashboardPage: React.FC = () => {
             )}
           </div>
         )}
-    
-    {activeTab === "addRestaurant" && (
+
+        {activeTab === "addRestaurant" && (
           // <div className="animate-fade-in max-w-2xl mx-auto space-y-6">
           //   <h2 className="text-2xl font-semibold text-center">
           //     Add Restaurant
@@ -1447,13 +1474,36 @@ const AdminDashboardPage: React.FC = () => {
           </div>
         )}
 
+
         {activeTab === "reservations" && (
+
           <div className="animate-fade-in">
+            <div className="flex justify-center gap-4 mb-6">
+              <button
+                onClick={() => setReservationTab("active")}
+                className={`px-4 py-2 rounded-full font-semibold text-sm ${reservationTab === "active"
+                  ? "bg-cyan-600 text-white"
+                  : "bg-gray-800 text-gray-400 hover:bg-gray-700"
+                  }`}
+              >
+                Active
+              </button>
+
+              <button
+                onClick={() => setReservationTab("history")}
+                className={`px-4 py-2 rounded-full font-semibold text-sm ${reservationTab === "history"
+                  ? "bg-green-600 text-white"
+                  : "bg-gray-800 text-gray-400 hover:bg-gray-700"
+                  }`}
+              >
+                History
+              </button>
+            </div>
             {isLoadingReservations ? (
               <div className="flex justify-center p-8">
                 <Spinner className="w-8 h-8" />
               </div>
-            ) : reservations.length === 0 ? (
+            ) : filteredReservations.length === 0 ? (
               <p className="text-center text-gray-500 py-8">
                 No active reservations.
               </p>
@@ -1470,7 +1520,7 @@ const AdminDashboardPage: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-700">
-                    {reservations.map((res) => {
+                    {filteredReservations.map((res) => {
                       const overdue = isOverdue(res.date, res.time);
                       return (
                         <tr
@@ -1505,44 +1555,50 @@ const AdminDashboardPage: React.FC = () => {
                             <div className="text-sm text-white">
                               {new Date(res.date).toLocaleDateString()}
                             </div>
-                            <div className="text-2xl font-light text-white">
-                              {res.time}
+                            <div className="text-sm font-light text-white">
+                              {formatTimeToAMPM(res.time)} to {formatTimeToAMPM(res.endtime)}
                             </div>
                           </td>
                           <td className="px-4 py-4 whitespace-nowrap text-sm text-white font-bold">
-                            {res.tableId ? res.tableId.toUpperCase() : "N/A"}
+                            {res.tableNumber ? res.tableNumber.toUpperCase() : "N/A"}
                           </td>
                           <td className="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <div className="flex justify-end gap-2">
-                              <button
-                                onClick={() =>
-                                  handleReservationAction(res.id, "seated")
-                                }
-                                disabled={!!processingResId}
-                                className="bg-green-600 hover:bg-green-500 text-white px-3 py-1.5 rounded-md text-xs font-bold uppercase disabled:opacity-50 flex items-center gap-1"
+                            {reservationTab === "active" ? (
+                              <div className="flex justify-end gap-2">
+                                <button
+                                  onClick={() => handleReservationAction(res.id, "seated")}
+                                  disabled={!!processingResId}
+                                  className="bg-green-600 hover:bg-green-500 text-white px-3 py-1.5 rounded-md text-xs font-bold uppercase disabled:opacity-50 flex items-center gap-1"
+                                >
+                                  {processingResId === res.id ? (
+                                    <Spinner className="w-3 h-3" />
+                                  ) : (
+                                    <Icon type="check-circle" className="w-4 h-4" />
+                                  )}
+                                  Seated
+                                </button>
+
+                                <button
+                                  onClick={() => handleReservationAction(res.id, "cancel")}
+                                  disabled={!!processingResId}
+                                  className="bg-red-700 hover:bg-red-600 text-white px-3 py-1.5 rounded-md text-xs font-bold uppercase disabled:opacity-50 flex items-center gap-1"
+                                >
+                                  <Icon type="x-circle" className="w-4 h-4" />
+                                  Cancel
+                                </button>
+                              </div>
+                            ) : (
+                              <span
+                                className={`px-3 py-1 rounded-full text-xs font-semibold ${res.status === "completed"
+                                  ? "bg-green-900 text-green-300"
+                                  : "bg-red-900 text-red-300"
+                                  }`}
                               >
-                                {processingResId === res.id ? (
-                                  <Spinner className="w-3 h-3" />
-                                ) : (
-                                  <Icon
-                                    type="check-circle"
-                                    className="w-4 h-4"
-                                  />
-                                )}
-                                Seated
-                              </button>
-                              <button
-                                onClick={() =>
-                                  handleReservationAction(res.id, "cancel")
-                                }
-                                disabled={!!processingResId}
-                                className="bg-red-700 hover:bg-red-600 text-white px-3 py-1.5 rounded-md text-xs font-bold uppercase disabled:opacity-50 flex items-center gap-1"
-                              >
-                                <Icon type="x-circle" className="w-4 h-4" />{" "}
-                                Cancel
-                              </button>
-                            </div>
+                                {res.status === "completed" ? "Seated" : "Cancelled"}
+                              </span>
+                            )}
                           </td>
+
                         </tr>
                       );
                     })}
@@ -1559,8 +1615,8 @@ const AdminDashboardPage: React.FC = () => {
               <button
                 onClick={() => setComplaintFilter("active")}
                 className={`px-4 py-2 rounded-full font-semibold text-sm ${complaintFilter === "active"
-                    ? "bg-red-600 text-white"
-                    : "bg-gray-800 text-gray-400 hover:bg-gray-700"
+                  ? "bg-red-600 text-white"
+                  : "bg-gray-800 text-gray-400 hover:bg-gray-700"
                   }`}
               >
                 Active (
@@ -1573,8 +1629,8 @@ const AdminDashboardPage: React.FC = () => {
               <button
                 onClick={() => setComplaintFilter("resolved")}
                 className={`px-4 py-2 rounded-full font-semibold text-sm ${complaintFilter === "resolved"
-                    ? "bg-green-600 text-white"
-                    : "bg-gray-800 text-gray-400 hover:bg-gray-700"
+                  ? "bg-green-600 text-white"
+                  : "bg-gray-800 text-gray-400 hover:bg-gray-700"
                   }`}
               >
                 Resolved
@@ -1596,17 +1652,17 @@ const AdminDashboardPage: React.FC = () => {
                     className="bg-gray-800 p-4 rounded-lg border border-gray-700 flex flex-col md:flex-row gap-4"
                   >
                     <div className="flex-1 space-y-1 text-sm">
-                      <div className="flex justify-between">
-                        <p>
+                      <div className="flex justify-between items-start gap-2 flex-wrap">
+                        <p className="flex-1 min-w-0">
                           <strong className="text-gray-400">
                             Complaint ID:
                           </strong>{" "}
-                          <span className="text-white font-mono">
+                          <span className="text-white font-mono break-all">
                             {order.complaint?.id}
                           </span>
                         </p>
                         <span
-                          className={`px-2 py-0.5 text-xs font-bold rounded-full capitalize ${order.complaint?.status === "pending"
+                          className={`px-2 py-0.5 text-xs font-bold rounded-full capitalize shrink-0 ${order.complaint?.status === "pending"
                               ? "bg-yellow-900 text-yellow-300"
                               : order.complaint?.status === "approved"
                                 ? "bg-green-900 text-green-300"
@@ -2006,8 +2062,8 @@ const AdminDashboardPage: React.FC = () => {
 
                     <button
                       className={`px-2 py-1 rounded text-xs text-white ${t.is_active
-                          ? "bg-green-600 hover:bg-green-500"
-                          : "bg-red-600 hover:bg-red-500"
+                        ? "bg-green-600 hover:bg-green-500"
+                        : "bg-red-600 hover:bg-red-500"
                         }`}
                       onClick={async () => {
                         await apiToggleTable(t.id, !t.is_active);
@@ -2061,11 +2117,10 @@ const AdminDashboardPage: React.FC = () => {
                     </span>
                     <div className="flex gap-2">
                       <button
-                        className={`px-2 py-1 rounded text-xs text-white ${
-                          t.is_active
-                            ? "bg-green-600 hover:bg-green-500"
-                            : "bg-red-600 hover:bg-red-500"
-                        }`}
+                        className={`px-2 py-1 rounded text-xs text-white ${t.is_active
+                          ? "bg-green-600 hover:bg-green-500"
+                          : "bg-red-600 hover:bg-red-500"
+                          }`}
                         onClick={async () => {
                           console.log(t);
                           await apiToggleTable(t.id, !t.is_active);
@@ -2075,15 +2130,14 @@ const AdminDashboardPage: React.FC = () => {
                         {t.is_active ? "Active" : "Inactive"}
                       </button>
                       <button
-                        className={`px-2 py-1 rounded text-xs text-white ${
-                          !t.is_booked
-                            ? "bg-green-600 hover:bg-green-500"
-                            : "bg-red-600 hover:bg-red-500"
-                        }`}
-                        // onClick={async () => {
-                        //   await apiToggleTable(t.id, !t.is_booked);
-                        //   loadTables(showTablesFor.id!);
-                        // }}
+                        className={`px-2 py-1 rounded text-xs text-white ${!t.is_booked
+                          ? "bg-green-600 hover:bg-green-500"
+                          : "bg-red-600 hover:bg-red-500"
+                          }`}
+                      // onClick={async () => {
+                      //   await apiToggleTable(t.id, !t.is_booked);
+                      //   loadTables(showTablesFor.id!);
+                      // }}
                       >
                         Seats {t.is_booked ? "Booked" : "Available"}
                       </button>
@@ -2091,7 +2145,7 @@ const AdminDashboardPage: React.FC = () => {
                         onClick={() => {
                           setTableId(t);
                           setTableNumber(t.table_number);
-                          setCapacity(t.capacity);                          
+                          setCapacity(t.capacity);
                           setShowTablesFor(null);
                         }}
                         className={`px-2 py-1 rounded text-xs text-white bg-cyan-600 hover:bg-cyan-500`}

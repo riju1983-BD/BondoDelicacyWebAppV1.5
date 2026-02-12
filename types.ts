@@ -210,7 +210,8 @@ export interface Reservation {
 
   userId?: string;
   tableId?: string;
-
+  tableNumber?: string,
+  endtime?:string,
   name: string;
   email: string;
   phone: string;

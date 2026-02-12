@@ -354,6 +354,7 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
     phone: "",
     date: "",
     time: "",
+    end_time: "",
     guests: 2,
     requests: "",
     tableId: "",
@@ -696,6 +697,7 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
           ...resForm,
           brand_id: restId,     // ✅ correct
           outlet_id: outletid,
+
         }
       );
 
@@ -1396,7 +1398,7 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
                         <span className="text-white">
                           {new Date(resForm.date).toLocaleDateString()}
                         </span>{" "}
-                        at <span className="text-white">{resForm.time}</span>
+                        at <span className="text-white">{resForm.time}{resForm.end_time}</span>
                       </p>
                     </div>
 
