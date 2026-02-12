@@ -371,17 +371,17 @@ const AccountPage: React.FC = () => {
       setIsLoadingRecommendation(false);
     }
   };
-const handleDietaryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-  const { name, value } = e.target;
+  const handleDietaryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
 
-  setProfileData((prev: any) => ({
-    ...prev,
-    dietaryPreferences: {
-      ...prev.dietaryPreferences,
-      [name]: value.split(",").map(v => v.trim()).filter(Boolean),
-    },
-  }));
-};
+    setProfileData((prev: any) => ({
+      ...prev,
+      dietaryPreferences: {
+        ...prev.dietaryPreferences,
+        [name]: value.split(",").map(v => v.trim()).filter(Boolean),
+      },
+    }));
+  };
 
   const handleProfileChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
@@ -472,6 +472,7 @@ const handleDietaryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
             >
               ← Home
             </button>
+
             <button
               onClick={logout}
               className="inline-flex items-center gap-2 rounded-md bg-gray-700 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-gray-600"
@@ -720,10 +721,10 @@ const handleDietaryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
                               <div>
                                 <span
                                   className={`px-2 py-0.5 text-xs font-bold rounded-full capitalize ${order.complaint.status === "pending"
-                                      ? "bg-yellow-900 text-yellow-300"
-                                      : order.complaint.status === "approved"
-                                        ? "bg-green-900 text-green-300"
-                                        : "bg-red-900 text-red-300"
+                                    ? "bg-yellow-900 text-yellow-300"
+                                    : order.complaint.status === "approved"
+                                      ? "bg-green-900 text-green-300"
+                                      : "bg-red-900 text-red-300"
                                     }`}
                                 >
                                   {order.complaint.status}
@@ -734,7 +735,7 @@ const handleDietaryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
                                 <p className="text-gray-300 text-[11px]">
                                   {order.complaint.itemNames.join(", ")}
                                 </p>
-                                </div>
+                              </div>
                             )}
 
 
@@ -883,136 +884,135 @@ const handleDietaryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
             )}
 
             {/* Profile Tab */}
-{activeTab === "profile" && (
-  <div className="bg-gray-900 p-6 rounded-lg shadow-lg animate-fade-in">
-    <div className="flex justify-between items-center mb-4">
-      <h2 className="text-2xl font-serif">Profile</h2>
-      {!isEditingProfile && (
-        <button
-          onClick={() => setIsEditingProfile(true)}
-          className="text-sm font-semibold text-cyan-400 hover:underline"
-        >
-          Edit
-        </button>
-      )}
-    </div>
+            {activeTab === "profile" && (
+              <div className="bg-gray-900 p-6 rounded-lg shadow-lg animate-fade-in">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-2xl font-serif">Profile</h2>
+                  {!isEditingProfile && (
+                    <button
+                      onClick={() => setIsEditingProfile(true)}
+                      className="text-sm font-semibold text-cyan-400 hover:underline"
+                    >
+                      Edit
+                    </button>
+                  )}
+                </div>
 
-    {profileMessage.text && (
-      <p
-        className={`text-sm text-center mb-4 ${
-          profileMessage.type === "success" ? "text-green-400" : "text-red-400"
-        }`}
-      >
-        {profileMessage.text}
-      </p>
-    )}
+                {profileMessage.text && (
+                  <p
+                    className={`text-sm text-center mb-4 ${profileMessage.type === "success" ? "text-green-400" : "text-red-400"
+                      }`}
+                  >
+                    {profileMessage.text}
+                  </p>
+                )}
 
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      {/* NAME */}
-      <div>
-        <label className="text-xs text-gray-400">Name</label>
-        <input
-          type="text"
-          name="name"
-          value={profileData.name || ""}
-          onChange={handleProfileChange}
-          disabled={!isEditingProfile}
-          className="w-full bg-gray-800 p-2 rounded-md border border-gray-700 disabled:bg-gray-900"
-        />
-      </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* NAME */}
+                  <div>
+                    <label className="text-xs text-gray-400">Name</label>
+                    <input
+                      type="text"
+                      name="name"
+                      value={profileData.name || ""}
+                      onChange={handleProfileChange}
+                      disabled={!isEditingProfile}
+                      className="w-full bg-gray-800 p-2 rounded-md border border-gray-700 disabled:bg-gray-900"
+                    />
+                  </div>
 
-      {/* PHONE */}
-      <div>
-        <label className="text-xs text-gray-400">Phone</label>
-        <input
-          type="tel"
-          name="phone"
-          value={profileData.phone || ""}
-          onChange={handleProfileChange}
-          disabled={!isEditingProfile}
-          className="w-full bg-gray-800 p-2 rounded-md border border-gray-700 disabled:bg-gray-900"
-        />
-      </div>
+                  {/* PHONE */}
+                  <div>
+                    <label className="text-xs text-gray-400">Phone</label>
+                    <input
+                      type="tel"
+                      name="phone"
+                      value={profileData.phone || ""}
+                      onChange={handleProfileChange}
+                      disabled={!isEditingProfile}
+                      className="w-full bg-gray-800 p-2 rounded-md border border-gray-700 disabled:bg-gray-900"
+                    />
+                  </div>
 
-      {/* EMAIL */}
-      <div className="md:col-span-2">
-        <label className="text-xs text-gray-400">Email</label>
-        <input
-          type="email"
-          value={currentUser.email}
-          disabled
-          className="w-full bg-gray-900 p-2 rounded-md border border-gray-700 text-gray-400"
-        />
-      </div>
+                  {/* EMAIL */}
+                  <div className="md:col-span-2">
+                    <label className="text-xs text-gray-400">Email</label>
+                    <input
+                      type="email"
+                      value={currentUser.email}
+                      disabled
+                      className="w-full bg-gray-900 p-2 rounded-md border border-gray-700 text-gray-400"
+                    />
+                  </div>
 
-      {/* DIETARY PREFERENCES */}
-      <div className="md:col-span-2 border-t border-gray-700 pt-3 mt-2">
-        <h3 className="text-sm font-semibold text-cyan-400 mb-2">
-          Dietary Preferences
-        </h3>
+                  {/* DIETARY PREFERENCES */}
+                  <div className="md:col-span-2 border-t border-gray-700 pt-3 mt-2">
+                    <h3 className="text-sm font-semibold text-cyan-400 mb-2">
+                      Dietary Preferences
+                    </h3>
 
-        <div className="space-y-2">
-          <div>
-            <label className="text-xs text-gray-400">Likes</label>
-            <input
-              type="text"
-              name="likes"
-              placeholder="spicy food, fish"
-              value={profileData.dietaryPreferences?.likes?.join(", ") || ""}
-              onChange={handleDietaryChange}
-              disabled={!isEditingProfile}
-              className="w-full bg-gray-800 p-2 rounded-md border border-gray-700 disabled:bg-gray-900"
-            />
-          </div>
+                    <div className="space-y-2">
+                      <div>
+                        <label className="text-xs text-gray-400">Likes</label>
+                        <input
+                          type="text"
+                          name="likes"
+                          placeholder="spicy food, fish"
+                          value={profileData.dietaryPreferences?.likes?.join(", ") || ""}
+                          onChange={handleDietaryChange}
+                          disabled={!isEditingProfile}
+                          className="w-full bg-gray-800 p-2 rounded-md border border-gray-700 disabled:bg-gray-900"
+                        />
+                      </div>
 
-          <div>
-            <label className="text-xs text-gray-400">Dislikes</label>
-            <input
-              type="text"
-              name="dislikes"
-              placeholder="mushroom, bitter gourd"
-              value={profileData.dietaryPreferences?.dislikes?.join(", ") || ""}
-              onChange={handleDietaryChange}
-              disabled={!isEditingProfile}
-              className="w-full bg-gray-800 p-2 rounded-md border border-gray-700 disabled:bg-gray-900"
-            />
-          </div>
+                      <div>
+                        <label className="text-xs text-gray-400">Dislikes</label>
+                        <input
+                          type="text"
+                          name="dislikes"
+                          placeholder="mushroom, bitter gourd"
+                          value={profileData.dietaryPreferences?.dislikes?.join(", ") || ""}
+                          onChange={handleDietaryChange}
+                          disabled={!isEditingProfile}
+                          className="w-full bg-gray-800 p-2 rounded-md border border-gray-700 disabled:bg-gray-900"
+                        />
+                      </div>
 
-          <div>
-            <label className="text-xs text-gray-400">Allergies</label>
-            <input
-              type="text"
-              name="allergies"
-              placeholder="peanuts, gluten"
-              value={profileData.dietaryPreferences?.allergies?.join(", ") || ""}
-              onChange={handleDietaryChange}
-              disabled={!isEditingProfile}
-              className="w-full bg-gray-800 p-2 rounded-md border border-gray-700 disabled:bg-gray-900"
-            />
-          </div>
-        </div>
-      </div>
+                      <div>
+                        <label className="text-xs text-gray-400">Allergies</label>
+                        <input
+                          type="text"
+                          name="allergies"
+                          placeholder="peanuts, gluten"
+                          value={profileData.dietaryPreferences?.allergies?.join(", ") || ""}
+                          onChange={handleDietaryChange}
+                          disabled={!isEditingProfile}
+                          className="w-full bg-gray-800 p-2 rounded-md border border-gray-700 disabled:bg-gray-900"
+                        />
+                      </div>
+                    </div>
+                  </div>
 
-      {/* SAVE BUTTONS */}
-      {isEditingProfile && (
-        <div className="col-span-2 flex justify-end gap-2 mt-4">
-          <button
-            onClick={() => setIsEditingProfile(false)}
-            className="px-4 py-2 rounded-md bg-gray-600 hover:bg-gray-500"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSaveProfile}
-            className="px-4 py-2 rounded-md bg-cyan-600 hover:bg-cyan-500 font-semibold"
-          >
-            Save
-          </button>
-        </div>
-      )}
-    </div>
-  </div>
-)}
+                  {/* SAVE BUTTONS */}
+                  {isEditingProfile && (
+                    <div className="col-span-2 flex justify-end gap-2 mt-4">
+                      <button
+                        onClick={() => setIsEditingProfile(false)}
+                        className="px-4 py-2 rounded-md bg-gray-600 hover:bg-gray-500"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleSaveProfile}
+                        className="px-4 py-2 rounded-md bg-cyan-600 hover:bg-cyan-500 font-semibold"
+                      >
+                        Save
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
           </div>
         )}

@@ -312,7 +312,7 @@ interface BrandPageProps {
 const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
   const id = localStorage.getItem("selectedRestaurantId") || "";
   console.log(id);
-
+  const dateInputRef = React.useRef(null);
   // ✅ rest id comes from landing page selection
   const restId = localStorage.getItem("selectedPetpoojaOutletId") || "";
   console.log(restId);
@@ -321,7 +321,7 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
   const [restaurant, setRestaurant] = useState<any>(null);
   const [restaurantLoading, setRestaurantLoading] = useState(true);
   const [restaurantError, setRestaurantError] = useState<string>("");
-
+  const [maxCapacity, setMaxCapacity] = useState<number>(8);
   const [menuData, setMenuData] = useState<MenuCategory[]>([]);
   const [menuCache, setMenuCache] = useState<Record<string, RestaurantMenu[]>>(
     {},
@@ -359,6 +359,40 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
     requests: "",
     tableId: "",
   });
+  useEffect(() => {
+  if (!currentUser) return;
+
+  setResForm((prev) => ({
+    ...prev,
+    name: prev.name || currentUser?.name || "",
+    phone: prev.phone || currentUser?.phone || "",
+  }));
+}, [currentUser]);
+  const loadInitialCapacity = async () => {
+    if (!outletid) return;
+
+    try {
+      // fetch tables without date/time restriction
+      const tables = await apiGetAvailableTables(
+        outletid,
+        toLocalISOString(new Date()), // today
+        "11:00", // default time
+        1
+      );
+
+      const highest = Math.max(
+        ...tables.map((t) => Number(t.capacity || 0)),
+        0
+      );
+
+      setMaxCapacity(Math.max(highest, 1));
+    } catch {
+      setMaxCapacity(8); // fallback default
+    }
+  };
+  useEffect(() => {
+    loadInitialCapacity();
+  }, [outletid]);
   const [availableTables, setAvailableTables] = useState<RestaurantTable[]>([]);
   const [isLoadingTables, setIsLoadingTables] = useState(false);
   const [otp, setOtp] = useState("");
@@ -606,7 +640,6 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
 
     // ✅ Reset previously selected table when fetching fresh
     setResForm((prev) => ({ ...prev, tableId: "" }));
-
     try {
       const tables = await apiGetAvailableTables(
         outletid,
@@ -615,6 +648,11 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
         resForm.guests,
       );
       setAvailableTables(tables);
+      const highest = Math.max(
+        ...tables.map((t: any) => Number(t.capacity || 0)),
+        0
+      );
+      setMaxCapacity(highest || 1);
       setResStep(2);
     } catch (err: unknown) {
       setResError(
@@ -1150,19 +1188,34 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="text-xs text-gray-400 block mb-1">
+
                           Date
                         </label>
-                        <input
-                          type="date"
-                          name="date"
-                          min={minDateStr}
-                          max={maxDateStr}
-                          required
-                          value={resForm.date}
-                          onChange={handleResFormChange}
-                          className="w-full bg-gray-700 p-3 rounded-md border border-gray-600 text-white focus:ring-2 focus:ring-[var(--primary-color)]"
-                        />
+                        <div className="relative w-full">
+                          <input
+                            ref={dateInputRef}
+                            type="date"
+                            name="date"
+                            min={minDateStr}
+                            max={maxDateStr}
+                            required
+                            value={resForm.date}
+
+                            // block typing
+                            onKeyDown={(e) => e.preventDefault()}
+                            onPaste={(e) => e.preventDefault()}
+
+                            // force open picker
+                            onFocus={() => dateInputRef.current?.showPicker?.()}
+                            onClick={() => dateInputRef.current?.showPicker?.()}
+
+                            onChange={handleResFormChange}
+                            className="w-full bg-gray-700 p-3 rounded-md border border-gray-600 text-white cursor-pointer"
+                          />
+
+                        </div>
                       </div>
+
                       <div>
                         <label className="text-xs text-gray-400 block mb-1">
                           Guests
@@ -1171,14 +1224,22 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
                           name="guests"
                           value={resForm.guests}
                           onChange={handleResFormChange}
-                          className="w-full bg-gray-700 p-3 rounded-md border border-gray-600 text-white focus:ring-2 focus:ring-[var(--primary-color)]"
+                          onKeyDown={(e) => {
+                            e.preventDefault();
+                            e.currentTarget.blur(); // remove focus → stops keyboard switching
+                          }}
+                          onPaste={(e) => e.preventDefault()}
+                          className="w-full bg-gray-700 p-3 rounded-md border border-gray-600 text-white cursor-pointer"
                         >
-                          {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
+                          {Array.from({ length: maxCapacity }, (_, i) => i + 1).map((n) => (
                             <option key={n} value={n}>
                               {n} Guests
                             </option>
                           ))}
                         </select>
+
+
+
                       </div>
                     </div>
                     {/* TIME — simple fixed dropdown */}
@@ -1194,9 +1255,8 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
                         className="w-full bg-gray-700 p-3 rounded-md border border-gray-600 text-white focus:ring-2 focus:ring-[var(--primary-color)]"
                       >
                         <option value="">Select Time</option>
-                        {Array.from({ length: 12 }, (_, i) => {
-                          const hour = 11 + i;
-                          const slot = `${String(hour).padStart(2, "0")}:00`;
+                        {availableTimeSlots.map((slot) => {
+                          const hour = Number(slot.split(":")[0]);
                           const endSlot = `${String(hour + 2).padStart(2, "0")}:00`;
 
                           return (
@@ -1205,6 +1265,7 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
                             </option>
                           );
                         })}
+
                       </select>
 
                     </div>
@@ -1319,21 +1380,36 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
                         placeholder="Your Name"
                         required
                         value={resForm.name}
-                        onChange={handleResFormChange}
                         disabled={otpSent}
-                        className="w-full bg-gray-700 p-3 rounded-md border border-gray-600 text-white disabled:opacity-50"
+                        onChange={(e) => {
+                          const value = e.target.value;
+
+                          // allow only letters + space
+                          if (/^[A-Za-z\s]*$/.test(value)) {
+                            setResForm((prev) => ({ ...prev, name: value }));
+                          }
+                        }}
+                        className="w-full bg-gray-700 p-3 rounded-md border border-gray-600 text-white"
                       />
+
 
                       <input
                         type="tel"
                         name="phone"
                         placeholder="Phone Number"
                         required
+                        maxLength={10}
                         value={resForm.phone}
-                        onChange={handleResFormChange}
                         disabled={otpSent}
-                        className="w-full bg-gray-700 p-3 rounded-md border border-gray-600 text-white disabled:opacity-50"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/\D/g, ""); // remove non-digits
+                          setResForm((prev) => ({ ...prev, phone: value }));
+                        }}
+                        className="w-full bg-gray-700 p-3 rounded-md border border-gray-600 text-white"
                       />
+
 
                       {!otpSent ? (
                         <button
