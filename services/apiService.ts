@@ -28,15 +28,11 @@ export async function apiResolveRestaurantByName(payload: {
   lat: number;
   lng: number;
 }) {
-
-  const res = await fetch(
-    `${BASE_URL}/resturents/resolve-by-name`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    },
-  );
+  const res = await fetch(`${BASE_URL}/resturents/resolve-by-name`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
 
   const data = await res.json();
 
@@ -158,6 +154,20 @@ export async function apiUpdateTable(
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
+    });
+
+    return await res.json();
+  } catch (err: any) {
+    return { error: err.message };
+  }
+}
+export async function apiDeleteTable(
+  tableId: string,
+) {
+  try {
+    const res = await fetch(`${BASE_URL}/outlet-table/${tableId}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
     });
 
     return await res.json();
@@ -503,8 +513,7 @@ export const apiGetUserById = async (userId: string): Promise<User | null> => {
 
   // ✅ Normalize dietary preferences (CRITICAL)
   const dietary = profile.dietary_preferences || {};
-  const normalize = (v: any) =>
-    Array.isArray(v) ? v : v ? [v] : [];
+  const normalize = (v: any) => (Array.isArray(v) ? v : v ? [v] : []);
 
   const dietaryPreferences = {
     likes: normalize(dietary.likes),
@@ -527,10 +536,9 @@ export const apiGetUserById = async (userId: string): Promise<User | null> => {
   };
 };
 
-
 export const apiUpdateUser = async (
   userId: string,
-  updates: Partial<User>
+  updates: Partial<User>,
 ): Promise<User> => {
   const dbUpdates: any = {};
 
@@ -560,7 +568,6 @@ export const apiUpdateUser = async (
 
   return apiGetUserById(userId) as Promise<User>;
 };
-
 
 // --- Order API ---
 export const apiGetUserOrders = async (userId: string): Promise<Order[]> => {
@@ -905,8 +912,8 @@ const mapDbReservation = (data: any): Reservation => ({
   restId: data.rest_id,
   userId: data.user_id,
   tableId: data.table_id,
-  tableNumber:data.table_number,
-  endtime:data.end_time,
+  tableNumber: data.table_number,
+  endtime: data.end_time,
   name: data.name,
   email: data.email,
   phone: data.phone,
@@ -942,7 +949,7 @@ export const apiGetAvailableTables = async (
 };
 
 export const apiSendReservationOTP = async (
-  phone: string
+  phone: string,
 ): Promise<boolean> => {
   const res = await fetch(`${BASE_URL}/otp/send`, {
     method: "POST",
@@ -958,15 +965,11 @@ export const apiSendReservationOTP = async (
   }
 
   if (!res.ok || !data?.success) {
-    throw new Error(
-      data?.error || data?.message || "Failed to send OTP"
-    );
+    throw new Error(data?.error || data?.message || "Failed to send OTP");
   }
 
   return true;
 };
-
-
 
 export const apiVerifyReservationOTP = async (
   phone: string,
@@ -986,9 +989,7 @@ export const apiVerifyReservationOTP = async (
   }
 
   if (!res.ok || !data?.success) {
-    throw new Error(
-      data?.error || data?.message || "Invalid or expired OTP"
-    );
+    throw new Error(data?.error || data?.message || "Invalid or expired OTP");
   }
 
   return true;
@@ -1065,8 +1066,8 @@ export const apiCreateReservation = async (
     date: form.date,
     time: form.time,
     guests: form.guests,
-    tableId: form.tableId, 
-    tablenumber: form.tablenumber,// ✅ backend expects tableId
+    tableId: form.tableId,
+    tablenumber: form.tablenumber, // ✅ backend expects tableId
     requests: form.requests || null,
   };
 
@@ -1093,7 +1094,7 @@ export const apiUpdateReservation = async (
     .update(updates)
     .eq("id", resId)
     .select()
- .maybeSingle();
+    .maybeSingle();
   if (error) handleSupabaseError(error, "Update Reservation");
   return mapDbReservation(data);
 };
