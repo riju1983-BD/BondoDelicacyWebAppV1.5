@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import HelpBuddyIcon from "./HelpBuddyIcon";
 import HelpBuddyModal from "./HelpBuddyModal";
 import { Icon } from "./Icon";
+import { useOutlet } from "../context/OutletContext";
 import {
   apiGetOutlet,
   apiResolveRestaurantByName,
@@ -43,7 +44,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
   const { isAuthenticated, currentUser } = useAuth();
   const [isHelpBuddyOpen, setIsHelpBuddyOpen] = useState(false);
   const isFirstLoad = React.useRef(true);
-
+  const { setOutletLocation } = useOutlet();
   const [restaurants, setRestaurants] = useState<any[]>([]);
   const [isLoadingRestaurants, setIsLoadingRestaurants] = useState(false);
   const [restaurantsError, setRestaurantsError] = useState<string | null>(null);
@@ -184,8 +185,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
   }, []);
   const closestOutlet = resolvedOutlet
     ? restaurants.find(
-        (r) => r.petpooja_outlet_id === resolvedOutlet.petpooja_outlet_id,
-      )
+      (r) => r.petpooja_outlet_id === resolvedOutlet.petpooja_outlet_id,
+    )
     : null;
 
   return (
@@ -338,6 +339,15 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
                   key={outlet.id}
                   onClick={() => {
                     if (closed) return;
+                    const newLoc = {
+                      lat: outlet.lat,
+                      lng: outlet.long,
+                    };
+                    setOutletLocation(newLoc);
+
+                    console.log("Outlet Latitude:", newLoc.lat);
+                    console.log("Outlet Longitude:", newLoc.lng);
+
 
                     localStorage.setItem(
                       "selectedPetpoojaOutletId",

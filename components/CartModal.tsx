@@ -3,7 +3,7 @@ import { useCart } from "../context/CartContext";
 import { useAuth } from "../context/AuthContext";
 import { Icon } from "./Icon";
 import { DeliveryAddress } from "../types";
-import { BASE_URL } from "../src/config";
+import { BASE_URL, RAZORPAY_KEY_ID } from "../src/config";
 import {
   applyFlatDiscount,
   apiGetUserValidPoints,
@@ -14,7 +14,7 @@ import {
   apiCheckServiceAvailability,
   apiBookRider,
 } from "../services/apiService";
-
+import { useOutlet } from "../context/OutletContext";
 const Spinner: React.FC<{ className?: string }> = ({
   className = "h-5 w-5",
 }) => (
@@ -171,10 +171,14 @@ interface CartModalProps {
   brandId: string;
 }
 type View = "cart" | "auth" | "address" | "checkout" | "confirmation";
-const RESTAURANT_LAT = 12.9716; // example
-const RESTAURANT_LNG = 77.5946;
+
 
 const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
+  const { outletLocation } = useOutlet(); // ✅ inside component
+  // const RESTAURANT_LAT = 12.9716; // example
+  // const RESTAURANT_LNG = 77.5946;
+  const RESTAURANT_LAT = outletLocation?.lat ?? 0;
+  const RESTAURANT_LNG = outletLocation?.lng ?? 0;
   const [calculatedTaxByItemId, setCalculatedTaxByItemId] = useState<
     Record<string, any[]>
   >({});
@@ -268,7 +272,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
             amount: t.amount,
           }));
         }
-      } catch {}
+      } catch { }
     }
 
     return [];
@@ -358,65 +362,83 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
         {
           componentRestrictions: { country: "in" },
           fields: ["formatted_address", "geometry", "address_components"],
-        },
+        }
       );
 
       autocomplete.addListener("place_changed", async () => {
         const place = autocomplete.getPlace();
         if (!place.geometry?.location) return;
-  const formatted = place.formatted_address || "";
+
+        const formatted = place.formatted_address || "";
         const dropLat = place.geometry.location.lat();
         const dropLng = place.geometry.location.lng();
-  // ❌ HARD STOP if not Bangalore
-  if (!checkIsBangalore(formatted)) {
-    setIsAddressServiceable(false);
-    setAddressError(
-      "Currently, our culinary delights travel exclusively within Bangalore."
-    );
-    return;
-  }
 
-        // Save address + coordinates
+        if (!checkIsBangalore(formatted)) {
+          setIsAddressServiceable(false);
+          setAddressError(
+            "Currently, our culinary delights travel exclusively within Bangalore."
+          );
+          return;
+        }
+
         setNewAddressData((prev) => ({
           ...prev,
-          fullAddress: place.formatted_address,
+          fullAddress: formatted,
           coordinates: { lat: dropLat, lng: dropLng },
         }));
 
         try {
-          const serviceResp = await apiCheckServiceAvailability(
+          const resp = await apiCheckServiceAvailability(
             RESTAURANT_LAT,
             RESTAURANT_LNG,
             dropLat,
-            dropLng,
+            dropLng
           );
+          console.log("=== SERVICE API RESPONSE (FORM) ===");
+          console.log(JSON.stringify(resp, null, 2));
+          const serviceable =
+            resp?.data?.serviceable || resp?.serviceable || {};
 
-          // if (!serviceResp.serviceable.locationServiceable) {
-          //   setIsAddressServiceable(false);
-          //   setAddressError("Delivery not available for this location.");
-          //   return;
-          // }
+          const locationOk =
+            serviceable.locationServiceAble ??
+            serviceable.locationServiceable ??
+            false;
 
-          // if (!serviceResp.serviceable.riderServiceable) {
-          //   setIsAddressServiceable(false);
-          //   setAddressError("No delivery partners available right now.");
-          //   return;
-          // }
+          const riderOk =
+            serviceable.riderServiceAble ??
+            serviceable.riderServiceable ??
+            false;
 
-          // ✅ SERVICEABLE
+          if (!locationOk && !riderOk) {
+            setIsAddressServiceable(false);
+            setAddressError("Delivery is not available in this location.");
+            return;
+          }
+
+          if (!locationOk) {
+            setIsAddressServiceable(false);
+            setAddressError("Location is not deliverable.");
+            return;
+          }
+
+          if (!riderOk) {
+            setIsAddressServiceable(false);
+            setAddressError("Rider not available in this location.");
+            return;
+          }
+
           setIsAddressServiceable(true);
           setAddressError("");
-
-          // ✅ SAVE DELIVERY CHARGE
-          setDeliveryCharge(serviceResp.payouts.total);
-        } catch {
+          setDeliveryCharge(
+            Number(resp?.data?.payouts?.total || resp?.payouts?.total || 0)
+          );
+        } catch (err) {
           setIsAddressServiceable(false);
           setAddressError("Delivery service unavailable.");
         }
       });
     }
-  }, [view, showAddressForm]);
-
+  }, [view, showAddressForm, RESTAURANT_LAT, RESTAURANT_LNG]);
   useEffect(() => {
     if (currentUser && isOpen) {
       apiGetUserValidPoints(currentUser.id).then(setAvailablePoints);
@@ -599,8 +621,8 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
       const preTax = Math.max(
         0,
         Number(totalPrice || 0) -
-          Number(discountAmount || 0) -
-          Number(loyaltyDiscount || 0),
+        Number(discountAmount || 0) -
+        Number(loyaltyDiscount || 0),
       );
 
       const finalTotalForPayload = hasInclusiveItems
@@ -677,7 +699,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                 created_on: getCurrentDateTime(),
                 enable_delivery: 1,
                 callback_url:
-                  "https://cherish-rollable-anahi.ngrok-free.dev/api/petpuja/callback",
+                  `${BASE_URL}/petpuja/callback`,
                 collect_cash: "0",
               },
             },
@@ -761,7 +783,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
 
       // 3) Open Razorpay Checkout
       const rzp = new (window as any).Razorpay({
-        key: "rzp_test_S8PZzdGWKdlwmE",
+        key: RAZORPAY_KEY_ID,
         order_id: razorpayOrder.id,
         amount: razorpayOrder.amount,
         currency: razorpayOrder.currency,
@@ -903,21 +925,74 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
       setView("auth");
     }
   };
-  const checkServiceabilityForAddress = async (address: DeliveryAddress) => {
-    if (!address.coordinates) return;
+  const checkServiceabilityForAddress = async (
+    address: DeliveryAddress
+  ): Promise<boolean> => {
+    if (!address?.coordinates) {
+      setIsAddressServiceable(false);
+      setAddressError("Invalid address coordinates.");
+      return false;
+    }
 
-    const { lat, lng } = address.coordinates;
+    try {
+      const { lat, lng } = address.coordinates;
 
-    const serviceResp = await apiCheckServiceAvailability(
-      RESTAURANT_LAT,
-      RESTAURANT_LNG,
-      lat,
-      lng,
-    );
+      const resp = await apiCheckServiceAvailability(
+        RESTAURANT_LAT,
+        RESTAURANT_LNG,
+        lat,
+        lng
+      );
+      console.log("=== SERVICE API RESPONSE (FORM) ===");
+      console.log(JSON.stringify(resp, null, 2));
+      console.log("Serviceability API response:", resp);
 
-    // ONLY responsibility: set delivery charge
-    if (serviceResp?.payouts?.total != null) {
-      setDeliveryCharge(Number(serviceResp.payouts.total));
+      const serviceable =
+        resp?.data?.serviceable || resp?.serviceable || {};
+
+      const locationOk =
+        serviceable.locationServiceAble ??
+        serviceable.locationServiceable ??
+        false;
+
+      const riderOk =
+        serviceable.riderServiceAble ??
+        serviceable.riderServiceable ??
+        false;
+
+      // ❌ BOTH false
+      if (!locationOk && !riderOk) {
+        setIsAddressServiceable(false);
+        setAddressError("Delivery is not available in this location.");
+        return false;
+      }
+
+      // ❌ Only location false
+      if (!locationOk) {
+        setIsAddressServiceable(false);
+        setAddressError("Location is not deliverable.");
+        return false;
+      }
+
+      // ❌ Only rider false
+      if (!riderOk) {
+        setIsAddressServiceable(false);
+        setAddressError("Rider not available in this location.");
+        return false;
+      }
+
+      // ✅ Everything fine
+      setIsAddressServiceable(true);
+      setAddressError("");
+      setDeliveryCharge(Number(resp?.payouts?.total || 0));
+
+      return true;
+
+    } catch (error) {
+      console.error("Serviceability error:", error);
+      setIsAddressServiceable(false);
+      setAddressError("Delivery service unavailable.");
+      return false;
     }
   };
 
@@ -945,6 +1020,13 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
         await refreshCurrentUser(); // Refresh to get the new address list
         setSelectedAddressId(savedAddress.id || null);
         setShowAddressForm(false);
+
+        const isServiceable = await checkServiceabilityForAddress(savedAddress);
+
+        if (!isServiceable) {
+          return; // 🚫 STOP if not serviceable
+        }
+
         setView("checkout");
       } catch (error) {
         console.error("Failed to save address:", error);
@@ -1040,9 +1122,8 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                   setIsLoginView(true);
                   setAuthError("");
                 }}
-                className={`flex-1 p-2 rounded-l-md text-sm ${
-                  isLoginView ? "bg-cyan-600 text-white" : "bg-gray-700"
-                }`}
+                className={`flex-1 p-2 rounded-l-md text-sm ${isLoginView ? "bg-cyan-600 text-white" : "bg-gray-700"
+                  }`}
               >
                 Login
               </button>
@@ -1052,9 +1133,8 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                   setIsLoginView(false);
                   setAuthError("");
                 }}
-                className={`flex-1 p-2 rounded-r-md text-sm ${
-                  !isLoginView ? "bg-cyan-600 text-white" : "bg-gray-700"
-                }`}
+                className={`flex-1 p-2 rounded-r-md text-sm ${!isLoginView ? "bg-cyan-600 text-white" : "bg-gray-700"
+                  }`}
               >
                 Register
               </button>
@@ -1133,11 +1213,10 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                 {currentUser.addresses.map((addr) => (
                   <label
                     key={addr.id}
-                    className={`block p-4 rounded-lg border cursor-pointer transition-all ${
-                      selectedAddressId === addr.id
-                        ? "border-cyan-500 bg-cyan-900/20"
-                        : "border-gray-600 bg-gray-700/50 hover:border-gray-500"
-                    }`}
+                    className={`block p-4 rounded-lg border cursor-pointer transition-all ${selectedAddressId === addr.id
+                      ? "border-cyan-500 bg-cyan-900/20"
+                      : "border-gray-600 bg-gray-700/50 hover:border-gray-500"
+                      }`}
                   >
                     <div className="flex items-start gap-3">
                       <input
@@ -1184,6 +1263,11 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
               >
                 <Icon type="plus-circle" className="w-5 h-5" /> Add New Address
               </button>
+              {!isAddressServiceable && addressError && (
+                <div className="mt-3 p-3 bg-red-900/30 border border-red-800 rounded-md">
+                  <p className="text-sm text-red-200">{addressError}</p>
+                </div>
+              )}
               <button
                 disabled={!selectedAddressId || isProcessing}
                 onClick={async () => {
@@ -1194,12 +1278,16 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                   );
 
                   setIsProcessing(true);
-
                   try {
                     if (selectedAddress) {
-                      await checkServiceabilityForAddress(selectedAddress);
+                      const isServiceable = await checkServiceabilityForAddress(selectedAddress);
+
+                      if (!isServiceable) {
+                        return; // 🚫 STOP here if not serviceable
+                      }
                     }
-                    setView("checkout");
+
+                    setView("checkout"); // ✅ Only runs if true
                   } finally {
                     setIsProcessing(false);
                   }
@@ -1249,11 +1337,10 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                         setAddressError("");
                       }
                     }}
-                    className={`w-full bg-gray-700 p-3 pl-10 rounded-md border ${
-                      !isAddressServiceable
-                        ? "border-red-500 focus:ring-red-500"
-                        : "border-gray-600 focus:ring-cyan-500"
-                    } focus:ring-2 focus:outline-none text-white`}
+                    className={`w-full bg-gray-700 p-3 pl-10 rounded-md border ${!isAddressServiceable
+                      ? "border-red-500 focus:ring-red-500"
+                      : "border-gray-600 focus:ring-cyan-500"
+                      } focus:ring-2 focus:outline-none text-white`}
                   />
                 </div>
                 {!isAddressServiceable && (
@@ -1555,7 +1642,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
             )}
             {
               view === "auth" &&
-                null /* Auth view has its own submit button in form */
+              null /* Auth view has its own submit button in form */
             }
             {view === "checkout" && (
               <button

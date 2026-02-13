@@ -12,6 +12,11 @@ import { apiGetRestaurantById } from './services/apiService';
 import { Restaurant } from './types';
 
 const App: React.FC = () => {
+    useEffect(() => {
+    if (window.location.hostname === 'api.bongodelicacy.com') {
+      window.location.href = `https://bongodelicacy.com${window.location.pathname}${window.location.hash}${window.location.search}`;
+    }
+  }, []);
   const getRoute = () => window.location.hash.substring(1).split('?')[0];
 
   const [route, setRoute] = useState(getRoute());
@@ -20,6 +25,8 @@ const App: React.FC = () => {
   const [loadingRestaurant, setLoadingRestaurant] = useState(false);
 
   const { currentUser } = useAuth();
+
+
 
   useEffect(() => {
     const handleHashChange = () => {

@@ -582,7 +582,7 @@ export const apiGetUserOrders = async (userId: string): Promise<Order[]> => {
 
 const mapDbOrderToType = (dbOrder: any): Order => ({
   id: dbOrder.id,
-  restId: dbOrder.rest_id,
+  restId: dbOrder.brand_id,
   userId: dbOrder.user_id,
   items: dbOrder.items,
   customer: dbOrder.customer,

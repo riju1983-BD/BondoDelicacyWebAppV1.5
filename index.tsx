@@ -4,7 +4,7 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import { CartProvider } from './context/CartContext';
 import { AuthProvider } from './context/AuthContext';
-
+import { OutletProvider } from './context/OutletContext';
 // Register the service worker for PWA functionality
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -26,10 +26,12 @@ if (!rootElement) {
 
 const root = ReactDOM.createRoot(rootElement);
 root.render(
-  <React.StrictMode>
+ <React.StrictMode>
     <AuthProvider>
       <CartProvider>
-        <App />
+        <OutletProvider>
+          <App />
+        </OutletProvider>
       </CartProvider>
     </AuthProvider>
   </React.StrictMode>
