@@ -268,7 +268,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
             A curated collective of authentic culinary brands, bringing the soul
             of Kolkata to your plate.
           </p>
-          {location && (
+          {/* {location && (
             <div className="mt-2 space-y-1">
               <p className="text-xs text-gray-300">
                 Location: {locationName ?? "Detecting location..."}
@@ -278,7 +278,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
                 {location.lat.toFixed(5)}, {location.lng.toFixed(5)}
               </p>
             </div>
-          )}
+          )} */}
 
           {locationError && (
             <p className="text-xs text-red-400 mt-2">{locationError}</p>
@@ -423,7 +423,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
         </p>
         <div className="mt-4 flex justify-center gap-4">
           <button
-            onClick={() => handleNavigate("#admin-login")}
+            onClick={() => window.open("#admin-login", "_blank")}
             className="text-xs hover:text-gray-300 transition-colors"
           >
             Admin Login
