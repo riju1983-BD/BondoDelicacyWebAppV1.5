@@ -2,10 +2,16 @@ import React, { useState, useEffect } from "react";
 import { Order } from "../types";
 
 import { Icon } from "./Icon";
-import { apiCancelOrder, apiGetOrderById, } from "../services/apiService";
+import { apiCancelOrder, apiGetOrderById } from "../services/apiService";
 import { normalizeOrderStatus } from "../model/status";
 
-const steps = ["Order Placed", "Accepted", "Food Ready", "Out For Delivery", "Delivered"];
+const steps = [
+  "Order Placed",
+  "Accepted",
+  "Food Ready",
+  "Out For Delivery",
+  "Delivered",
+];
 
 interface StatusTrackerProps {
   status: Order["status"];
@@ -27,44 +33,52 @@ const StatusTracker: React.FC<StatusTrackerProps> = ({ status }) => {
   const currentIndex = steps.indexOf(status);
 
   return (
-    <div className="flex items-center w-full">
-      {steps.map((step, index) => (
-        <React.Fragment key={step}>
-          <div className="flex flex-col items-center flex-1">
-            <div
-              className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors duration-500 ${index < currentIndex
-                ? "bg-green-500"
-                : index === currentIndex
-                  ? "bg-cyan-500 animate-pulse"
-                  : "bg-gray-600"
+    <div className="w-full overflow-x-auto pb-2">
+      <div className="flex items-start min-w-max px-4 md:px-0 md:w-full">
+        {steps.map((step, index) => (
+          <React.Fragment key={step}>
+            <div className="flex flex-col items-center flex-shrink-0 w-24 md:flex-1">
+              <div
+                className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors duration-500 ${
+                  index < currentIndex
+                    ? "bg-green-500"
+                    : index === currentIndex
+                      ? "bg-cyan-500 animate-pulse"
+                      : "bg-gray-600"
                 }`}
-            >
-              <Icon type="check-circle" className="w-5 h-5 text-white" />
+              >
+                <Icon type="check-circle" className="w-5 h-5 text-white" />
+              </div>
+              <p
+                className={`mt-2 text-xs sm:text-sm text-center font-semibold whitespace-nowrap ${
+                  index <= currentIndex ? "text-white" : "text-gray-400"
+                }`}
+              >
+                {step}
+              </p>
             </div>
-
-            <p
-              className={`mt-2 text-xs sm:text-sm text-center font-semibold ${index <= currentIndex ? "text-white" : "text-gray-400"
+            {index < steps.length - 1 && (
+              <div
+                className={`flex-shrink-0 w-12 md:flex-1 h-1 mt-4 ${
+                  index < currentIndex ? "bg-green-500" : "bg-gray-600"
                 }`}
-            >
-              {step}
-            </p>
-          </div>
-
-          {index < steps.length - 1 && (
-            <div className={`flex-1 h-1 mx-2 ${index < currentIndex ? "bg-green-500" : "bg-gray-600"}`}></div>
-          )}
-        </React.Fragment>
-      ))}
+              ></div>
+            )}
+          </React.Fragment>
+        ))}
+      </div>
     </div>
   );
 };
-
 interface OrderStatusPageProps {
   orderId?: string;
   isEmbedded?: boolean;
 }
 
-const OrderStatusPage: React.FC<OrderStatusPageProps> = ({ orderId, isEmbedded = false }) => {
+const OrderStatusPage: React.FC<OrderStatusPageProps> = ({
+  orderId,
+  isEmbedded = false,
+}) => {
   const [trackingId, setTrackingId] = useState("");
   const [foundOrder, setFoundOrder] = useState<Order | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -127,7 +141,6 @@ const OrderStatusPage: React.FC<OrderStatusPageProps> = ({ orderId, isEmbedded =
     normalizedStatus !== "Out For Delivery" &&
     refundPercent > 0;
 
-
   const handleConfirmCancel = async () => {
     if (!foundOrder) return;
 
@@ -136,8 +149,7 @@ const OrderStatusPage: React.FC<OrderStatusPageProps> = ({ orderId, isEmbedded =
 
     try {
       // original order amount from DB
-    const orderAmount = Number(foundOrder.totalAmount || 0);
-
+      const orderAmount = Number(foundOrder.totalAmount || 0);
 
       // calculate refundable amount based on your percentage rules
       const refundAmount = Math.round((orderAmount * refundPercent) / 100);
@@ -145,17 +157,12 @@ const OrderStatusPage: React.FC<OrderStatusPageProps> = ({ orderId, isEmbedded =
 
       setShowCancelModal(false);
       fetchOrder(foundOrder.id);
-
     } catch (err: any) {
       setCancelError(err.message || "Failed to cancel order");
     } finally {
       setIsCancelling(false);
     }
   };
-
-
-
-
 
   const OrderContent = (
     <>
@@ -171,19 +178,26 @@ const OrderStatusPage: React.FC<OrderStatusPageProps> = ({ orderId, isEmbedded =
             <h2 className="text-xl sm:text-2xl font-serif">
               Order from {foundOrder?.name || "Unknown Restaurant"}
             </h2>
-            <p className="text-gray-400 text-sm font-mono">ID: {foundOrder.id}</p>
+            <p className="text-gray-400 text-sm font-mono">
+              ID: {foundOrder.id}
+            </p>
           </header>
 
           {normalizedStatus !== "Delivered" && (
             <div className="border-t border-gray-700 pt-6">
-              <h3 className="text-center text-lg font-semibold mb-6">Current Status</h3>
+              <h3 className="text-center text-lg font-semibold mb-6">
+                Current Status
+              </h3>
               <StatusTracker status={normalizedStatus} />
 
               {canCancel && (
                 <div className="flex flex-col items-center mt-6 gap-3">
                   <p className="text-sm text-gray-300 text-center max-w-md">
                     If you cancel now, you'll receive{" "}
-                    <span className="font-semibold text-cyan-400">{refundPercent}% refund</span>.
+                    <span className="font-semibold text-cyan-400">
+                      {refundPercent}% refund
+                    </span>
+                    .
                   </p>
 
                   <button
@@ -224,7 +238,9 @@ const OrderStatusPage: React.FC<OrderStatusPageProps> = ({ orderId, isEmbedded =
               onChange={(e) => setCancelReason(e.target.value)}
             />
 
-            {cancelError && <p className="text-sm text-red-400 mt-2">{cancelError}</p>}
+            {cancelError && (
+              <p className="text-sm text-red-400 mt-2">{cancelError}</p>
+            )}
 
             <div className="flex justify-end gap-3 mt-4">
               <button
@@ -252,39 +268,50 @@ const OrderStatusPage: React.FC<OrderStatusPageProps> = ({ orderId, isEmbedded =
   if (isEmbedded) return OrderContent;
 
   return (
-    <div className="min-h-screen bg-gray-800 text-white p-8 flex items-center justify-center">
-      <div className="w-full max-w-2xl bg-gray-900 border border-gray-700 p-10 rounded-lg shadow-xl">
-        <header className="text-center mb-10">
-          <Icon type="credit-card" className="mx-auto h-12 w-12 text-cyan-400" />
-          <h1 className="text-4xl font-serif mt-4">Track Your Order</h1>
-          <p className="text-sm text-gray-400">Enter your order ID to see its status</p>
+    <div className="min-h-screen bg-gray-800 text-white p-4 sm:p-8 flex items-center justify-center">
+      <div className="w-full max-w-2xl bg-gray-900 border border-gray-700 p-6 sm:p-10 rounded-lg shadow-xl">
+        <header className="text-center mb-6 sm:mb-10">
+          <Icon
+            type="credit-card"
+            className="mx-auto h-10 w-10 sm:h-12 sm:w-12 text-cyan-400"
+          />
+          <h1 className="text-2xl sm:text-4xl font-serif mt-4">
+            Track Your Order
+          </h1>
+          <p className="text-xs sm:text-sm text-gray-400 mt-1">
+            Enter your order ID to see its status
+          </p>
         </header>
 
-        <form className="flex gap-2 mb-10" onSubmit={handleTrack}>
+        <form
+          className="flex flex-col sm:flex-row gap-2 mb-6 sm:mb-10"
+          onSubmit={handleTrack}
+        >
           <input
             type="text"
             value={trackingId}
             onChange={(e) => setTrackingId(e.target.value)}
             placeholder="Enter your order ID..."
-            className="flex-grow bg-gray-800 border border-gray-600 text-white rounded-md py-3 px-4 focus:ring-2 focus:ring-cyan-500"
+            className="flex-grow bg-gray-800 border border-gray-600 text-white rounded-md py-3 px-4 focus:ring-2 focus:ring-cyan-500 text-sm sm:text-base"
             disabled={isLoading}
           />
           <button
             type="submit"
             disabled={isLoading}
-            className="bg-cyan-600 px-6 py-3 rounded-md text-white hover:bg-cyan-500 disabled:opacity-70"
+            className="bg-cyan-600 px-6 py-3 rounded-md text-white hover:bg-cyan-500 disabled:opacity-70 flex items-center justify-center gap-2 text-sm sm:text-base"
           >
             {isLoading ? "..." : <Icon type="search" className="w-5 h-5" />}
             {!isLoading && "Track"}
           </button>
         </form>
 
-        {OrderContent}
+        {/* Wrapper for horizontal scroll on mobile */}
+        <div className="mb-6 sm:mb-10">{OrderContent}</div>
 
-        <div className="text-center mt-10">
+        <div className="text-center mt-6 sm:mt-10">
           <button
             onClick={() => (window.location.hash = "#")}
-            className="text-sm text-cyan-400 hover:underline"
+            className="text-xs sm:text-sm text-cyan-400 hover:underline"
           >
             ← Back to Main Site
           </button>
