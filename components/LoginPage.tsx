@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Icon } from './Icon';
 import { User } from '../types';
@@ -12,6 +11,15 @@ const Spinner: React.FC<{ className?: string }> = ({ className = "h-5 w-5" }) =>
 );
 
 const LoginPage: React.FC = () => {
+    const dateInputRef = useRef<HTMLInputElement>(null);
+
+    // today (max allowed)
+    const maxDateStr = new Date().toISOString().split("T")[0];
+
+    // optional minimum DOB (example: 100 years ago)
+    const minDate = new Date();
+    minDate.setFullYear(minDate.getFullYear() - 100);
+    const minDateStr = minDate.toISOString().split("T")[0];
     const [isLoginView, setIsLoginView] = useState(true);
     const { login, register } = useAuth();
 
@@ -32,15 +40,38 @@ const LoginPage: React.FC = () => {
         setError('');
         setSuccess('');
         setIsLoading(true);
+
         try {
+
+            // ✅ DOB validation (only during registration)
+            if (!isLoginView && formData.dob) {
+                const selectedDate = new Date(formData.dob);
+                const today = new Date();
+
+                // remove time part for accurate comparison
+                today.setHours(0, 0, 0, 0);
+
+                if (selectedDate > today) {
+                    setError('Date of birth cannot be in the future.');
+                    setIsLoading(false);
+                    return;
+                }
+            }
+
             if (isLoginView) {
                 await login(formData.email, formData.password);
-                window.location.hash = '#account'; // Only redirect immediately on login
+                window.location.hash = '#account';
             } else {
                 const dietaryPreferences = {
-                    likes: formData.likes ? formData.likes.split(",").map(s => s.trim()) : [],
-                    dislikes: formData.dislikes ? formData.dislikes.split(",").map(s => s.trim()) : [],
-                    allergies: formData.allergies ? formData.allergies.split(",").map(s => s.trim()) : [],
+                    likes: formData.likes
+                        ? formData.likes.split(",").map(s => s.trim())
+                        : [],
+                    dislikes: formData.dislikes
+                        ? formData.dislikes.split(",").map(s => s.trim())
+                        : [],
+                    allergies: formData.allergies
+                        ? formData.allergies.split(",").map(s => s.trim())
+                        : [],
                 };
 
                 await register(
@@ -51,11 +82,13 @@ const LoginPage: React.FC = () => {
                     formData.dob,
                     dietaryPreferences
                 );
-                // On successful registration, switch to login view and show success message
+
+                // success UI
                 setIsLoginView(true);
                 setSuccess('Registration successful! Please log in with your new credentials.');
-                setFormData(prev => ({ ...prev, password: '' })); // Clear password for security
+                setFormData(prev => ({ ...prev, password: '' }));
             }
+
         } catch (err) {
             setError(err instanceof Error ? err.message : 'An unknown error occurred.');
         } finally {
@@ -83,17 +116,91 @@ const LoginPage: React.FC = () => {
                     {!isLoginView && (
                         <>
                             <input type="text" name="name" placeholder="Your Name" required value={formData.name} onChange={handleChange} className="w-full bg-gray-700 p-3 rounded-md border border-gray-600 focus:ring-2 focus:ring-cyan-500 focus:outline-none text-white" />
-                            <input type="tel" name="phone" placeholder="Phone Number" required value={formData.phone} onChange={handleChange} className="w-full bg-gray-700 p-3 rounded-md border border-gray-600 focus:ring-2 focus:ring-cyan-500 focus:outline-none text-white" />
+                            <input
+                                type="tel"
+                                name="phone"
+                                placeholder="Phone Number"
+                                required
+                                inputMode="numeric"
+                                maxLength={10}
+                                value={formData.phone}
+
+                                onChange={(e) => {
+                                    // keep digits only
+                                    const digitsOnly = e.target.value.replace(/[^0-9]/g, '');
+
+                                    setFormData({
+                                        ...formData,
+                                        phone: digitsOnly.slice(0, 10),
+                                    });
+                                }}
+
+                                onKeyDown={(e) => {
+                                    // allow only digits + control keys
+                                    if (
+                                        !/^[0-9]$/.test(e.key) &&
+                                        e.key !== "Backspace" &&
+                                        e.key !== "Delete" &&
+                                        e.key !== "ArrowLeft" &&
+                                        e.key !== "ArrowRight" &&
+                                        e.key !== "Tab"
+                                    ) {
+                                        e.preventDefault();
+                                    }
+                                }}
+
+                                onPaste={(e) => {
+                                    // block paste if contains anything except digits
+                                    const pasted = e.clipboardData.getData("text");
+                                    if (!/^[0-9]+$/.test(pasted)) {
+                                        e.preventDefault();
+                                    }
+                                }}
+
+                                className="w-full bg-gray-700 p-3 rounded-md border border-gray-600 focus:ring-2 focus:ring-cyan-500 focus:outline-none text-white"
+                            />
                         </>
                     )}
                     <input type="email" name="email" placeholder="Your Email" required value={formData.email} onChange={handleChange} className="w-full bg-gray-700 p-3 rounded-md border border-gray-600 focus:ring-2 focus:ring-cyan-500 focus:outline-none text-white" />
                     <input type="password" name="password" placeholder="Password" required value={formData.password} onChange={handleChange} className="w-full bg-gray-700 p-3 rounded-md border border-gray-600 focus:ring-2 focus:ring-cyan-500 focus:outline-none text-white" />
                     {!isLoginView && (
                         <>
+
                             <div className="pt-2">
-                                <label htmlFor="dob" className="block text-xs font-medium text-gray-400 mb-1">Date of Birth (Optional)</label>
-                                <input type="date" name="dob" id="dob" value={formData.dob} onChange={handleChange} className="w-full bg-gray-700 p-3 rounded-md border border-gray-600 focus:ring-2 focus:ring-cyan-500 focus:outline-none text-white" />
+                                <label
+                                    htmlFor="dob"
+                                    className="block text-xs font-medium text-gray-400 mb-1"
+                                >
+                                    Date of Birth (Optional)
+                                </label>
+
+                                <div
+                                    className="relative w-full cursor-pointer"
+                                    onClick={() => dateInputRef.current?.showPicker?.()}
+                                >
+                                    <input
+                                        ref={dateInputRef}
+                                        type="date"
+                                        name="dob"
+                                        id="dob"
+                                        min={minDateStr}
+                                        max={maxDateStr}
+                                        value={formData.dob}
+
+                                        // 🚫 block manual typing
+                                        onKeyDown={(e) => e.preventDefault()}
+                                        onPaste={(e) => e.preventDefault()}
+
+                                        // ✅ force picker open
+                                        onFocus={() => dateInputRef.current?.showPicker?.()}
+                                        onClick={() => dateInputRef.current?.showPicker?.()}
+
+                                        onChange={handleChange}
+                                        className="w-full bg-gray-700 p-3 rounded-md border border-gray-600 text-white cursor-pointer focus:ring-2 focus:ring-cyan-500 focus:outline-none"
+                                    />
+                                </div>
                             </div>
+
                             <div className="pt-2">
                                 <label className="block text-xs font-medium text-gray-400 mb-1">Dietary Preferences (Optional)</label>
                                 <textarea name="likes" placeholder="Likes (e.g., spicy, seafood)" value={formData.likes} onChange={handleChange} rows={2} className="w-full bg-gray-700 p-3 rounded-md border border-gray-600 focus:ring-2 focus:ring-cyan-500 focus:outline-none text-white" />

@@ -202,7 +202,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
             <img
               src={bongoDelicacyLogo}
               alt="Bongo Delicacy Logo"
-              className="h-20 w-auto sm:h-26"
+              className="h-12 sm:h-16 lg:h-20 w-auto"
             />
             <div>
               <h1 className="text-xl sm:text-2xl font-serif font-bold text-cyan-500 leading-none">
@@ -218,12 +218,18 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
           <div className="flex items-center gap-4">
             <button
               onClick={() => handleNavigate("#tracking")}
-              className="hidden sm:flex items-center gap-2 text-gray-300 hover:text-cyan-400 transition-colors"
+              className="flex items-center gap-1 sm:gap-2 text-gray-300 hover:text-cyan-400 transition-colors"
             >
-              <Icon type="calendar" className="w-5 h-5" />
-              <span className="text-sm font-semibold">Track Reservation</span>
-            </button>
+              <Icon type="calendar" className="w-4 h-4 sm:w-5 sm:h-5" />
 
+              <span className="text-xs sm:text-sm font-semibold">
+                Track
+              </span>
+
+              <span className="hidden sm:inline text-sm font-semibold">
+                Reservation
+              </span>
+            </button>
             {isAuthenticated ? (
               <button
                 onClick={() => handleNavigate("#account")}

@@ -273,7 +273,56 @@ export async function apiGetOutletTable(page = 1, perPage = 1) {
   );
   return res.json();
 }
+// Add this new function in apiService.ts
 
+/**
+ * Check if email or phone already exists in profiles table
+ */
+export const apiCheckUserExists = async (
+  email: string,
+  phone: string
+): Promise<{ exists: boolean; field: 'email' | 'phone' | null; message: string }> => {
+  try {
+    // Check email
+    const { data: emailData } = await supabase
+      .from('profiles')
+      .select('email')
+      .eq('email', email.trim().toLowerCase())
+      .maybeSingle();
+
+    if (emailData) {
+      return {
+        exists: true,
+        field: 'email',
+        message: 'This email is already registered. Please login instead.'
+      };
+    }
+
+    // Check phone
+    // const { data: phoneData } = await supabase
+    //   .from('profiles')
+    //   .select('phone')
+    //   .eq('phone', phone.trim())
+    //   .maybeSingle();
+
+    // if (phoneData) {
+    //   return {
+    //     exists: true,
+    //     field: 'phone',
+    //     message: 'This phone number is already registered. Please login instead.'
+    //   };
+    // }
+
+    return {
+      exists: false,
+      field: null,
+      message: ''
+    };
+  } catch (error) {
+    console.error('Error checking user existence:', error);
+    throw new Error('Unable to verify account details. Please try again.');
+  }
+};
 // --- CONSTANTS & CONFIG ---
 // const PETPOOJA_CONFIG = {
 //     BASE_URL: 'https://qle1yy2ydc.execute-api.ap-southeast-1.amazonaws.com/V1/',

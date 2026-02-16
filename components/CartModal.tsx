@@ -1160,8 +1160,39 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                   name="phone"
                   placeholder="Phone Number"
                   required
+                  inputMode="numeric"
+                  maxLength={10}
                   value={authFormData.phone}
-                  onChange={handleAuthFormChange}
+                  onChange={(e) => {
+                    // allow digits only
+                    const digitsOnly = e.target.value.replace(/\D/g, "");
+
+                    setAuthFormData({
+                      ...authFormData,
+                      phone: digitsOnly.slice(0, 10),
+                    });
+                  }}
+                  onKeyDown={(e) => {
+                    // allow digits + control keys only
+                    if (
+                      !/^[0-9]$/.test(e.key) &&
+                      ![
+                        "Backspace",
+                        "Delete",
+                        "ArrowLeft",
+                        "ArrowRight",
+                        "Tab"
+                      ].includes(e.key)
+                    ) {
+                      e.preventDefault();
+                    }
+                  }}
+                  onPaste={(e) => {
+                    const pasted = e.clipboardData.getData("text");
+                    if (!/^[0-9]+$/.test(pasted)) {
+                      e.preventDefault();
+                    }
+                  }}
                   className="w-full bg-gray-700 p-2 rounded-md border border-gray-600 text-sm"
                 />
               </>
@@ -1322,20 +1353,17 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                     value={newAddressData.fullAddress}
                     onChange={(e) => {
                       const newVal = e.target.value;
-                      setNewAddressData({
-                        ...newAddressData,
+
+                      // Update address text only
+                      setNewAddressData((prev) => ({
+                        ...prev,
                         fullAddress: newVal,
-                      });
-                      // Re-validate Serviceability on manual typing
-                      const isBangalore = checkIsBangalore(newVal);
-                      setIsAddressServiceable(isBangalore);
-                      if (!isBangalore && newVal.length > 5) {
-                        setAddressError(
-                          "Currently, our culinary delights travel exclusively within Bangalore.",
-                        );
-                      } else {
-                        setAddressError("");
-                      }
+                      }));
+
+                      // ✅ While typing, NEVER show error
+                      // User has not selected a place yet
+                      setIsAddressServiceable(true);
+                      setAddressError("");
                     }}
                     className={`w-full bg-gray-700 p-3 pl-10 rounded-md border ${!isAddressServiceable
                       ? "border-red-500 focus:ring-red-500"

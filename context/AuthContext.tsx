@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
 import { User } from '../types';
 import { supabase } from '../services/supabaseClient';
-import { apiGetUserById } from '../services/apiService';
+import { apiCheckUserExists, apiGetUserById } from '../services/apiService';
 
 interface AuthContextType {
     currentUser: User | null;
@@ -130,41 +130,114 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
 
     const register = async (
+
         name: string,
         email: string,
         phone: string,
         password: string,
         dob?: string,
         dietaryPreferences?: User['dietaryPreferences']
-    ): Promise<void> => {
+    ): Promise<{ needsEmailConfirmation: boolean }> => {
+        try {
+            // ✅ CRITICAL: Check database FIRST before hitting Supabase Auth
+            console.log('🔍 Checking if user exists...');
+            const existingCheck = await apiCheckUserExists(email, phone);
 
-        const { data, error: signUpError } = await supabase.auth.signUp({
-            email,
-            password,
-            options: {
-                data: { name, phone }
+            if (existingCheck.exists) {
+                console.log(`❌ User already exists (${existingCheck.field})`);
+                throw new Error(existingCheck.message);
             }
-        });
 
-        if (signUpError) throw signUpError;
-        if (!data.user) throw new Error("Registration failed.");
+            console.log('✅ No existing user found, proceeding with registration');
+            await supabase.auth.signOut();
+            // ✅ Sign up with Supabase Auth
+            const { data, error: signUpError } = await supabase.auth.signUp({
+                email,
+                password,
+                options: {
+                    emailRedirectTo: `${window.location.origin}/#account`,
+                    data: {
+                        name,
+                        phone
+                    }
+                }
+            });
 
-        // Always update the profile row when it is created by trigger
-        setTimeout(async () => {
-            const safeDiet = {
-                likes: Array.isArray(dietaryPreferences?.likes) ? dietaryPreferences.likes : [],
-                dislikes: Array.isArray(dietaryPreferences?.dislikes) ? dietaryPreferences.dislikes : [],
-                allergies: Array.isArray(dietaryPreferences?.allergies) ? dietaryPreferences.allergies : [],
+            console.log('🔍 SignUp Response:', {
+                hasUser: !!data.user,
+                hasSession: !!data.session,
+                identitiesLength: data.user?.identities?.length,
+            });
+
+            if (signUpError) {
+                if (signUpError.message.includes('already registered') ||
+                    signUpError.message.includes('already been registered') ||
+                    signUpError.message.includes('User already registered')) {
+                    throw new Error('This email is already registered. Please login instead.');
+                }
+                if (signUpError.message.includes('Password should be')) {
+                    throw new Error('Password must be at least 6 characters long.');
+                }
+                throw new Error(signUpError.message || 'Registration failed. Please try again.');
+            }
+
+            if (!data.user) {
+                throw new Error("Registration failed. Please try again.");
+            }
+
+            // Double-check identities (Supabase security feature)
+            const hasIdentities = data.user.identities && data.user.identities.length > 0;
+
+            if (!hasIdentities) {
+                throw new Error('This email is already registered. Please login instead.');
+            }
+
+            // Check if email confirmation is required
+            const needsEmailConfirmation = !data.session;
+
+            // Update profile with additional data
+            const updateProfile = async (retries = 5) => {
+                for (let i = 0; i < retries; i++) {
+                    await new Promise(resolve => setTimeout(resolve, 500 * (i + 1)));
+
+                    const safeDiet = {
+                        likes: Array.isArray(dietaryPreferences?.likes) ? dietaryPreferences.likes : [],
+                        dislikes: Array.isArray(dietaryPreferences?.dislikes) ? dietaryPreferences.dislikes : [],
+                        allergies: Array.isArray(dietaryPreferences?.allergies) ? dietaryPreferences.allergies : [],
+                    };
+
+                    const { error } = await supabase
+                        .from("profiles")
+                        .update({
+                            dob: dob || null,
+                            dietary_preferences: safeDiet
+                        })
+                        .eq("id", data.user.id);
+
+                    if (!error) {
+                        console.log("✅ Profile updated successfully");
+                        return true;
+                    }
+
+                    if (error.code !== 'PGRST116') {
+                        console.error("❌ Profile update failed:", error);
+                        return false;
+                    }
+
+                    console.log(`⏳ Profile not ready yet, retry ${i + 1}/${retries}...`);
+                }
+                console.warn("⚠️ Profile update timed out");
+                return false;
             };
 
-            const { error } = await supabase.from("profiles").update({
-                dob: dob || null,
-                dietary_preferences: safeDiet
-            }).eq("id", data.user.id);
+            updateProfile().catch(console.error);
 
-            if (error) console.error("Profile update failed:", error);
-        }, 1500);
+            return { needsEmailConfirmation };
 
+        } catch (error) {
+            console.error('Registration error:', error);
+            throw error;
+        }
     };
 
 
