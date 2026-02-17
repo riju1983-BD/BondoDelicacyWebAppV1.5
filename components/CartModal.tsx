@@ -228,7 +228,8 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
 
   const [paymentMethod, setPaymentMethod] = useState("card");
   const [isProcessing, setIsProcessing] = useState(false);
-
+  const effectiveDeliveryCharge =
+    view === "checkout" ? deliveryCharge : 0;
   const checkIsBangalore = (address: string) => {
     return (
       address.toLowerCase().includes("bangalore") ||
@@ -489,8 +490,8 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
         : 0;
     const gstAmountCalc = gstAfterDiscount;
     const grandTotalCalc = hasInclusiveItems
-      ? preTaxTotalCalc + deliveryCharge
-      : preTaxTotalCalc + gstAmountCalc + deliveryCharge;
+      ? preTaxTotalCalc + effectiveDeliveryCharge
+      : preTaxTotalCalc + gstAmountCalc + effectiveDeliveryCharge;
 
     return {
       subtotal: subtotalCalc,
@@ -508,6 +509,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
     deliveryCharge,
     gstAfterDiscount,
     hasInclusiveItems,
+    view,
   ]);
   useEffect(() => {
     const discountForTax =
@@ -1619,10 +1621,14 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
         {itemCount > 0 && view !== "confirmation" && view !== "address" && (
           <footer className="p-4 border-t border-gray-700 bg-gray-900/50">
             <div className="space-y-1 text-sm mb-4">
+
+              {/* Subtotal */}
               <div className="flex justify-between text-gray-300">
                 <span>Subtotal</span>
                 <span>₹{subtotal.toFixed(2)}</span>
               </div>
+
+              {/* Flat Discount */}
               {discountAmount > 0 && (
                 <div className="flex justify-between text-green-400">
                   <span>Flat Discount</span>
@@ -1631,6 +1637,8 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                   </span>
                 </div>
               )}
+
+              {/* Loyalty Discount */}
               {loyaltyDiscount > 0 && (
                 <div className="flex justify-between text-yellow-400">
                   <span>Loyalty Points Redeemed</span>
@@ -1640,6 +1648,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                 </div>
               )}
 
+              {/* Total Before Tax */}
               {(discountAmount > 0 || loyaltyDiscount > 0) && (
                 <div className="flex justify-between text-gray-300 font-semibold pt-1 border-t border-gray-700/50">
                   <span>Total Before Tax</span>
@@ -1647,19 +1656,29 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                 </div>
               )}
 
+              {/* GST */}
               <div className="flex justify-between text-gray-300">
-                <span>GST </span>
+                <span>GST</span>
                 <span>+ ₹{gstAfterDiscount.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between text-gray-300">
-                <span>Delivery Charges</span>
-                <span>₹{deliveryCharge.toFixed(2)}</span>
-              </div>
+
+              {/* ✅ Delivery ONLY in checkout */}
+              {view === "checkout" && deliveryCharge > 0 && (
+                <div className="flex justify-between text-gray-300">
+                  <span>Delivery Charges</span>
+                  <span>₹{deliveryCharge.toFixed(2)}</span>
+                </div>
+              )}
+
+              {/* Grand Total */}
               <div className="flex justify-between text-white font-bold text-lg border-t border-gray-700 pt-2 mt-2">
                 <span>Grand Total</span>
                 <span>₹{grandTotal.toFixed(2)}</span>
               </div>
+
             </div>
+
+            {/* Cart Button */}
             {view === "cart" && (
               <button
                 onClick={handleProceed}
@@ -1668,10 +1687,8 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                 Proceed
               </button>
             )}
-            {
-              view === "auth" &&
-              null /* Auth view has its own submit button in form */
-            }
+
+            {/* Checkout Button */}
             {view === "checkout" && (
               <button
                 onClick={handlePlaceOrder}
