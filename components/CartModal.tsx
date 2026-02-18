@@ -562,7 +562,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
 
         // ✅ AUTO SWITCH TO LOGIN TAB
         setIsLoginView(true);
-        setAuthError("Registration successful. Please login to continue.");
+        setAuthError("Check your email to confirm your account.");
 
         // OPTIONAL: keep user on auth screen
         setView("auth");
