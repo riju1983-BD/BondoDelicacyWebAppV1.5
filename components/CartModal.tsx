@@ -169,11 +169,13 @@ interface CartModalProps {
   isOpen: boolean;
   onClose: () => void;
   brandId: string;
+  resturentName: string;
 }
 type View = "cart" | "auth" | "address" | "checkout" | "confirmation";
 
 
-const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
+const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaurantName, }) => {
+  console.log("Restaurant Name:", restaurantName);
   const { outletLocation } = useOutlet(); // ✅ inside component
   // const RESTAURANT_LAT = 12.9716; // example
   // const RESTAURANT_LNG = 77.5946;
@@ -646,6 +648,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
             Restaurant: {
               details: {
                 restID: brandId,
+
               },
             },
 
@@ -806,6 +809,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
                   // ✅ PASS EVERYTHING NEEDED TO CREATE ORDER
                   orderData: {
                     brandId,
+                    restaurantName,
                     userId: currentUser.id,
                     items,
                     customer: {
@@ -832,18 +836,18 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId }) => {
             await refreshCurrentUser();
             clearCart();
             setView("confirmation");
-            apiBookRider({
-              order_id: clientorderID,
-              resturent_lat: RESTAURANT_LAT,
-              resturent_lang: RESTAURANT_LNG,
-              resturent_name: "Bangalir Jhale Jhole",
-              resturent_number: "9876543210",
-              resturent_address: "Bangalore Anty Address",
-              resturent_city: "Bangalore",
-            }).catch((err) => {
-              console.error("Rider booking failed", err);
-            });
-            apiBookDelivery(clientorderID);
+            // apiBookRider({
+            //   order_id: clientorderID,
+            //   resturent_lat: RESTAURANT_LAT,
+            //   resturent_lang: RESTAURANT_LNG,
+            //   resturent_name: "Bangalir Jhale Jhole",
+            //   resturent_number: "9876543210",
+            //   resturent_address: "Bangalore Anty Address",
+            //   resturent_city: "Bangalore",
+            // }).catch((err) => {
+            //   console.error("Rider booking failed", err);
+            // });
+            // apiBookDelivery(clientorderID);
           } catch (err) {
             alert("Payment succeeded but order creation failed.");
           } finally {

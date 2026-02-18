@@ -135,7 +135,7 @@ export interface DeliveryAddress {
 export interface Order {
   id: string;
   restId: string;
-
+  resturantName: string;
   userId: string;
   items: CartItem[];
 
@@ -157,12 +157,12 @@ export interface Order {
   createdAt: string;
   refundAmount?: number | null;
   status:
-    | 'Order Placed'
-    | 'Accepted'
-    | 'Food Ready'
-    | 'Out For Delivery'
-    | 'Delivered'
-    | 'Cancelled';
+  | 'Order Placed'
+  | 'Accepted'
+  | 'Food Ready'
+  | 'Out For Delivery'
+  | 'Delivered'
+  | 'Cancelled';
 
   rating?: number;
   feedback?: string;
@@ -211,7 +211,7 @@ export interface Reservation {
   userId?: string;
   tableId?: string;
   tableNumber?: string,
-  endtime?:string,
+  endtime?: string,
   name: string;
   email: string;
   phone: string;

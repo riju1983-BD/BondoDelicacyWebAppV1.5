@@ -42,7 +42,13 @@ export async function apiResolveRestaurantByName(payload: {
 
   return data; // { rest_id, distance_km, outlet_name }
 }
+// Add after the existing apiGetOutlet function
 
+export async function apiGetOutletByLocation(coords?: { lat: number; lng: number }) {
+  const params = coords ? `?lat=${coords.lat}&lng=${coords.lng}` : "";
+  const res = await fetch(`${BASE_URL}/outlet/getbylocation${params}`);
+  return res.json();
+}
 export const apiUploadRestaurantImage = async (
   rest_id: string,
   type: "logo" | "hero" | "about",
@@ -53,7 +59,7 @@ export const apiUploadRestaurantImage = async (
   form.append("type", type);
   form.append("file", file);
 
-  const res = await fetch(`${BASE_URL}/restaurants/upload-image`, {
+  const res = await fetch(`${BASE_URL}/outlet/upload-image`, {
     method: "POST",
     body: form,
   });
@@ -108,7 +114,7 @@ export const apiCheckServiceAvailability = async (
 };
 
 export const apiAddRestaurant = async (payload: any, restId: string) => {
-  const res = await fetch(`${BASE_URL}/resturents/${restId}`, {
+  const res = await fetch(`${BASE_URL}/outlet/${restId}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -238,12 +244,12 @@ export async function apiGetRestaurants() {
 
 export async function apiGetAllRestaurant(page = 1, perPage = 1) {
   const res = await fetch(
-    `${BASE_URL}/resturents?page=${page}&per_page=${perPage}`,
+    `${BASE_URL}/outlet?page=${page}&per_page=${perPage}`,
   );
   return res.json();
 }
 export async function apiGetRestaurantById(id: string) {
-  const res = await fetch(`${BASE_URL}/resturents/${id}`);
+  const res = await fetch(`${BASE_URL}/outlet/${id}`);
   return res.json();
 }
 
@@ -261,7 +267,7 @@ export async function apiGetMenu(
   return data.data;
 }
 
-export async function apiGetOutlet(page = 1, perPage = 1) {
+export async function apiGetOutlet(page = 1, perPage = 100) {
   const res = await fetch(
     `${BASE_URL}/outlet?page=${page}&per_page=${perPage}`,
   );
@@ -631,6 +637,7 @@ export const apiGetUserOrders = async (userId: string): Promise<Order[]> => {
 
 const mapDbOrderToType = (dbOrder: any): Order => ({
   id: dbOrder.id,
+  resturantName:dbOrder.restaurant_name,
   restId: dbOrder.brand_id,
   userId: dbOrder.user_id,
   items: dbOrder.items,

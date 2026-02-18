@@ -212,7 +212,7 @@
 //     heroImage: 'https://images.unsplash.com/photo-1582217283738-2345a3383a15?q=80&w=2070&auto=format&fit=crop',
 //     aboutText: 'The Daily Box is your solution for healthy, delicious, and convenient meals. We offer a curated menu of wholesome dishes, prepared fresh and delivered to your doorstep. Perfect for busy professionals and families who value nutritious eating.',
 //     aboutImage: 'https://images.unsplash.com/photo-1504754524776-8f4f37790774?q=80&w=2070&auto=format&fit=crop',
-//     theme: { primary: '#0277BD', accent: '#FFCA28', textOnPrimary: '#FFFFFF' }, // Blue & Yellow
+//     theme: { primary: '#0277BD', accent: '#', textOnPrimary: '#FFFFFF' }, // Blue & Yellow
 //     menu: [
 //       {
 //         category: 'Bowls',

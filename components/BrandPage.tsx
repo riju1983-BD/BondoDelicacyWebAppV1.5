@@ -423,7 +423,7 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
     setRestaurantError("");
 
     try {
-      const r = await apiGetRestaurantById(id);
+      const r = await apiGetRestaurantById(outletid);
       console.log(r);
       // ✅ ACTUAL CALL
       setRestaurant(r.data);
@@ -1590,7 +1590,8 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
       <CartModal
         isOpen={isCartOpen}
         onClose={() => setIsCartOpen(false)}
-        brandId={restId} // keep prop name, pass rest_id
+        brandId={restId} 
+         restaurantName={restaurantName}// keep prop name, pass rest_id
       />
       {isAddonModalOpen && addonItem && (
         <AddonModal

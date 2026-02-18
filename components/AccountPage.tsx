@@ -534,7 +534,7 @@ const AccountPage: React.FC = () => {
                           key={r.petpooja_outlet_id}
                           value={r.petpooja_outlet_id}
                         >
-                          {r.restaurants?.name} ({r.state})
+                          {r.name} ({r.state})
                         </option>
                       ))}
                     </select>
