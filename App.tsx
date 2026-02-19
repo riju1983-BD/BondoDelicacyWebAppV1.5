@@ -1,40 +1,49 @@
-import React, { useState, useEffect } from 'react';
-import LandingPage from './components/LandingPage';
-import BrandPage from './components/BrandPage';
-import AdminDashboardPage from './components/AdminDashboardPage';
-import OrderTrackingPage from './components/OrderTrackingPage';
-import OrderStatusPage from './components/OrderStatusPage';
-import LoginPage from './components/LoginPage';
-import AccountPage from './components/AccountPage';
-import AdminLoginPage from './components/AdminLoginPage';
-import { useAuth } from './context/AuthContext';
-import { apiGetRestaurantById } from './services/apiService';
-import { Restaurant } from './types';
+import React, { useState, useEffect } from "react";
+import LandingPage from "./components/LandingPage";
+import BrandPage from "./components/BrandPage";
+import AdminDashboardPage from "./components/AdminDashboardPage";
+import OrderTrackingPage from "./components/OrderTrackingPage";
+import OrderStatusPage from "./components/OrderStatusPage";
+import LoginPage from "./components/LoginPage";
+import AccountPage from "./components/AccountPage";
+import AdminLoginPage from "./components/AdminLoginPage";
+import { useAuth } from "./context/AuthContext";
+import { apiGetRestaurantById } from "./services/apiService";
+import { Restaurant } from "./types";
+import PrivacyPolicy from "./components/TermsAndConditions";
+import RefundPolicy from "./components/RefundPolicy";
 
 const App: React.FC = () => {
-    useEffect(() => {
-    if (window.location.hostname === 'api.bongodelicacy.com') {
+  useEffect(() => {
+    if (window.location.hostname === "api.bongodelicacy.com") {
       window.location.href = `https://bongodelicacy.com${window.location.pathname}${window.location.hash}${window.location.search}`;
     }
   }, []);
-  const getRoute = () => window.location.hash.substring(1).split('?')[0];
+  const getRoute = () => window.location.hash.substring(1).split("?")[0];
 
   const [route, setRoute] = useState(getRoute());
-  const [selectedRestaurantId, setSelectedRestaurantId] = useState<string | null>(null);
+  const [selectedRestaurantId, setSelectedRestaurantId] = useState<
+    string | null
+  >(null);
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
   const [loadingRestaurant, setLoadingRestaurant] = useState(false);
 
   const { currentUser } = useAuth();
 
-
-
   useEffect(() => {
     const handleHashChange = () => {
       const newRoute = getRoute();
-      const mainRoutes = ['', 'admin', 'tracking', 'login', 'account', 'admin-login'];
+      const mainRoutes = [
+        "",
+        "admin",
+        "tracking",
+        "login",
+        "account",
+        "admin-login",
+      ];
 
       const isMainRouteChange =
-        mainRoutes.includes(newRoute) || newRoute.startsWith('order-status');
+        mainRoutes.includes(newRoute) || newRoute.startsWith("order-status");
 
       if (isMainRouteChange) {
         setRoute(newRoute);
@@ -44,8 +53,8 @@ const App: React.FC = () => {
       }
     };
 
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
   }, []);
 
   const handleSelectRestaurant = (restId: string) => {
@@ -56,7 +65,7 @@ const App: React.FC = () => {
   const handleGoBack = () => {
     setSelectedRestaurantId(null);
     setRestaurant(null);
-    window.location.hash = '#';
+    window.location.hash = "#";
     window.scrollTo(0, 0);
   };
 
@@ -66,9 +75,9 @@ const App: React.FC = () => {
 
     setLoadingRestaurant(true);
     apiGetRestaurantById(selectedRestaurantId)
-      .then(data => setRestaurant(data))
-      .catch(err => {
-        console.error('Failed to load restaurant:', err);
+      .then((data) => setRestaurant(data))
+      .catch((err) => {
+        console.error("Failed to load restaurant:", err);
         setRestaurant(null);
       })
       .finally(() => setLoadingRestaurant(false));
@@ -76,19 +85,20 @@ const App: React.FC = () => {
 
   // ---------- ROUTES ----------
 
-  if (route === 'admin-login') return <AdminLoginPage />;
+  if (route === "admin-login") return <AdminLoginPage />;
 
-  if (route === 'admin') {
+  if (route === "admin") {
     if (currentUser?.isAdmin) return <AdminDashboardPage />;
-    window.location.hash = '#admin';
+    window.location.hash = "#admin";
     return null;
   }
 
-  if (route === 'tracking') return <OrderTrackingPage />;
-  if (route === 'login') return <LoginPage />;
-  if (route === 'account') return <AccountPage />;
-  if (route.startsWith('order-status')) return <OrderStatusPage />;
-
+  if (route === "tracking") return <OrderTrackingPage />;
+  if (route === "login") return <LoginPage />;
+  if (route === "account") return <AccountPage />;
+  if (route.startsWith("order-status")) return <OrderStatusPage />;
+  if (route === "terms") return <PrivacyPolicy />;
+  if (route === "refund") return <RefundPolicy />;
   // ---------- MAIN FLOW ----------
 
   if (!selectedRestaurantId) {
@@ -96,9 +106,11 @@ const App: React.FC = () => {
   }
 
   if (loadingRestaurant) {
-    return <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
-      Loading restaurant…
-    </div>;
+    return (
+      <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
+        Loading restaurant…
+      </div>
+    );
   }
 
   if (!restaurant) {
@@ -107,7 +119,6 @@ const App: React.FC = () => {
   }
 
   return <BrandPage restId={selectedRestaurantId} onBack={handleGoBack} />;
-
 };
 
 export default App;
