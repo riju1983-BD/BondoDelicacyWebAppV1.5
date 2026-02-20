@@ -29,9 +29,9 @@ const buildCartKey = (item: any) => {
   const addonPart =
     addonsArray.length > 0
       ? addonsArray
-          .map((a: any) => `${a.id}:${a.quantity}`)
-          .sort()
-          .join("|")
+        .map((a: any) => `${a.id}:${a.quantity}`)
+        .sort()
+        .join("|")
       : "no-addons";
   return `${item.itemid}__${variationPart}__${addonPart}`;
 };
@@ -507,7 +507,7 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
             items,
           },
         ]);
-      } catch {}
+      } catch { }
     };
     const onFocus = () => refreshCurrentCategory();
     const onVisibility = () => {
@@ -851,7 +851,8 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
             <li>
               <button
                 onClick={() => {
-                  window.location.hash = "#terms";
+                  window.open(`${window.location.origin}#terms`, "_blank");
+                  // window.location.hash = "#terms";
                 }}
                 className="hover:text-[var(--accent-color)] transition-colors bg-transparent border-none cursor-pointer p-0"
               >
@@ -861,7 +862,8 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
             <li>
               <button
                 onClick={() => {
-                  window.location.hash = "refund";
+                  window.open(`${window.location.origin}#refund`, "_blank");
+                  // window.location.hash = "refund";
                 }}
                 className="hover:text-[var(--accent-color)] transition-colors bg-transparent border-none cursor-pointer p-0"
               >
@@ -887,9 +889,11 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
         onClose={() => setIsMobileMenuOpen(false)}
         onNavigate={(id) => {
           if (id === "terms & Condition") {
-            window.location.hash = "terms";
+            window.open(`${window.location.origin}#terms`, "_blank");
+            // window.location.hash = "terms";
           } else if (id === "refund policies") {
-            window.location.hash = "refund";
+            window.open(`${window.location.origin}#refund`, "_blank");
+            // window.location.hash = "refund";
           } else {
             handleScrollTo(id);
           }
@@ -1029,8 +1033,8 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
                                       item.variation.length > 0;
                                     const variationPrices = hasVariation
                                       ? item.variation
-                                          .map((v: any) => Number(v.price))
-                                          .filter((p: number) => p > 0)
+                                        .map((v: any) => Number(v.price))
+                                        .filter((p: number) => p > 0)
                                       : [];
                                     const minVariationPrice =
                                       variationPrices.length > 0
@@ -1072,11 +1076,11 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
                                         item.tax_breakup,
                                       )
                                         ? item.tax_breakup.reduce(
-                                            (sum: number, t: any) =>
-                                              sum +
-                                              Number(t.tax_percentage || 0),
-                                            0,
-                                          )
+                                          (sum: number, t: any) =>
+                                            sum +
+                                            Number(t.tax_percentage || 0),
+                                          0,
+                                        )
                                         : 0;
                                       const gstAmount =
                                         (basePrice * gstPercentage) / 100;
@@ -1329,9 +1333,9 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
                       onSubmit={
                         otpSent
                           ? (e) => {
-                              e.preventDefault();
-                              confirmBooking();
-                            }
+                            e.preventDefault();
+                            confirmBooking();
+                          }
                           : sendOtp
                       }
                       className="space-y-4"
