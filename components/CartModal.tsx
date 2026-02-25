@@ -3,7 +3,7 @@ import { useCart } from "../context/CartContext";
 import { useAuth } from "../context/AuthContext";
 import { Icon } from "./Icon";
 import { DeliveryAddress } from "../types";
-import { BASE_URL, RAZORPAY_KEY_ID } from "../src/config";
+import { BASE_URL, VITE_RAZORPAY_KEY_ID } from "../src/config";
 import {
   applyFlatDiscount,
   apiGetUserValidPoints,
@@ -788,7 +788,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
 
       // 3) Open Razorpay Checkout
       const rzp = new (window as any).Razorpay({
-        key: RAZORPAY_KEY_ID,
+        key: VITE_RAZORPAY_KEY_ID,
         order_id: razorpayOrder.id,
         amount: razorpayOrder.amount,
         currency: razorpayOrder.currency,

@@ -287,8 +287,8 @@ const MobileDrawer: React.FC<{
     "about",
     "menu",
     "contact",
-    "terms & Condition",
-    "refund policies",
+    // "Privacy Policy",
+    // "refund policies",
   ];
   return (
     <div className="fixed inset-0 z-[60] md:hidden">
@@ -848,7 +848,7 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
                 </button>
               </li>
             ))}
-            <li>
+            {/* <li>
               <button
                 onClick={() => {
                   window.open(`${window.location.origin}#terms`, "_blank");
@@ -869,7 +869,7 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
               >
                 Refund Policy
               </button>
-            </li>
+            </li> */}
           </ul>
 
           {/* Mobile hamburger */}

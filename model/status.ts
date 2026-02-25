@@ -1,13 +1,17 @@
+// src/utils/orderStatus.ts
+
 export const backendToFrontendStatus = new Map<string, string>([
-  ['received', 'Order Placed'],      // 👈 FIX ADDED
-  ['pending', 'Order Placed'],       // optional if pending ever comes
+  ['RECEIVED', 'Order Placed'],
+  // ['PENDING', 'Order Placed'],
   ['ACCEPTED', 'Accepted'],
   ['FOOD_READY', 'Food Ready'],
   ['DISPATCHED', 'Out For Delivery'],
   ['DELIVERED', 'Delivered'],
   ['CANCELLED', 'Cancelled'],
-    ['REFUNDED', 'Refunded'],
+  ['REFUNDED', 'Refunded'],
 ]);
 
-export const normalizeOrderStatus = (backendStatus: string): string =>
-  backendToFrontendStatus.get(backendStatus) || backendStatus;
+export const normalizeOrderStatus = (backendStatus?: string): string => {
+  const normalizedKey = (backendStatus || '').trim().toUpperCase();
+  return backendToFrontendStatus.get(normalizedKey) || backendStatus || '';
+};

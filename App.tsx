@@ -13,63 +13,84 @@ import { Restaurant } from "./types";
 import PrivacyPolicy from "./components/TermsAndConditions";
 import RefundPolicy from "./components/RefundPolicy";
 
+// Routes that are "top-level" — they reset the brand session
+const MAIN_ROUTES = new Set([
+  "",
+  "admin",
+  "tracking",
+  "login",
+  "account",
+  "admin-login",
+  "terms",
+  "refund",
+]);
+
+const getRoute = () => window.location.hash.replace(/^#/, "").split("?")[0];
+
 const App: React.FC = () => {
+  // Redirect from API subdomain
   useEffect(() => {
     if (window.location.hostname === "api.bongodelicacy.com") {
       window.location.href = `https://bongodelicacy.com${window.location.pathname}${window.location.hash}${window.location.search}`;
     }
   }, []);
-  const getRoute = () => window.location.hash.substring(1).split("?")[0];
 
-  const [route, setRoute] = useState(getRoute());
-  const [selectedRestaurantId, setSelectedRestaurantId] = useState<
-    string | null
-  >(null);
+  // Always initialise from the current hash — covers direct URL loads
+  const [route, setRoute] = useState<string>(getRoute);
+
+  const [selectedRestaurantId, setSelectedRestaurantId] = useState<string | null>(null);
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
   const [loadingRestaurant, setLoadingRestaurant] = useState(false);
 
   const { currentUser } = useAuth();
 
+  // Safety-net: re-read hash after first paint (Vite HMR / StrictMode edge-cases)
+  useEffect(() => {
+    const current = getRoute();
+    setRoute(current);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Listen for ALL hash changes
   useEffect(() => {
     const handleHashChange = () => {
       const newRoute = getRoute();
-      const mainRoutes = [
-        "",
-        "admin",
-        "tracking",
-        "login",
-        "account",
-        "admin-login",
-      ];
 
-      const isMainRouteChange =
-        mainRoutes.includes(newRoute) || newRoute.startsWith("order-status");
+      // Always update the displayed route
+      setRoute(newRoute);
 
-      if (isMainRouteChange) {
-        setRoute(newRoute);
+      // Only reset the brand session when navigating to a top-level route
+      const isTopLevel =
+        MAIN_ROUTES.has(newRoute) || newRoute.startsWith("order-status");
+
+      if (isTopLevel) {
         setSelectedRestaurantId(null);
         setRestaurant(null);
-        window.scrollTo(0, 0);
       }
+
+      window.scrollTo(0, 0);
     };
 
     window.addEventListener("hashchange", handleHashChange);
     return () => window.removeEventListener("hashchange", handleHashChange);
   }, []);
 
-  const handleSelectRestaurant = (restId: string) => {
-    setSelectedRestaurantId(restId);
+  const handleSelectRestaurant = (
+    _petpoojaOutletId: string,
+    resturentId: string,
+    _outletId: string
+  ) => {
+    setSelectedRestaurantId(resturentId);
     window.scrollTo(0, 0);
   };
 
   const handleGoBack = () => {
     setSelectedRestaurantId(null);
     setRestaurant(null);
-    window.location.hash = "#";
+    window.location.hash = "";
     window.scrollTo(0, 0);
   };
 
-  // Load restaurant when rest_id changes
+  // Load restaurant data whenever the selected ID changes
   useEffect(() => {
     if (!selectedRestaurantId) return;
 
@@ -83,7 +104,8 @@ const App: React.FC = () => {
       .finally(() => setLoadingRestaurant(false));
   }, [selectedRestaurantId]);
 
-  // ---------- ROUTES ----------
+  // ─── ROUTES ────────────────────────────────────────────────────────────────
+
 
   if (route === "admin-login") return <AdminLoginPage />;
 
@@ -99,7 +121,8 @@ const App: React.FC = () => {
   if (route.startsWith("order-status")) return <OrderStatusPage />;
   if (route === "terms") return <PrivacyPolicy />;
   if (route === "refund") return <RefundPolicy />;
-  // ---------- MAIN FLOW ----------
+
+  // ─── BRAND / LANDING FLOW ──────────────────────────────────────────────────
 
   if (!selectedRestaurantId) {
     return <LandingPage onSelectBrand={handleSelectRestaurant} />;
@@ -114,7 +137,6 @@ const App: React.FC = () => {
   }
 
   if (!restaurant) {
-    // console.error(`Invalid restaurant id: ${selectedRestaurantId}`);
     return <LandingPage onSelectBrand={handleSelectRestaurant} />;
   }
 

@@ -397,7 +397,7 @@ const AdminDashboardPage: React.FC = () => {
     setIsLoadingOrders(true);
     try {
       const allOrders = await apiGetOrders();
-      setOrders(allOrders);
+      setOrders(allOrders.filter((order: any) => order.status !== "PENDING")); // ← filter out PENDING
     } catch (err) {
       console.error("Failed to fetch complaints:", err);
     } finally {
@@ -948,61 +948,55 @@ const AdminDashboardPage: React.FC = () => {
         <div className="flex border-b border-gray-700 mb-6 overflow-x-auto">
           <button
             onClick={() => setActiveTab("menu")}
-            className={`flex-shrink-0 py-2 px-4 font-semibold ${
-              activeTab === "menu"
+            className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "menu"
                 ? "border-b-2 border-cyan-400 text-cyan-400"
                 : "text-gray-400"
-            }`}
+              }`}
           >
             Live Menu
           </button>
           <button
             onClick={() => setActiveTab("orders")}
-            className={`flex-shrink-0 py-2 px-4 font-semibold ${
-              activeTab === "orders"
+            className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "orders"
                 ? "border-b-2 border-cyan-400 text-cyan-400"
                 : "text-gray-400"
-            }`}
+              }`}
           >
             Orders
           </button>
           <button
             onClick={() => setActiveTab("reservations")}
-            className={`flex-shrink-0 py-2 px-4 font-semibold ${
-              activeTab === "reservations"
+            className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "reservations"
                 ? "border-b-2 border-cyan-400 text-cyan-400"
                 : "text-gray-400"
-            }`}
+              }`}
           >
             Reservations ({reservations.length})
           </button>
           <button
             onClick={() => setActiveTab("complaints")}
-            className={`flex-shrink-0 py-2 px-4 font-semibold ${
-              activeTab === "complaints"
+            className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "complaints"
                 ? "border-b-2 border-cyan-400 text-cyan-400"
                 : "text-gray-400"
-            }`}
+              }`}
           >
             Complaints
           </button>
           <button
             onClick={() => setActiveTab("loyalty")}
-            className={`flex-shrink-0 py-2 px-4 font-semibold ${
-              activeTab === "loyalty"
+            className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "loyalty"
                 ? "border-b-2 border-cyan-400 text-cyan-400"
                 : "text-gray-400"
-            }`}
+              }`}
           >
             Loyalty
           </button>
           <button
             onClick={() => setActiveTab("restaurants")}
-            className={`flex-shrink-0 py-2 px-4 font-semibold ${
-              activeTab === "restaurants"
+            className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "restaurants"
                 ? "border-b-2 border-cyan-400 text-cyan-400"
                 : "text-gray-400"
-            }`}
+              }`}
           >
             All Brands
           </button>
@@ -1021,11 +1015,10 @@ const AdminDashboardPage: React.FC = () => {
               setActiveTab("Outlet");
               fetchOutlets();
             }}
-            className={`flex-shrink-0 py-2 px-4 font-semibold ${
-              activeTab === "Outlet"
+            className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "Outlet"
                 ? "border-b-2 border-cyan-400 text-cyan-400"
                 : "text-gray-400"
-            }`}
+              }`}
           >
             Outlet
           </button>
@@ -1081,11 +1074,10 @@ const AdminDashboardPage: React.FC = () => {
 
                             <button
                               // onClick={() => handleToggleAvailability(item.name)}
-                              className={`px-2 py-1 text-xs font-bold rounded transition-colors ${
-                                item.isAvailable
+                              className={`px-2 py-1 text-xs font-bold rounded transition-colors ${item.isAvailable
                                   ? "bg-green-900 text-green-300 hover:bg-green-800"
                                   : "bg-red-900 text-red-300 hover:bg-red-800"
-                              }`}
+                                }`}
                             >
                               {item.isAvailable ? "In Stock" : "Unavailable"}
                             </button>
@@ -1499,22 +1491,20 @@ const AdminDashboardPage: React.FC = () => {
             <div className="flex justify-center gap-4 mb-6">
               <button
                 onClick={() => setReservationTab("active")}
-                className={`px-4 py-2 rounded-full font-semibold text-sm ${
-                  reservationTab === "active"
+                className={`px-4 py-2 rounded-full font-semibold text-sm ${reservationTab === "active"
                     ? "bg-cyan-600 text-white"
                     : "bg-gray-800 text-gray-400 hover:bg-gray-700"
-                }`}
+                  }`}
               >
                 Active
               </button>
 
               <button
                 onClick={() => setReservationTab("history")}
-                className={`px-4 py-2 rounded-full font-semibold text-sm ${
-                  reservationTab === "history"
+                className={`px-4 py-2 rounded-full font-semibold text-sm ${reservationTab === "history"
                     ? "bg-green-600 text-white"
                     : "bg-gray-800 text-gray-400 hover:bg-gray-700"
-                }`}
+                  }`}
               >
                 History
               </button>
@@ -1619,11 +1609,10 @@ const AdminDashboardPage: React.FC = () => {
                               </div>
                             ) : (
                               <span
-                                className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                                  res.status === "completed"
+                                className={`px-3 py-1 rounded-full text-xs font-semibold ${res.status === "completed"
                                     ? "bg-green-900 text-green-300"
                                     : "bg-red-900 text-red-300"
-                                }`}
+                                  }`}
                               >
                                 {res.status === "completed"
                                   ? "Seated"
@@ -1646,11 +1635,10 @@ const AdminDashboardPage: React.FC = () => {
             <div className="flex justify-center gap-4 mb-6">
               <button
                 onClick={() => setComplaintFilter("active")}
-                className={`px-4 py-2 rounded-full font-semibold text-sm ${
-                  complaintFilter === "active"
+                className={`px-4 py-2 rounded-full font-semibold text-sm ${complaintFilter === "active"
                     ? "bg-red-600 text-white"
                     : "bg-gray-800 text-gray-400 hover:bg-gray-700"
-                }`}
+                  }`}
               >
                 Active (
                 {
@@ -1661,11 +1649,10 @@ const AdminDashboardPage: React.FC = () => {
               </button>
               <button
                 onClick={() => setComplaintFilter("resolved")}
-                className={`px-4 py-2 rounded-full font-semibold text-sm ${
-                  complaintFilter === "resolved"
+                className={`px-4 py-2 rounded-full font-semibold text-sm ${complaintFilter === "resolved"
                     ? "bg-green-600 text-white"
                     : "bg-gray-800 text-gray-400 hover:bg-gray-700"
-                }`}
+                  }`}
               >
                 Resolved
               </button>
@@ -1696,13 +1683,12 @@ const AdminDashboardPage: React.FC = () => {
                           </span>
                         </p>
                         <span
-                          className={`px-2 py-0.5 text-xs font-bold rounded-full capitalize shrink-0 ${
-                            order.complaint?.status === "pending"
+                          className={`px-2 py-0.5 text-xs font-bold rounded-full capitalize shrink-0 ${order.complaint?.status === "pending"
                               ? "bg-yellow-900 text-yellow-300"
                               : order.complaint?.status === "approved"
                                 ? "bg-green-900 text-green-300"
                                 : "bg-red-900 text-red-300"
-                          }`}
+                            }`}
                         >
                           {order.complaint?.status}
                         </span>
@@ -1832,7 +1818,7 @@ const AdminDashboardPage: React.FC = () => {
                             {r?.name}
                           </td>
                           <td className="px-4 py-3 text-xs font-mono text-cyan-400">
-                            {r?.state|| "-"}
+                            {r?.state || "-"}
                           </td>
                           <td className="px-4 py-3 text-sm text-gray-400">
                             {r?.city || "-"}
@@ -2101,11 +2087,10 @@ const AdminDashboardPage: React.FC = () => {
                     </span>
 
                     <button
-                      className={`px-2 py-1 rounded text-xs text-white ${
-                        t.is_active
+                      className={`px-2 py-1 rounded text-xs text-white ${t.is_active
                           ? "bg-green-600 hover:bg-green-500"
                           : "bg-red-600 hover:bg-red-500"
-                      }`}
+                        }`}
                       onClick={async () => {
                         await apiToggleTable(t.id, !t.is_active);
                         loadTables(showTablesFor!);
@@ -2158,11 +2143,10 @@ const AdminDashboardPage: React.FC = () => {
                     </span>
                     <div className="flex gap-2">
                       <button
-                        className={`px-2 py-1 rounded text-xs text-white ${
-                          t.is_active
+                        className={`px-2 py-1 rounded text-xs text-white ${t.is_active
                             ? "bg-green-600 hover:bg-green-500"
                             : "bg-red-600 hover:bg-red-500"
-                        }`}
+                          }`}
                         onClick={async () => {
                           console.log(t);
                           await apiToggleTable(t.id, !t.is_active);
@@ -2172,15 +2156,14 @@ const AdminDashboardPage: React.FC = () => {
                         {t.is_active ? "Active" : "Inactive"}
                       </button>
                       <button
-                        className={`px-2 py-1 rounded text-xs text-white ${
-                          !t.is_booked
+                        className={`px-2 py-1 rounded text-xs text-white ${!t.is_booked
                             ? "bg-green-600 hover:bg-green-500"
                             : "bg-red-600 hover:bg-red-500"
-                        }`}
-                        // onClick={async () => {
-                        //   await apiToggleTable(t.id, !t.is_booked);
-                        //   loadTables(showTablesFor.id!);
-                        // }}
+                          }`}
+                      // onClick={async () => {
+                      //   await apiToggleTable(t.id, !t.is_booked);
+                      //   loadTables(showTablesFor.id!);
+                      // }}
                       >
                         Seats {t.is_booked ? "Booked" : "Available"}
                       </button>

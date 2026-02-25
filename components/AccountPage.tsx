@@ -418,6 +418,7 @@ const AccountPage: React.FC = () => {
     (o) =>
       normalizeOrderStatus(o.status) !== "Delivered" &&
       normalizeOrderStatus(o.status) !== "Cancelled" &&
+        normalizeOrderStatus(o.status) !== "PENDING" &&
       normalizeOrderStatus(o.status) !== "Refunded",
   );
 
