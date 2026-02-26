@@ -119,8 +119,8 @@ const App: React.FC = () => {
   if (route === "login") return <LoginPage />;
   if (route === "account") return <AccountPage />;
   if (route.startsWith("order-status")) return <OrderStatusPage />;
-  if (route === "terms") return <PrivacyPolicy />;
-  if (route === "refund") return <RefundPolicy />;
+if (route === "terms") return <PrivacyPolicy onBack={() => { handleGoBack(); }} />;
+if (route === "refund") return <RefundPolicy onBack={() => { handleGoBack(); }} />;
 
   // ─── BRAND / LANDING FLOW ──────────────────────────────────────────────────
 

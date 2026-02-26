@@ -69,29 +69,31 @@ We prioritize customer satisfaction and fairness in every resolution.`,
     title: "6. Contact Us",
     content: `For cancellations or refund queries, please reach out to us:
 
-Email: debapriya.brahma@bongodelicacy.com
+Email: contact@bongodelicacy.com
 Phone: 9611774424
 Website: www.bongodelicacy.com
 
 Bongo Delicacy Pvt Ltd — Banglar Jhale Jhole`,
   },
 ];
-
+const handleNavigate = (route: string) => {
+  window.location.hash = route;
+};
 const RefundPolicy: React.FC<RefundPolicyProps> = ({ onBack }) => {
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       {/* Navbar */}
       <nav className="fixed top-0 left-0 right-0 bg-gray-900/90 backdrop-blur-md z-50 border-b border-gray-800">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center gap-4">
-          {/* <button
+          <button
             onClick={onBack}
-            className="flex items-center gap-2 text-gray-300 hover:text-cyan-400 transition-colors"
+            className="flex sm:hidden items-center justify-center w-8 h-8 rounded-full text-gray-300 hover:text-cyan-400 hover:bg-gray-800 transition-all shrink-0"
+            aria-label="Go back"
           >
             <Icon type="arrow-left" className="w-5 h-5" />
-            <span className="hidden sm:inline text-sm">Back</span>
-          </button> */}
+          </button>
 
-          <div className="flex items-center gap-3 cursor-pointer" onClick={onBack}>
+          <div className="flex items-center gap-3 cursor-pointer" onClick={() => handleNavigate('#')}>
             <img
               src={bongoDelicacyLogo}
               alt="Bongo Delicacy Logo"
@@ -106,9 +108,9 @@ const RefundPolicy: React.FC<RefundPolicyProps> = ({ onBack }) => {
               </span>
             </div>
           </div>
+
         </div>
       </nav>
-
       {/* Hero Banner */}
       <div className="pt-24 pb-12 bg-gradient-to-b from-gray-800 to-gray-900 border-b border-gray-800">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center">
@@ -210,7 +212,7 @@ const RefundPolicy: React.FC<RefundPolicyProps> = ({ onBack }) => {
               9611774424
             </a>
             <a
-              href="mailto:debapriya.brahma@bongodelicacy.com"
+              href="mailto:contact@bongodelicacy.com"
               className="flex items-center gap-3 text-gray-300 hover:text-cyan-400 transition-colors text-sm"
             >
               <svg
@@ -224,7 +226,7 @@ const RefundPolicy: React.FC<RefundPolicyProps> = ({ onBack }) => {
                 <rect x="2" y="4" width="20" height="16" rx="2" />
                 <path d="M2 7l10 7 10-7" />
               </svg>
-              debapriya.brahma@bongodelicacy.com
+              contact@bongodelicacy.com
             </a>
             <a
               href="https://www.bongodelicacy.com"
@@ -263,10 +265,10 @@ const RefundPolicy: React.FC<RefundPolicyProps> = ({ onBack }) => {
             ← Back to Home
           </button>
           <a
-            href="mailto:debapriya.brahma@bongodelicacy.com"
+            href="mailto:contact@bongodelicacy.com"
             className="hover:text-gray-300 transition-colors"
           >
-            debapriya.brahma@bongodelicacy.com
+            contact@bongodelicacy.com
           </a>
         </div>
       </footer>

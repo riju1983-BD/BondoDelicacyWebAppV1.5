@@ -175,21 +175,44 @@ const ChefRecommenderModal: React.FC<{
 
 const CartIcon: React.FC<{ onClick: () => void }> = ({ onClick }) => {
   const { itemCount } = useCart();
+  const [shake, setShake] = useState(false);
+
+  useEffect(() => {
+    if (itemCount === 0) return;
+    setShake(true);
+    const timer = setTimeout(() => setShake(false), 600);
+    return () => clearTimeout(timer);
+  }, [itemCount]);
+
   if (itemCount === 0) return null;
+
   return (
-    <button
-      onClick={onClick}
-      className="fixed bottom-6 right-6 bg-[var(--primary-color)] text-[var(--text-on-primary-color)] w-16 h-16 rounded-full shadow-lg flex items-center justify-center z-50 hover:scale-110 transition-transform"
-      aria-label={`View cart with ${itemCount} items`}
-    >
-      <Icon type="shopping-cart" className="w-8 h-8" />
-      <span className="absolute -top-1 -right-1 bg-[var(--accent-color)] text-gray-900 font-bold text-xs w-6 h-6 rounded-full flex items-center justify-center border-2 border-[var(--primary-color)]">
-        {itemCount}
-      </span>
-    </button>
+    <>
+      <style>{`
+        @keyframes shake {
+          0%, 100% { transform: rotate(0deg); }
+          15%       { transform: rotate(-15deg); }
+          30%       { transform: rotate(15deg); }
+          45%       { transform: rotate(-10deg); }
+          60%       { transform: rotate(10deg); }
+          75%       { transform: rotate(-5deg); }
+          90%       { transform: rotate(5deg); }
+        }
+        .cart-shake { animation: shake 0.6s ease-in-out; }
+      `}</style>
+      <button
+        onClick={onClick}
+        className={`fixed bottom-6 right-6 bg-[var(--primary-color)] text-[var(--text-on-primary-color)] w-16 h-16 rounded-full shadow-lg flex items-center justify-center z-50 hover:scale-110 transition-transform ${shake ? "cart-shake" : ""}`}
+        aria-label={`View cart with ${itemCount} items`}
+      >
+        <Icon type="shopping-cart" className="w-8 h-8" />
+        <span className="absolute -top-1 -right-1 bg-[var(--accent-color)] text-gray-900 font-bold text-xs w-6 h-6 rounded-full flex items-center justify-center border-2 border-[var(--primary-color)]">
+          {itemCount}
+        </span>
+      </button>
+    </>
   );
 };
-
 // ─── Table Map ───────────────────────────────────────────────────────────────
 
 const TableMap: React.FC<{
