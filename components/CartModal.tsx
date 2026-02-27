@@ -805,7 +805,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
                   razorpay_order_id: paymentResponse.razorpay_order_id,
                   razorpay_signature: paymentResponse.razorpay_signature,
                   clientorderID,
-
+                  orderinfo: payload.orderinfo,
                   // ✅ PASS EVERYTHING NEEDED TO CREATE ORDER
                   orderData: {
                     brandId,

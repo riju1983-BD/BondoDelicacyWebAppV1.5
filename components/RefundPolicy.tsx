@@ -241,7 +241,7 @@ const RefundPolicy: React.FC<RefundPolicyProps> = ({ onBack }) => {
         </div>
 
         {/* Footer note */}
-        <div className="mt-10 text-center text-gray-500 text-xs">
+        {/* <div className="mt-10 text-center text-gray-500 text-xs">
           <p>
             This policy was last updated on{" "}
             {new Date().toLocaleDateString("en-IN", {
@@ -254,7 +254,7 @@ const RefundPolicy: React.FC<RefundPolicyProps> = ({ onBack }) => {
           <p className="mt-1">
             © {new Date().getFullYear()} Bongo Delicacy Pvt Ltd. All rights reserved.
           </p>
-        </div>
+        </div> */}
       </main>
 
       {/* Footer */}

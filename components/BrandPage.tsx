@@ -374,7 +374,7 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
   const [isMenuChanging, setIsMenuChanging] = useState(false);
   const [isInitialMenuLoading, setIsInitialMenuLoading] = useState(true);
 
-  const { addItem, switchRestaurant } = useCart();
+const { addItem, switchRestaurant, clearCart } = useCart();
   const { currentUser } = useAuth();
   // Handle landing on hash sections after refresh (#terms, #refund, etc.)
   useEffect(() => {
