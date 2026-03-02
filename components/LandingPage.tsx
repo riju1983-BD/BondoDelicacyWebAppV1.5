@@ -13,59 +13,38 @@ interface LandingPageProps {
   onSelectBrand: (petpoojaOutletId: string, resturentId: string, outletId: string) => void;
 }
 
-// ── UTC helpers ────────────────────────────────────────────────────────────
-/**
- * Supabase returns timestamps WITHOUT a trailing "Z"
- * e.g. "2026-02-27 11:00:10.829675"
- * Without Z, new Date() treats it as LOCAL time — WRONG.
- * This helper forces correct UTC parsing.
- */
 function toUTCDate(raw: string): Date {
   const s = raw.trim();
-  if (s.endsWith("Z") || s.includes("+")) return new Date(s); // already has offset
-  return new Date(s.replace(" ", "T") + "Z"); // ✅ force UTC
+  if (s.endsWith("Z") || s.includes("+")) return new Date(s);
+  return new Date(s.replace(" ", "T") + "Z");
 }
 
-/**
- * Returns true if outlet_open_date_time is still in the future (UTC comparison).
- */
 function isStillClosedUntil(outlet_open_date_time: string | null | undefined): boolean {
   if (!outlet_open_date_time) return false;
   return Date.now() < toUTCDate(outlet_open_date_time).getTime();
 }
 
-/**
- * Formats a Supabase UTC timestamp into a readable IST time string.
- * e.g. "04:30 PM"
- */
 function formatISTTime(outlet_open_date_time: string): string {
   return toUTCDate(outlet_open_date_time).toLocaleString("en-IN", {
     day: "2-digit",
-    month: "short",   // e.g. "Feb"
+    month: "short",
     hour: "2-digit",
     minute: "2-digit",
     hour12: true,
-    timeZone: "Asia/Kolkata", // ✅ browser handles UTC→IST correctly
+    timeZone: "Asia/Kolkata",
   });
 }
 
-/**
- * Determines if an outlet card should be disabled (not clickable).
- */
 function isOutletDisabled(outlet: any): boolean {
-  if (outlet.is_active) return false; // active → never disabled
-
+  if (outlet.is_active) return false;
   if (outlet.outlet_open_date_time) {
-    // ✅ Force UTC parse — fixes Supabase returning timestamps without Z
     if (Date.now() >= toUTCDate(outlet.outlet_open_date_time).getTime()) {
-      return false; // open time passed → treat as open
+      return false;
     }
   }
-
-  return true; // still in future or no open time → disabled
+  return true;
 }
 
-// ── Skeletons ──────────────────────────────────────────────────────────────
 const RestaurantCardSkeleton: React.FC = () => (
   <div className="group relative h-[350px] rounded-2xl overflow-hidden shadow-2xl">
     <div className="absolute inset-0 bg-gray-800 animate-pulse" />
@@ -86,7 +65,6 @@ const RestaurantCardSkeleton: React.FC = () => (
   </div>
 );
 
-// ── Hamburger ──────────────────────────────────────────────────────────────
 const HamburgerIcon: React.FC<{ open: boolean; onClick: () => void }> = ({ open, onClick }) => (
   <button
     onClick={onClick}
@@ -99,7 +77,6 @@ const HamburgerIcon: React.FC<{ open: boolean; onClick: () => void }> = ({ open,
   </button>
 );
 
-// ── Closed badge ───────────────────────────────────────────────────────────
 const ClosedBadge: React.FC<{ outlet_open_date_time?: string | null }> = ({ outlet_open_date_time }) => {
   const opensAt =
     outlet_open_date_time && isStillClosedUntil(outlet_open_date_time)
@@ -121,7 +98,6 @@ const ClosedBadge: React.FC<{ outlet_open_date_time?: string | null }> = ({ outl
   );
 };
 
-// ── Main component ─────────────────────────────────────────────────────────
 const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
   const { isAuthenticated, currentUser } = useAuth();
   const [isHelpBuddyOpen, setIsHelpBuddyOpen] = useState(false);
@@ -138,6 +114,11 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
   const [isLoadingOutlets, setIsLoadingOutlets] = useState(false);
   const [outletsError, setOutletsError] = useState<string | null>(null);
 
+  // ✅ Track whether at least one successful fetch has completed
+  // Without this, returning to the page triggers a brief "No outlets found"
+  // flash because isLoadingOutlets stays false during background refreshes
+  const hasFetched = React.useRef(false);
+
   const handleNavigate = (hash: string) => {
     setIsDrawerOpen(false);
     window.location.hash = hash;
@@ -151,7 +132,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  // ── Reverse geocode ────────────────────────────────────────────────────
   useEffect(() => {
     if (!location) return;
     const fetchLocationName = async () => {
@@ -169,7 +149,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
     fetchLocationName();
   }, [location]);
 
-  // ── Resolve user location ──────────────────────────────────────────────
   useEffect(() => {
     if (currentUser?.addresses?.length) {
       const defaultAddress = currentUser.addresses.find((a: any) => a.isDefault) || currentUser.addresses[0];
@@ -187,18 +166,19 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
     );
   }, [currentUser]);
 
-  // ── Load outlets ───────────────────────────────────────────────────────
   const loadOutlets = useCallback(async (coords: { lat: number; lng: number } | null) => {
     locationResolved.current = true;
     setOutletsError(null);
+
+    // ✅ Always show skeleton while loading — whether first load or background refresh
+    setIsLoadingOutlets(true);
+
     try {
       const data = await apiGetOutletByLocation(coords ?? undefined);
       const result = data?.data?.result;
       if (Array.isArray(result)) {
-        // ✅ Include ALL outlets (active + inactive) — disabled ones render as "Closed"
-        // Active outlets first, then inactive (closed) ones — both sorted by name within group
-        const active = result.filter((o) => o.is_active).sort((a, b) => a.name.localeCompare(b.name));
-        const inactive = result.filter((o) => !o.is_active).sort((a, b) => a.name.localeCompare(b.name));
+        const active = result.filter((o) => o.is_active);
+        const inactive = result.filter((o) => !o.is_active);
         setOutlets([...active, ...inactive]);
       } else {
         setOutlets([]);
@@ -207,17 +187,16 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
       setOutletsError(e?.message || "Failed to load outlets");
       setOutlets([]);
     } finally {
-      if (isFirstLoad.current) {
-        setIsLoadingOutlets(false);
-        isFirstLoad.current = false;
-      }
+      // ✅ Mark that at least one fetch is done — "No outlets found" is now safe to show
+      hasFetched.current = true;
+      setIsLoadingOutlets(false);
+      isFirstLoad.current = false;
     }
   }, []);
 
   useEffect(() => {
     if (locationPending) return;
     if (locationResolved.current) return;
-    if (isFirstLoad.current) setIsLoadingOutlets(true);
     loadOutlets(location);
   }, [locationPending, location, loadOutlets]);
 
@@ -232,14 +211,17 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
     };
   }, [loadOutlets]);
 
-  // ✅ Re-render every 30s so isOutletDisabled() auto-detects when open time passes
   const [, setTick] = useState(0);
   useEffect(() => {
     const timer = setInterval(() => setTick((t) => t + 1), 30_000);
     return () => clearInterval(timer);
   }, []);
 
-  const showSkeleton = locationPending || isLoadingOutlets;
+  // ✅ Show skeleton if:
+  //  - location is still being resolved, OR
+  //  - outlets are loading, OR
+  //  - we haven't completed even one fetch yet (prevents "No outlets found" flash)
+  const showSkeleton = locationPending || isLoadingOutlets || !hasFetched.current;
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
@@ -378,7 +360,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
                 <div
                   key={outlet.id}
                   onClick={() => {
-                    // ✅ Block navigation for closed outlets
                     if (disabled) return;
                     setOutletLocation({ lat: outlet.lat, lng: outlet.long });
                     localStorage.setItem("selectedPetpoojaOutletId", outlet.petpooja_outlet_id);
@@ -389,11 +370,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
                   className={[
                     "group relative h-[320px] rounded-2xl overflow-hidden transition-all duration-500 shadow-xl transform",
                     disabled
-                      ? "cursor-not-allowed opacity-75 grayscale"          // ✅ Disabled styles
-                      : "cursor-pointer hover:-translate-y-2 hover:shadow-2xl", // Active styles
+                      ? "cursor-not-allowed opacity-75 grayscale"
+                      : "cursor-pointer hover:-translate-y-2 hover:shadow-2xl",
                   ].join(" ")}
                 >
-                  {/* Background image */}
                   <div className="absolute inset-0">
                     <img
                       src={hero}
@@ -403,12 +383,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent opacity-85 group-hover:opacity-95 transition-opacity" />
                   </div>
 
-                  {/* ✅ Closed overlay — shown only for disabled outlets */}
                   {disabled && (
                     <ClosedBadge outlet_open_date_time={outlet.outlet_open_date_time} />
                   )}
 
-                  {/* Card content */}
                   <div className="absolute inset-0 p-5 flex flex-col justify-end">
                     <div className={`transform transition-transform duration-500 ${!disabled ? "translate-y-2 group-hover:translate-y-0" : ""}`}>
                       {logo && (

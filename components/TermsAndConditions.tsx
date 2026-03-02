@@ -108,26 +108,15 @@ Locations:
 • Dine In — Amigo's Avenue, Ground Floor, 15, New Temple Road, Nallurhalli Main Road, Whitefield, Bangalore - 560066`,
   },
 ];
+
 const handleNavigate = (route: string) => {
   window.location.hash = route;
 };
+
 const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ onBack }) => {
-  // ✅ Read theme set by BrandPage
-  const themePrimary = localStorage.getItem("themePrimary") || "#06b6d4";
-  const themeAccent = localStorage.getItem("themeAccent") || "#06b6d4";
-  const themeText = localStorage.getItem("themeText") || "#ffffff";
-
-  const brandThemeStyle = {
-    "--primary-color": themePrimary,
-    "--accent-color": themeAccent,
-    "--text-on-primary-color": themeText,
-  } as React.CSSProperties;
-
   return (
-    <div
-      className="min-h-screen bg-gray-900 text-white"
-      style={brandThemeStyle}
-    >
+    <div className="min-h-screen bg-gray-900 text-white">
+
       {/* Navbar */}
       <nav className="fixed top-0 left-0 right-0 bg-gray-900/90 backdrop-blur-md z-50 border-b border-gray-800">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center gap-4">
@@ -163,17 +152,14 @@ const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ onBack }) => {
       <div className="pt-24 pb-12 bg-gradient-to-b from-gray-800 to-gray-900 border-b border-gray-800">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-cyan-500/10 border border-cyan-500/30 mb-4">
-            <Icon
-              type="shield"
-              className="w-7 h-7 text-[var(--accent-color)]"
-            />
+            <Icon type="shield" className="w-7 h-7 text-cyan-500" />  {/* ✅ was var(--accent-color) */}
           </div>
           <h2 className="text-4xl md:text-5xl font-serif font-bold text-white">
             Privacy Policy
           </h2>
           <p className="mt-3 text-gray-400 text-sm">
             Effective Date: &nbsp;
-            <span className="text-[var(--accent-color)] font-medium">
+            <span className="text-cyan-500 font-medium">  {/* ✅ was var(--accent-color) */}
               {new Date().toLocaleDateString("en-IN", {
                 day: "numeric",
                 month: "long",
@@ -183,7 +169,7 @@ const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ onBack }) => {
             &nbsp;·&nbsp; Website:{" "}
             <a
               href="https://www.bongodelicacy.com"
-              className="text-[var(--accent-color)] hover:underline"
+              className="text-cyan-500 hover:underline"  // ✅ was var(--accent-color)
               target="_blank"
               rel="noreferrer"
             >
@@ -211,7 +197,7 @@ const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ onBack }) => {
               key={idx}
               className="bg-gray-800/50 border border-gray-700 rounded-xl p-6 hover:border-gray-600 transition-colors"
             >
-              <h3 className="text-lg font-semibold text-[var(--accent-color)] mb-3">
+              <h3 className="text-lg font-semibold text-cyan-500 mb-3">  {/* ✅ was var(--accent-color) */}
                 {section.title}
               </h3>
               <div className="text-gray-300 text-sm leading-relaxed whitespace-pre-line">
@@ -225,8 +211,7 @@ const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({ onBack }) => {
       {/* Footer */}
       <footer className="bg-gray-950 py-8 text-center text-gray-500 text-sm border-t border-gray-800">
         <p>
-          © {new Date().getFullYear()} Bongo Delicacy Group. All rights
-          reserved.
+          © {new Date().getFullYear()} Bongo Delicacy Group. All rights reserved.
         </p>
         <div className="mt-3 flex justify-center gap-6 text-xs">
           <button

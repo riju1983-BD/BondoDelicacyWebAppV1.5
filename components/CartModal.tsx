@@ -15,6 +15,7 @@ import {
   apiBookRider,
 } from "../services/apiService";
 import { useOutlet } from "../context/OutletContext";
+
 const Spinner: React.FC<{ className?: string }> = ({
   className = "h-5 w-5",
 }) => (
@@ -39,11 +40,25 @@ const Spinner: React.FC<{ className?: string }> = ({
     ></path>
   </svg>
 );
+
 type TaxLine = {
   id: string;
   name: string;
   tax_percentage: string;
   amount?: string | number;
+};
+
+// ✅ Load Razorpay script dynamically — prevents "not a constructor" error
+//    when the API response comes back faster than the script tag loads
+const loadRazorpayScript = (): Promise<boolean> => {
+  return new Promise((resolve) => {
+    if ((window as any).Razorpay) return resolve(true); // already loaded
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
 };
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -173,18 +188,14 @@ interface CartModalProps {
 }
 type View = "cart" | "auth" | "address" | "checkout" | "confirmation";
 
-
 const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaurantName, }) => {
   console.log("Restaurant Name:", restaurantName);
-  const { outletLocation } = useOutlet(); // ✅ inside component
-  // const RESTAURANT_LAT = 12.9716; // example
-  // const RESTAURANT_LNG = 77.5946;
+  const { outletLocation } = useOutlet();
   const RESTAURANT_LAT = outletLocation?.lat ?? 0;
   const RESTAURANT_LNG = outletLocation?.lng ?? 0;
   const [calculatedTaxByItemId, setCalculatedTaxByItemId] = useState<
     Record<string, any[]>
   >({});
-  // const [calculatedGstTotal, setCalculatedGstTotal] = useState(0);
   const [deliveryCharge, setDeliveryCharge] = useState(0);
   const [gstAfterDiscount, setGstAfterDiscount] = useState(0);
   const {
@@ -211,10 +222,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
     password: "",
   });
 
-  // Address State
-  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(
-    null,
-  );
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [newAddressData, setNewAddressData] = useState<DeliveryAddress>({
     fullAddress: "",
@@ -230,21 +238,21 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
 
   const [paymentMethod, setPaymentMethod] = useState("card");
   const [isProcessing, setIsProcessing] = useState(false);
-  const effectiveDeliveryCharge =
-    view === "checkout" ? deliveryCharge : 0;
+  const effectiveDeliveryCharge = view === "checkout" ? deliveryCharge : 0;
+
   const checkIsBangalore = (address: string) => {
     return (
       address.toLowerCase().includes("bangalore") ||
       address.toLowerCase().includes("bengaluru")
     );
   };
+
   const formatOrderDate = () => {
     const now = new Date();
     const pad = (n: number) => String(n).padStart(2, "0");
-    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(
-      now.getDate(),
-    )}`;
+    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
   };
+
   const normalizeItemTax = (item: any): TaxLine[] => {
     if (Array.isArray(item?.tax_breakup) && item.tax_breakup.length > 0) {
       return item.tax_breakup.map((t: any) => ({
@@ -280,6 +288,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
 
     return [];
   };
+
   const getItemGST = (item: any) => {
     console.log("RAW item_tax:", item.item_tax);
     console.log("NORMALIZED:", normalizeItemTax(item));
@@ -305,14 +314,12 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
   const formatOrderTime = () => {
     const now = new Date();
     const pad = (n: number) => String(n).padStart(2, "0");
-    return `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(
-      now.getSeconds(),
-    )}`;
+    return `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
   };
+
   const getCurrentDateTime = () => {
     const d = new Date();
     const pad = (n: number) => String(n).padStart(2, "0");
-
     return (
       d.getFullYear() +
       "-" +
@@ -327,16 +334,14 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
       pad(d.getSeconds())
     );
   };
+
   useEffect(() => {
     const taxMap: Record<string, TaxLine[]> = {};
-
     items.forEach((it: any) => {
-      const key = String(it.itemid); // ✅ MUST be itemid
+      const key = String(it.itemid);
       const taxArr = normalizeItemTax(it);
-
       taxMap[key] = taxArr;
     });
-
     setCalculatedTaxByItemId(taxMap);
   }, [items]);
 
@@ -350,6 +355,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
       );
     });
   }, [items]);
+
   // Google Maps Autocomplete Init
   useEffect(() => {
     if (
@@ -399,8 +405,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
           );
           console.log("=== SERVICE API RESPONSE (FORM) ===");
           console.log(JSON.stringify(resp, null, 2));
-          const serviceable =
-            resp?.data?.serviceable || resp?.serviceable || {};
+          const serviceable = resp?.data?.serviceable || resp?.serviceable || {};
 
           const locationOk =
             serviceable.locationServiceAble ??
@@ -442,6 +447,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
       });
     }
   }, [view, showAddressForm, RESTAURANT_LAT, RESTAURANT_LNG]);
+
   useEffect(() => {
     if (currentUser && isOpen) {
       apiGetUserValidPoints(currentUser.id).then(setAvailablePoints);
@@ -450,7 +456,6 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
     }
   }, [currentUser, isOpen]);
 
-  // Initialize address state when entering address view
   useEffect(() => {
     if (view === "address" && currentUser) {
       if (currentUser.addresses && currentUser.addresses.length > 0) {
@@ -462,7 +467,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
       } else {
         setShowAddressForm(true);
         setNewAddressData({ fullAddress: "", flatNo: "", landmark: "" });
-        setSaveNewAddressAsDefault(true); // Default to true for first address
+        setSaveNewAddressAsDefault(true);
       }
       setIsAddressServiceable(true);
       setAddressError("");
@@ -513,6 +518,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
     hasInclusiveItems,
     view,
   ]);
+
   useEffect(() => {
     const discountForTax =
       Number(discountAmount || 0) + Number(loyaltyDiscount || 0);
@@ -551,7 +557,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
     try {
       if (isLoginView) {
         await login(authFormData.email, authFormData.password);
-        setView("address"); // ✅ go to maps AFTER login
+        setView("address");
       } else {
         await register(
           authFormData.name,
@@ -559,12 +565,8 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
           authFormData.phone,
           authFormData.password,
         );
-
-        // ✅ AUTO SWITCH TO LOGIN TAB
         setIsLoginView(true);
         setAuthError("Check your email to confirm your account.");
-
-        // OPTIONAL: keep user on auth screen
         setView("auth");
       }
     } catch (err) {
@@ -581,11 +583,11 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
     window.location.hash = route;
   };
 
-  // Helper to get final address object
   const getFinalDeliveryAddress = (): DeliveryAddress | undefined => {
     if (showAddressForm) return newAddressData;
     return currentUser?.addresses?.find((a) => a.id === selectedAddressId);
   };
+
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -605,22 +607,16 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
     setIsProcessing(true);
 
     try {
-      // ✅ Discount that should reduce taxable value (before tax)
       const discountForTax =
         Number(discountAmount || 0) + Number(loyaltyDiscount || 0);
 
-      // ✅ Recalculate item taxes AFTER discount
       const { perItemTax, gstTotal } = computeDiscountAwareTaxes(
         items,
         calculatedTaxByItemId,
         discountForTax,
       );
       console.log("Order.tax_total", gstAfterDiscount);
-
-      console.log(
-        "Sum item_tax",
-        items.reduce((s, i) => s + getItemGST(i), 0),
-      );
+      console.log("Sum item_tax", items.reduce((s, i) => s + getItemGST(i), 0));
 
       const preTax = Math.max(
         0,
@@ -633,14 +629,9 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
         ? preTax + Number(deliveryCharge || 0)
         : preTax + Number(gstTotal || 0) + Number(deliveryCharge || 0);
 
-      // ✅ Build PetPooja Tax.details summary (grouped)
       const taxSummary = buildTaxSummary(items, perItemTax);
-      console.log(
-        "Tax.details sum",
-        taxSummary.reduce((s, t) => s + Number(t.tax), 0),
-      );
+      console.log("Tax.details sum", taxSummary.reduce((s, t) => s + Number(t.tax), 0));
 
-      // 1) Build PetPooja + backend payload
       const payload = {
         userId: currentUser.id,
         orderinfo: {
@@ -648,7 +639,6 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
             Restaurant: {
               details: {
                 restID: brandId,
-
               },
             },
 
@@ -703,8 +693,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
 
                 created_on: getCurrentDateTime(),
                 enable_delivery: 1,
-                callback_url:
-                  `${BASE_URL}/petpuja/callback`,
+                callback_url: `${BASE_URL}/petpuja/callback`,
                 collect_cash: "0",
               },
             },
@@ -735,12 +724,10 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
 
                   quantity: String(i.quantity ?? "1"),
 
-                  // ✅ Use the cart item's variation fields directly
                   variation_id: String(i.variation_id || ""),
                   variation_name: String(i.variation_name || ""),
 
                   AddonItem: {
-                    // ✅ Use selected_addons (flat array) instead of nested selectedAddons
                     details: (i.selected_addons || []).map((a: any) => ({
                       id: String(a.id),
                       name: String(a.name),
@@ -764,7 +751,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
         },
       };
 
-      // 2) Hit backend → create PetPooja order + Razorpay order
+      // 2) Hit backend → create Razorpay order (PetPooja now called after payment)
       const res = await fetch(`${BASE_URL}/payment/create-order`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -772,8 +759,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
       });
 
       const data = await res.json();
-      if (!data.success)
-        throw new Error(data.message || "Order creation failed");
+      if (!data.success) throw new Error(data.message || "Order creation failed");
 
       const razorpayOrder = data.razorpayOrder;
       const clientorderID = data.clientorderID;
@@ -786,7 +772,17 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
         total_amount: grandTotal,
       };
 
-      // 3) Open Razorpay Checkout
+      // 3) ✅ Wait for Razorpay script to be ready before opening checkout
+      //    Previously PetPooja call in createOrder gave enough time for the
+      //    script to load. Now that it's removed, we must wait explicitly.
+      const loaded = await loadRazorpayScript();
+      if (!loaded) {
+        alert("Failed to load payment gateway. Please try again.");
+        setIsProcessing(false);
+        return;
+      }
+
+      // 4) Open Razorpay Checkout
       const rzp = new (window as any).Razorpay({
         key: VITE_RAZORPAY_KEY_ID,
         order_id: razorpayOrder.id,
@@ -805,8 +801,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
                   razorpay_order_id: paymentResponse.razorpay_order_id,
                   razorpay_signature: paymentResponse.razorpay_signature,
                   clientorderID,
-                  orderinfo: payload.orderinfo,
-                  // ✅ PASS EVERYTHING NEEDED TO CREATE ORDER
+                  orderinfo: data.orderinfo,
                   orderData: {
                     brandId,
                     restaurantName,
@@ -818,7 +813,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
                       phone: currentUser.phone,
                     },
                     deliveryAddress,
-                    pricing, // ✅ THIS IS THE KEY
+                    pricing,
                   },
                 }),
               },
@@ -836,18 +831,6 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
             await refreshCurrentUser();
             clearCart();
             setView("confirmation");
-            // apiBookRider({
-            //   order_id: clientorderID,
-            //   resturent_lat: RESTAURANT_LAT,
-            //   resturent_lang: RESTAURANT_LNG,
-            //   resturent_name: "Bangalir Jhale Jhole",
-            //   resturent_number: "9876543210",
-            //   resturent_address: "Bangalore Anty Address",
-            //   resturent_city: "Bangalore",
-            // }).catch((err) => {
-            //   console.error("Rider booking failed", err);
-            // });
-            // apiBookDelivery(clientorderID);
           } catch (err) {
             alert("Payment succeeded but order creation failed.");
           } finally {
@@ -855,24 +838,6 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
           }
         },
 
-        // 5) Now create order in your DB (your existing logic)
-        // const newOrder = await apiCreateOrder(
-        //     brandId,
-        //     currentUser.id,
-        //     items,
-        //     {
-        //         name: currentUser.name,
-        //         email: currentUser.email,
-        //         phone: currentUser.phone
-        //     },
-        //     deliveryAddress,
-        //     subtotal,
-        //     loyaltyDiscount,
-        //     clientorderID
-        // );
-
-        // await apiPunchOrder(newOrder);
-        // apiBookDelivery(newOrder.id);
         modal: {
           ondismiss: async () => {
             setIsProcessing(false);
@@ -900,6 +865,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
       });
 
       rzp.open();
+
       rzp.on("payment.failed", async () => {
         try {
           await apiCancelOrderOnPaymentFailed(
@@ -931,6 +897,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
       setView("auth");
     }
   };
+
   const checkServiceabilityForAddress = async (
     address: DeliveryAddress
   ): Promise<boolean> => {
@@ -951,10 +918,8 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
       );
       console.log("=== SERVICE API RESPONSE (FORM) ===");
       console.log(JSON.stringify(resp, null, 2));
-      console.log("Serviceability API response:", resp);
 
-      const serviceable =
-        resp?.data?.serviceable || resp?.serviceable || {};
+      const serviceable = resp?.data?.serviceable || resp?.serviceable || {};
 
       const locationOk =
         serviceable.locationServiceAble ??
@@ -966,34 +931,29 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
         serviceable.riderServiceable ??
         false;
 
-      // ❌ BOTH false
       if (!locationOk && !riderOk) {
         setIsAddressServiceable(false);
         setAddressError("Delivery is not available in this location.");
         return false;
       }
 
-      // ❌ Only location false
       if (!locationOk) {
         setIsAddressServiceable(false);
         setAddressError("Location is not deliverable.");
         return false;
       }
 
-      // ❌ Only rider false
       if (!riderOk) {
         setIsAddressServiceable(false);
         setAddressError("Rider not available in this location.");
         return false;
       }
 
-      // ✅ Everything fine
       setIsAddressServiceable(true);
       setAddressError("");
       setDeliveryCharge(Number(resp?.payouts?.total || 0));
 
       return true;
-
     } catch (error) {
       console.error("Serviceability error:", error);
       setIsAddressServiceable(false);
@@ -1006,7 +966,6 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
     e.preventDefault();
     if (!currentUser) return;
 
-    // Final validation check before saving
     const isBangalore = checkIsBangalore(newAddressData.fullAddress);
     if (!isBangalore) {
       setIsAddressServiceable(false);
@@ -1023,15 +982,12 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
           ...newAddressData,
           isDefault: saveNewAddressAsDefault,
         });
-        await refreshCurrentUser(); // Refresh to get the new address list
+        await refreshCurrentUser();
         setSelectedAddressId(savedAddress.id || null);
         setShowAddressForm(false);
 
         const isServiceable = await checkServiceabilityForAddress(savedAddress);
-
-        if (!isServiceable) {
-          return; // 🚫 STOP if not serviceable
-        }
+        if (!isServiceable) return;
 
         setView("checkout");
       } catch (error) {
@@ -1066,9 +1022,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
                       />
 
                       <div className="flex-grow">
-                        <p className="font-semibold text-white">
-                          {item.itemname}
-                        </p>
+                        <p className="font-semibold text-white">{item.itemname}</p>
                         <p className="text-sm text-gray-400">
                           ₹{Number(item.unit_price).toFixed(2)}
                         </p>
@@ -1118,29 +1072,22 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
             )}
           </>
         );
+
       case "auth":
         return (
           <form onSubmit={handleAuthSubmit} className="space-y-3">
             <div className="flex rounded-md shadow-sm border border-gray-600">
               <button
                 type="button"
-                onClick={() => {
-                  setIsLoginView(true);
-                  setAuthError("");
-                }}
-                className={`flex-1 p-2 rounded-l-md text-sm ${isLoginView ? "bg-cyan-600 text-white" : "bg-gray-700"
-                  }`}
+                onClick={() => { setIsLoginView(true); setAuthError(""); }}
+                className={`flex-1 p-2 rounded-l-md text-sm ${isLoginView ? "bg-cyan-600 text-white" : "bg-gray-700"}`}
               >
                 Login
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  setIsLoginView(false);
-                  setAuthError("");
-                }}
-                className={`flex-1 p-2 rounded-r-md text-sm ${!isLoginView ? "bg-cyan-600 text-white" : "bg-gray-700"
-                  }`}
+                onClick={() => { setIsLoginView(false); setAuthError(""); }}
+                className={`flex-1 p-2 rounded-r-md text-sm ${!isLoginView ? "bg-cyan-600 text-white" : "bg-gray-700"}`}
               >
                 Register
               </button>
@@ -1170,34 +1117,20 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
                   maxLength={10}
                   value={authFormData.phone}
                   onChange={(e) => {
-                    // allow digits only
                     const digitsOnly = e.target.value.replace(/\D/g, "");
-
-                    setAuthFormData({
-                      ...authFormData,
-                      phone: digitsOnly.slice(0, 10),
-                    });
+                    setAuthFormData({ ...authFormData, phone: digitsOnly.slice(0, 10) });
                   }}
                   onKeyDown={(e) => {
-                    // allow digits + control keys only
                     if (
                       !/^[0-9]$/.test(e.key) &&
-                      ![
-                        "Backspace",
-                        "Delete",
-                        "ArrowLeft",
-                        "ArrowRight",
-                        "Tab"
-                      ].includes(e.key)
+                      !["Backspace", "Delete", "ArrowLeft", "ArrowRight", "Tab"].includes(e.key)
                     ) {
                       e.preventDefault();
                     }
                   }}
                   onPaste={(e) => {
                     const pasted = e.clipboardData.getData("text");
-                    if (!/^[0-9]+$/.test(pasted)) {
-                      e.preventDefault();
-                    }
+                    if (!/^[0-9]+$/.test(pasted)) e.preventDefault();
                   }}
                   className="w-full bg-gray-700 p-2 rounded-md border border-gray-600 text-sm"
                 />
@@ -1227,23 +1160,17 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
               disabled={isProcessing}
               className="w-full flex justify-center font-bold py-2 px-4 rounded-md bg-cyan-600 hover:bg-cyan-500 disabled:bg-gray-500 transition-colors"
             >
-              {isProcessing ? (
-                <Spinner />
-              ) : isLoginView ? (
-                "Login & Continue"
-              ) : (
-                "Register & Continue"
-              )}
+              {isProcessing ? <Spinner /> : isLoginView ? "Login & Continue" : "Register & Continue"}
             </button>
           </form>
         );
+
       case "address":
         if (
           !showAddressForm &&
           currentUser?.addresses &&
           currentUser.addresses.length > 0
         ) {
-          // LIST VIEW
           return (
             <div className="space-y-4 animate-fade-in">
               <div className="space-y-3">
@@ -1265,22 +1192,16 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
                       />
                       <div className="flex-grow">
                         <div className="flex justify-between">
-                          <p className="font-semibold text-white">
-                            {addr.flatNo}
-                          </p>
+                          <p className="font-semibold text-white">{addr.flatNo}</p>
                           {addr.isDefault && (
                             <span className="bg-cyan-900/50 text-cyan-300 text-xs px-2 py-0.5 rounded-full">
                               Default
                             </span>
                           )}
                         </div>
-                        <p className="text-sm text-gray-300 mt-1">
-                          {addr.fullAddress}
-                        </p>
+                        <p className="text-sm text-gray-300 mt-1">{addr.fullAddress}</p>
                         {addr.landmark && (
-                          <p className="text-xs text-gray-400 mt-1">
-                            Landmark: {addr.landmark}
-                          </p>
+                          <p className="text-xs text-gray-400 mt-1">Landmark: {addr.landmark}</p>
                         )}
                       </div>
                     </div>
@@ -1290,11 +1211,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
               <button
                 onClick={() => {
                   setShowAddressForm(true);
-                  setNewAddressData({
-                    fullAddress: "",
-                    flatNo: "",
-                    landmark: "",
-                  });
+                  setNewAddressData({ fullAddress: "", flatNo: "", landmark: "" });
                 }}
                 className="w-full py-3 border-2 border-dashed border-gray-600 text-gray-400 rounded-lg font-semibold hover:border-cyan-500 hover:text-cyan-400 transition-colors flex items-center justify-center gap-2"
               >
@@ -1318,13 +1235,9 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
                   try {
                     if (selectedAddress) {
                       const isServiceable = await checkServiceabilityForAddress(selectedAddress);
-
-                      if (!isServiceable) {
-                        return; // 🚫 STOP here if not serviceable
-                      }
+                      if (!isServiceable) return;
                     }
-
-                    setView("checkout"); // ✅ Only runs if true
+                    setView("checkout");
                   } finally {
                     setIsProcessing(false);
                   }
@@ -1336,21 +1249,14 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
             </div>
           );
         } else {
-          // FORM VIEW
           return (
-            <form
-              onSubmit={handleAddNewAddressSubmit}
-              className="space-y-4 animate-fade-in"
-            >
+            <form onSubmit={handleAddNewAddressSubmit} className="space-y-4 animate-fade-in">
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-1">
                   Delivery Location
                 </label>
                 <div className="relative">
-                  <Icon
-                    type="map-pin"
-                    className="absolute left-3 top-3 w-5 h-5 text-gray-400"
-                  />
+                  <Icon type="map-pin" className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
                   <input
                     ref={addressInputRef}
                     type="text"
@@ -1358,16 +1264,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
                     required
                     value={newAddressData.fullAddress}
                     onChange={(e) => {
-                      const newVal = e.target.value;
-
-                      // Update address text only
-                      setNewAddressData((prev) => ({
-                        ...prev,
-                        fullAddress: newVal,
-                      }));
-
-                      // ✅ While typing, NEVER show error
-                      // User has not selected a place yet
+                      setNewAddressData((prev) => ({ ...prev, fullAddress: e.target.value }));
                       setIsAddressServiceable(true);
                       setAddressError("");
                     }}
@@ -1379,10 +1276,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
                 </div>
                 {!isAddressServiceable && (
                   <div className="mt-3 p-3 bg-red-900/30 border border-red-800 rounded-md flex items-start gap-3 animate-fade-in">
-                    <Icon
-                      type="map-pin"
-                      className="w-6 h-6 text-red-400 flex-shrink-0 mt-0.5"
-                    />
+                    <Icon type="map-pin" className="w-6 h-6 text-red-400 flex-shrink-0 mt-0.5" />
                     <p className="text-sm text-red-200">{addressError}</p>
                   </div>
                 )}
@@ -1396,12 +1290,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
                   placeholder="e.g., Flat 402, Sunshine Apartments"
                   required
                   value={newAddressData.flatNo}
-                  onChange={(e) =>
-                    setNewAddressData({
-                      ...newAddressData,
-                      flatNo: e.target.value,
-                    })
-                  }
+                  onChange={(e) => setNewAddressData({ ...newAddressData, flatNo: e.target.value })}
                   className="w-full bg-gray-700 p-3 rounded-md border border-gray-600 focus:ring-2 focus:ring-cyan-500 focus:outline-none text-white"
                 />
               </div>
@@ -1413,12 +1302,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
                   type="text"
                   placeholder="e.g., Near City Hospital"
                   value={newAddressData.landmark}
-                  onChange={(e) =>
-                    setNewAddressData({
-                      ...newAddressData,
-                      landmark: e.target.value,
-                    })
-                  }
+                  onChange={(e) => setNewAddressData({ ...newAddressData, landmark: e.target.value })}
                   className="w-full bg-gray-700 p-3 rounded-md border border-gray-600 focus:ring-2 focus:ring-cyan-500 focus:outline-none text-white"
                 />
               </div>
@@ -1430,10 +1314,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
                   onChange={(e) => setSaveNewAddressAsDefault(e.target.checked)}
                   className="h-4 w-4 rounded border-gray-600 bg-gray-700 text-cyan-600 focus:ring-cyan-600"
                 />
-                <label
-                  htmlFor="saveAsDefault"
-                  className="text-sm text-gray-300 cursor-pointer"
-                >
+                <label htmlFor="saveAsDefault" className="text-sm text-gray-300 cursor-pointer">
                   Save as default address
                 </label>
               </div>
@@ -1471,9 +1352,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
           <form onSubmit={handlePlaceOrder}>
             <div className="space-y-4">
               <div className="flex justify-between items-center border-b border-gray-700 pb-2">
-                <h3 className="text-lg font-semibold text-white">
-                  Delivery To
-                </h3>
+                <h3 className="text-lg font-semibold text-white">Delivery To</h3>
                 <button
                   type="button"
                   onClick={() => setView("address")}
@@ -1484,67 +1363,38 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
               </div>
               <div className="bg-gray-700/50 p-3 rounded-md text-sm text-gray-300">
                 <p className="font-semibold text-white">{currentUser?.name}</p>
-                <p>
-                  {finalAddress?.flatNo}, {finalAddress?.fullAddress}
-                </p>
+                <p>{finalAddress?.flatNo}, {finalAddress?.fullAddress}</p>
                 {finalAddress?.landmark && (
-                  <p className="text-gray-400">
-                    Landmark: {finalAddress.landmark}
-                  </p>
+                  <p className="text-gray-400">Landmark: {finalAddress.landmark}</p>
                 )}
                 <p className="mt-1">Ph: {currentUser?.phone}</p>
               </div>
 
               {isAuthenticated && availablePoints > 0 && (
                 <div className="space-y-2 pt-2">
-                  <h3 className="text-lg font-semibold text-white">
-                    Redeem Loyalty Points
-                  </h3>
+                  <h3 className="text-lg font-semibold text-white">Redeem Loyalty Points</h3>
                   <div className="bg-gray-700/50 p-3 rounded-md text-sm">
                     <p>
-                      Available Points:{" "}
-                      <span className="font-bold">{availablePoints}</span>
+                      Available Points: <span className="font-bold">{availablePoints}</span>
                     </p>
                     <div className="flex items-center gap-4 mt-2">
                       <input
                         type="range"
                         min="0"
-                        max={Math.floor(
-                          Math.min(
-                            availablePoints,
-                            preTaxTotal + loyaltyDiscount,
-                          ),
-                        )}
+                        max={Math.floor(Math.min(availablePoints, preTaxTotal + loyaltyDiscount))}
                         value={loyaltyPointsToRedeem}
-                        onChange={(e) =>
-                          setLoyaltyPointsToRedeem(Number(e.target.value))
-                        }
+                        onChange={(e) => setLoyaltyPointsToRedeem(Number(e.target.value))}
                         className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer"
                       />
                       <span className="font-bold text-cyan-400 w-12 text-center">
                         {loyaltyPointsToRedeem}
                       </span>
                     </div>
-                    <p className="text-xs text-gray-400 mt-1">
-                      1 point = ₹1 discount.
-                    </p>
+                    <p className="text-xs text-gray-400 mt-1">1 point = ₹1 discount.</p>
                   </div>
                 </div>
               )}
 
-              {/* <h3 className="text-lg font-semibold text-white border-b border-gray-700 pb-2 pt-4">Payment Method</h3> */}
-              {/* <div className="flex rounded-md shadow-sm">
-                                <button type="button" onClick={() => setPaymentMethod('card')} className={`flex-1 p-3 rounded-l-md ${paymentMethod === 'card' ? 'bg-[var(--primary-color)] text-white' : 'bg-gray-700'}`}>Card</button>
-                                <button type="button" onClick={() => setPaymentMethod('upi')} className={`flex-1 p-3 rounded-r-md ${paymentMethod === 'upi' ? 'bg-[var(--primary-color)] text-white' : 'bg-gray-700'}`}>UPI</button>
-                            </div>
-                             */}
-              {/* {paymentMethod === 'card' && <div className="space-y-3 p-4 bg-gray-700/50 rounded-md">
-                                <input type="text" placeholder="Card Number (e.g., 1234 5678 9012 3456)" required className="w-full bg-gray-700 p-2 rounded-md border border-gray-600"/>
-                                <div className="grid grid-cols-2 gap-3">
-                                    <input type="text" placeholder="MM / YY" required className="w-full bg-gray-700 p-2 rounded-md border border-gray-600"/>
-                                    <input type="text" placeholder="CVV" required className="w-full bg-gray-700 p-2 rounded-md border border-gray-600"/>
-                                </div>
-                            </div>} */}
               {paymentMethod === "upi" && (
                 <div className="p-4 bg-gray-700/50 rounded-md">
                   <input
@@ -1558,16 +1408,12 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
             </div>
           </form>
         );
+
       case "confirmation":
         return (
           <div className="text-center">
-            <Icon
-              type="check-circle"
-              className="w-16 h-16 text-green-400 mx-auto mb-4"
-            />
-            <h3 className="text-2xl font-bold text-white">
-              Thank you for your order!
-            </h3>
+            <Icon type="check-circle" className="w-16 h-16 text-green-400 mx-auto mb-4" />
+            <h3 className="text-2xl font-bold text-white">Thank you for your order!</h3>
             <p className="text-gray-300 mt-2">
               Your order has been received and is now being prepared.
             </p>
@@ -1579,9 +1425,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
               <p className="text-xs text-gray-400">
                 You can{" "}
                 <button
-                  onClick={() =>
-                    handleNavigate(`order-status?id=${lastOrderId}`)
-                  }
+                  onClick={() => handleNavigate(`order-status?id=${lastOrderId}`)}
                   className="font-semibold text-cyan-400 hover:underline bg-transparent border-none p-0 cursor-pointer"
                 >
                   track your order status here
@@ -1607,15 +1451,11 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
           <h2 className="text-xl font-serif text-white">
             {view === "cart" && `Your Cart (${itemCount})`}
             {view === "auth" && "Login or Register"}
-            {view === "address" &&
-              (showAddressForm ? "Add New Address" : "Select Address")}
+            {view === "address" && (showAddressForm ? "Add New Address" : "Select Address")}
             {view === "checkout" && "Checkout"}
             {view === "confirmation" && "Order Confirmed!"}
           </h2>
-          <button
-            onClick={handleClose}
-            className="text-gray-400 hover:text-white"
-          >
+          <button onClick={handleClose} className="text-gray-400 hover:text-white">
             &times;
           </button>
         </header>
@@ -1625,34 +1465,25 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
         {itemCount > 0 && view !== "confirmation" && view !== "address" && (
           <footer className="p-4 border-t border-gray-700 bg-gray-900/50">
             <div className="space-y-1 text-sm mb-4">
-
-              {/* Subtotal */}
               <div className="flex justify-between text-gray-300">
                 <span>Subtotal</span>
                 <span>₹{subtotal.toFixed(2)}</span>
               </div>
 
-              {/* Flat Discount */}
               {discountAmount > 0 && (
                 <div className="flex justify-between text-green-400">
                   <span>Flat Discount</span>
-                  <span className="font-semibold">
-                    - ₹{discountAmount.toFixed(2)}
-                  </span>
+                  <span className="font-semibold">- ₹{discountAmount.toFixed(2)}</span>
                 </div>
               )}
 
-              {/* Loyalty Discount */}
               {loyaltyDiscount > 0 && (
                 <div className="flex justify-between text-yellow-400">
                   <span>Loyalty Points Redeemed</span>
-                  <span className="font-semibold">
-                    - ₹{loyaltyDiscount.toFixed(2)}
-                  </span>
+                  <span className="font-semibold">- ₹{loyaltyDiscount.toFixed(2)}</span>
                 </div>
               )}
 
-              {/* Total Before Tax */}
               {(discountAmount > 0 || loyaltyDiscount > 0) && (
                 <div className="flex justify-between text-gray-300 font-semibold pt-1 border-t border-gray-700/50">
                   <span>Total Before Tax</span>
@@ -1660,13 +1491,11 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
                 </div>
               )}
 
-              {/* GST */}
               <div className="flex justify-between text-gray-300">
                 <span>GST</span>
                 <span>+ ₹{gstAfterDiscount.toFixed(2)}</span>
               </div>
 
-              {/* ✅ Delivery ONLY in checkout */}
               {view === "checkout" && deliveryCharge > 0 && (
                 <div className="flex justify-between text-gray-300">
                   <span>Delivery Charges</span>
@@ -1674,15 +1503,12 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
                 </div>
               )}
 
-              {/* Grand Total */}
               <div className="flex justify-between text-white font-bold text-lg border-t border-gray-700 pt-2 mt-2">
                 <span>Grand Total</span>
                 <span>₹{grandTotal.toFixed(2)}</span>
               </div>
-
             </div>
 
-            {/* Cart Button */}
             {view === "cart" && (
               <button
                 onClick={handleProceed}
@@ -1692,18 +1518,13 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
               </button>
             )}
 
-            {/* Checkout Button */}
             {view === "checkout" && (
               <button
                 onClick={handlePlaceOrder}
                 disabled={isProcessing}
                 className="w-full flex items-center justify-center gap-2 bg-[var(--primary-color)] text-[var(--text-on-primary-color)] font-bold py-3 rounded-md disabled:bg-gray-500"
               >
-                {isProcessing ? (
-                  <Spinner />
-                ) : (
-                  `Proceed to Pay ₹${grandTotal.toFixed(2)}`
-                )}
+                {isProcessing ? <Spinner /> : `Proceed to Pay ₹${grandTotal.toFixed(2)}`}
               </button>
             )}
           </footer>
