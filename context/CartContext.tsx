@@ -32,12 +32,13 @@ export const CartProvider: React.FC<{ children: ReactNode }> = ({
 
   /* =========================
      Switch restaurant
+     ✅ Clears cart automatically when outlet.id changes
   ========================= */
 
   const switchRestaurant = (newRestaurantId: string) => {
     setRestaurantId((prev) => {
       if (prev && prev !== newRestaurantId) {
-        setItems([]);
+        setItems([]); // ✅ Cart cleared here when switching outlets
       }
       return newRestaurantId;
     });

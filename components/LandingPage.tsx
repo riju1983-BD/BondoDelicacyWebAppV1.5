@@ -7,7 +7,7 @@ import { Icon } from "./Icon";
 import { useOutlet } from "../context/OutletContext";
 import { apiGetOutletByLocation } from "../services/apiService";
 import { IMAGE_BASE_URL, SUPABASE_URL } from "../src/config";
-import { supabase } from "../services/supabaseClient";
+import { useCart } from "../context/CartContext"; // ✅ Added
 
 interface LandingPageProps {
   onSelectBrand: (petpoojaOutletId: string, resturentId: string, outletId: string) => void;
@@ -104,6 +104,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const isFirstLoad = React.useRef(true);
   const { setOutletLocation } = useOutlet();
+  const { switchRestaurant } = useCart(); // ✅ Added
 
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locationName, setLocationName] = useState<string | null>(null);
@@ -114,9 +115,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
   const [isLoadingOutlets, setIsLoadingOutlets] = useState(false);
   const [outletsError, setOutletsError] = useState<string | null>(null);
 
-  // ✅ Track whether at least one successful fetch has completed
-  // Without this, returning to the page triggers a brief "No outlets found"
-  // flash because isLoadingOutlets stays false during background refreshes
   const hasFetched = React.useRef(false);
 
   const handleNavigate = (hash: string) => {
@@ -169,8 +167,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
   const loadOutlets = useCallback(async (coords: { lat: number; lng: number } | null) => {
     locationResolved.current = true;
     setOutletsError(null);
-
-    // ✅ Always show skeleton while loading — whether first load or background refresh
     setIsLoadingOutlets(true);
 
     try {
@@ -187,7 +183,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
       setOutletsError(e?.message || "Failed to load outlets");
       setOutlets([]);
     } finally {
-      // ✅ Mark that at least one fetch is done — "No outlets found" is now safe to show
       hasFetched.current = true;
       setIsLoadingOutlets(false);
       isFirstLoad.current = false;
@@ -217,10 +212,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
     return () => clearInterval(timer);
   }, []);
 
-  // ✅ Show skeleton if:
-  //  - location is still being resolved, OR
-  //  - outlets are loading, OR
-  //  - we haven't completed even one fetch yet (prevents "No outlets found" flash)
   const showSkeleton = locationPending || isLoadingOutlets || !hasFetched.current;
 
   return (
@@ -362,6 +353,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
                   onClick={() => {
                     if (disabled) return;
                     setOutletLocation({ lat: outlet.lat, lng: outlet.long });
+                    // ✅ Clears cart if switching to a different outlet
+                    switchRestaurant(outlet.id);
                     localStorage.setItem("selectedPetpoojaOutletId", outlet.petpooja_outlet_id);
                     localStorage.setItem("selectedRestaurantId", outlet.resturent_id);
                     localStorage.setItem("SelectedOuletId", outlet.id);
