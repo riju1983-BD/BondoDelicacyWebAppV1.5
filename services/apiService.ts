@@ -12,6 +12,7 @@ import {
   RestaurantTable,
   DeliveryAddress,
   RestaurantMenu,
+  BrandPayload,
 } from "../types";
 
 // import { brandsData } from '../data';
@@ -21,6 +22,62 @@ export const apiFetchRestaurantMapping = async (rest_id: string) => {
   const res = await fetch(
     `${BASE_URL}/resturents/restaurant-by-mappingId?resturent_identifier=${rest_id}`,
   );
+  return res.json();
+};
+
+//Brand//
+
+export const apiGetAllBrands = async (page = 1, perPage = 10) => {
+  const res = await fetch(
+    `${BASE_URL}/brand?page=${page}&per_page=${perPage}`
+  );
+  return res.json();
+};
+export const apiGetBrandById = async (id: string) => {
+  const res = await fetch(`${BASE_URL}/brand/${id}`);
+  return res.json();
+};
+export const apiAddBrand = async (payload: BrandPayload) => {
+  const res = await fetch(`${BASE_URL}/brand`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  return res.json();
+};
+
+export const apiUpdateBrand = async (
+  id: string,
+  payload: Partial<BrandPayload>
+) => {
+  const res = await fetch(`${BASE_URL}/brand/${id}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  return res.json();
+};
+export const apiUploadBrandImage = async (
+  id: string,
+  file: File,
+  type: "logo" | "hero" | "about"
+) => {
+  const formData = new FormData();
+  formData.append("id", id);
+  formData.append("type", type);
+  formData.append("file", file);
+
+  const res = await fetch(`${BASE_URL}/brand/upload-image`, {
+    method: "POST",
+    body: formData,
+  });
+
   return res.json();
 };
 export async function apiResolveRestaurantByName(payload: {
@@ -127,7 +184,7 @@ export const apiAddRestaurant = async (payload: any, restId: string) => {
   return res.json();
 };
 export async function apiAddTable(payload: {
-  table_number: number;
+  table_number: string;
   capacity: number;
   is_booked: boolean;
   outlet_id?: string;
@@ -637,7 +694,7 @@ export const apiGetUserOrders = async (userId: string): Promise<Order[]> => {
 
 const mapDbOrderToType = (dbOrder: any): Order => ({
   id: dbOrder.id,
-  resturantName:dbOrder.restaurant_name,
+  resturantName: dbOrder.restaurant_name,
   restId: dbOrder.brand_id,
   userId: dbOrder.user_id,
   items: dbOrder.items,
@@ -868,7 +925,49 @@ export const apiRejectComplaint = async (orderId: string): Promise<Order> => {
   if (error) handleSupabaseError(error, "Reject Complaint");
   return mapDbOrderToType(data);
 };
+// ─── PASTE THESE INTO apiService.ts ───────────────────────────────────────────
 
+export async function apiGetAllLocations(page = 1, perPage = 20) {
+  const res = await fetch(`${BASE_URL}/location?page=${page}&per_page=${perPage}`);
+  return res.json();
+}
+
+export async function apiGetLocationById(id: string) {
+  const res = await fetch(`${BASE_URL}/location/${id}`);
+  return res.json();
+}
+
+export async function apiAddLocation(payload: {
+  location_name: string;
+  lat: number;
+  long: number;
+}) {
+  const res = await fetch(`${BASE_URL}/location`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return res.json();
+}
+
+export async function apiUpdateLocation(
+  id: string,
+  payload: Partial<{ location_name: string; lat: number; long: number }>
+) {
+  const res = await fetch(`${BASE_URL}/location/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return res.json();
+}
+
+export async function apiDeleteLocation(id: string) {
+  const res = await fetch(`${BASE_URL}/location/${id}`, {
+    method: "DELETE",
+  });
+  return res.json();
+}
 // --- Reservation API ---
 export const apiGetReservationById = async (
   resId: string,

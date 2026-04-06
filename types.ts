@@ -3,7 +3,23 @@ import { ItemData } from "./model/menu_list";
 /* =========================
    MENU (PetPooja-aligned)
 ========================= */
-
+export interface BrandPayload {
+  brand_name: string;
+  tagline?: string;
+  description?: string;
+  logo?: string;
+  hero_image?: string;
+  about_text?: string;
+  about_image?: string;
+  primary_color?: string;
+  accent_color?: string;
+  text_color_on_primary?: string;
+}
+export interface Brand extends BrandPayload {
+  id: number;
+  created_at: string;
+  updated_at: string;
+}
 export interface RestaurantMenu {
   items: ItemData[];
   categories: MenuCategory[];
@@ -133,6 +149,7 @@ export interface DeliveryAddress {
 ========================= */
 
 export interface Order {
+
   id: string;
   restId: string;
   resturantName: string;

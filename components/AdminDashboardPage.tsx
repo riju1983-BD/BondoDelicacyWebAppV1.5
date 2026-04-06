@@ -25,6 +25,15 @@ import {
   apiUpdateTable,
   apiGetAllReservations,
   apiDeleteTable,
+
+  apiGetAllLocations,
+  apiAddLocation,
+  apiUpdateLocation,
+  apiDeleteLocation,
+  apiGetAllBrands,
+  apiGetBrandById,
+  apiUpdateBrand,
+
 } from "../services/apiService";
 import {
   BASE_URL,
@@ -69,11 +78,17 @@ const AdminDashboardPage: React.FC = () => {
     | "restaurants"
     | "addRestaurant"
     | "Outlet"
+    | "location"
   >("menu");
 
   // Menu State
   const [menu, setMenu] = useState<any[] | null>(null);
+  const [isOutletModalOpen, setIsOutletModalOpen] = useState(false);
+  const [selectedBrand, setSelectedBrand] = useState<any>(null);
 
+  const [outlets, setOutlets] = useState([
+    { name: "", contact: "", address: "", location_id: "" }
+  ]);
   const [isLoadingMenu, setIsLoadingMenu] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reservationTab, setReservationTab] = useState<"active" | "history">(
@@ -157,8 +172,8 @@ const AdminDashboardPage: React.FC = () => {
   const [isLoadingOutlets, setIsLoadingOutlets] = useState(false);
 
   // Add Table Modal State
-  const [addTableFor, setAddTableFor] = useState<string | null>(null);
-  const [TableId, setTableId] = useState<string | null>(null);
+  const [addTableFor, setAddTableFor] = useState<any | null>(null);
+  const [TableId, setTableId] = useState<any>(null);
   const [restaurentid, setrestaurentid] = useState<string | null>(null);
   const [resturent, setresturent] = useState<string | null>(null);
   const [tableNumber, setTableNumber] = useState("");
@@ -166,7 +181,7 @@ const AdminDashboardPage: React.FC = () => {
   const [isSavingTable, setIsSavingTable] = useState(false);
   const [tableError, setTableError] = useState<string | null>(null);
   const [tables, setTables] = useState<any[]>([]);
-  const [showTablesFor, setShowTablesFor] = useState<string | null>(null);
+  const [showTablesFor, setShowTablesFor] = useState<any | null>(null);
   const [loadingTables, setLoadingTables] = useState(false);
   const [AllOutlet, setAllOutlet] = useState<any[]>([]);
   const [showOutlet, setshowOutlet] = useState<string | null>(null);
@@ -176,11 +191,40 @@ const AdminDashboardPage: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [perPage] = useState(10);
+  const [locations, setLocations] = useState<any[]>([]);
+  const [isLoadingLocations, setIsLoadingLocations] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [locationTotalPages, setLocationTotalPages] = useState(1);
+  const [locationCurrentPage, setLocationCurrentPage] = useState(1);
+  const locationPerPage = 10;
+  const [showAddLocationModal, setShowAddLocationModal] = useState(false);
+  const [editLocationData, setEditLocationData] = useState<any | null>(null);
+  const [locationName, setLocationName] = useState("");
+  const [locationLat, setLocationLat] = useState("");
+  const [locationLong, setLocationLong] = useState("");
+  const [isSavingLocation, setIsSavingLocation] = useState(false);
+  const [locationAddress, setLocationAddress] = useState("");
   const buildStoragePath = (restId: string, filename: string) => {
     const safeName = filename.replace(/\s+/g, "-").toLowerCase();
     return `restaurants/${restId || "unknown"}/${Date.now()}-${safeName}`;
   };
+  const handleSaveOutlets = async () => {
+    if (!selectedBrand?.id) return;
 
+    const payload = outlets.map((o) => ({
+      brand_id: selectedBrand.id,
+      brand_name: selectedBrand.brand_name,
+      name: o.name,
+      contact: o.contact,
+      address: o.address,
+      location_id: o.location_id
+    }));
+
+    // await apiAddOutletBulk(payload);
+
+    setIsOutletModalOpen(false);
+    setOutlets([{ name: "", contact: "", address: "", location_id: "" }]);
+  };
   const uploadImage = async (file: File, type: "logo" | "hero" | "about") => {
     setUploadError(null);
     setIsUploading(true);
@@ -194,7 +238,7 @@ const AdminDashboardPage: React.FC = () => {
       form.append("file", file);
 
       // ✅ change URL if your backend prefix is different
-      const res = await fetch(`${BASE_URL}/outlet/upload-image`, {
+      const res = await fetch(`${BASE_URL}/brand/upload-image`, {
         method: "POST",
         body: form,
       });
@@ -210,6 +254,20 @@ const AdminDashboardPage: React.FC = () => {
       setIsUploading(false);
     }
   };
+  const handleCloseEdit = () => {
+    setActiveTab("restaurants");
+    setrestaurentid(null);
+
+    // reset form (prevents "Edit Mode Active" ghost state)
+    setbrandName("");
+    setTagline("");
+    setDescription("");
+    setAboutText("");
+
+    setLogoUrl("");
+    setHeroImageUrl("");
+    setAboutImageUrl("");
+  };
   const formatTimeToAMPM = (time: string) => {
     if (!time) return "";
 
@@ -223,7 +281,82 @@ const AdminDashboardPage: React.FC = () => {
 
     return `${hour}:${minutes} ${ampm}`;
   };
+  const fetchLocations = useCallback(async () => {
+    setIsLoadingLocations(true);
+    setLocationError(null);
+    try {
+      const res = await apiGetAllLocations(locationCurrentPage, locationPerPage);
+      setLocations(res.data?.result || []);
+      if (res.data?.count) {
+        setLocationTotalPages(Math.ceil(res.data.count / locationPerPage));
+      }
+    } catch (err) {
+      setLocationError("Failed to fetch locations");
+    } finally {
+      setIsLoadingLocations(false);
+    }
+  }, [locationCurrentPage, locationPerPage]);
 
+  const openAddLocation = () => {
+    setEditLocationData(null);
+    setLocationName("");
+    setLocationLat("");
+    setLocationLong("");
+    setLocationAddress("");
+    setLocationError(null);
+    setShowAddLocationModal(true);
+  };
+
+  const openEditLocation = (loc: any) => {
+    setEditLocationData(loc);
+    setLocationName(loc.location_name);
+    setLocationLat(String(loc.lat));
+    setLocationLong(String(loc.long));
+    setLocationAddress(loc.full_address || "");
+    setLocationError(null);
+    setShowAddLocationModal(true);
+  };
+
+  const handleSaveLocation = async () => {
+    if (!locationName.trim() || !locationLat || !locationLong) {
+      setLocationError("All fields are required.");
+      return;
+    }
+    if (isNaN(Number(locationLat)) || isNaN(Number(locationLong))) {
+      setLocationError("Lat and Long must be valid numbers.");
+      return;
+    }
+    setIsSavingLocation(true);
+    setLocationError(null);
+    const payload = {
+      location_name: locationName.trim(),
+      lat: parseFloat(locationLat),
+      long: parseFloat(locationLong),
+      full_address: locationAddress.trim() || null,
+    };
+    const res = editLocationData
+      ? await apiUpdateLocation(editLocationData.id, payload)
+      : await apiAddLocation(payload);
+
+    if (res.error || res.message?.toLowerCase().includes("error")) {
+      setLocationError(res.message || res.error || "Save failed.");
+    } else {
+      setShowAddLocationModal(false);
+      setEditLocationData(null);
+      fetchLocations();
+    }
+    setIsSavingLocation(false);
+  };
+
+  const handleDeleteLocation = async (id: string) => {
+    if (!window.confirm("Delete this location?")) return;
+    const res = await apiDeleteLocation(id);
+    if (res.error) {
+      alert(res.message || "Delete failed");
+    } else {
+      fetchLocations();
+    }
+  };
   async function loadTables(outletId: string) {
     setLoadingTables(true);
     const res = await apiGetTables(outletId);
@@ -253,19 +386,19 @@ const AdminDashboardPage: React.FC = () => {
     setThemeText(res.data.theme_text_on_primary || "#FFFFFF");
     setLoadingTables(false);
   }
-  const fetchRestaurants = useCallback(async () => {
+  const fetchBrands = useCallback(async () => {
     setIsLoadingRestaurants(true);
     try {
-      const res = await apiGetAllRestaurant(currentPage, perPage);
-      console.log("All Res: ", res);
+      const res = await apiGetAllBrands(currentPage, perPage);
 
-      setRestaurants(res.data.result || []);
-      if (res.data && res.data.count) {
+      setRestaurants(res.data?.result || []);
+
+      if (res.data?.count) {
         setTotalPages(Math.ceil(res.data.count / perPage));
       }
     } catch (err) {
-      console.error("Failed to fetch restaurants:", err);
-      setTableError("Failed to fetch restaurants");
+      console.error("Failed to fetch brands:", err);
+      setTableError("Failed to fetch brands");
     } finally {
       setIsLoadingRestaurants(false);
     }
@@ -450,7 +583,7 @@ const AdminDashboardPage: React.FC = () => {
     }
   };
 
-  const handlePageClick = (pageNumber) => {
+  const handlePageClick = (pageNumber: any) => {
     setCurrentPage(pageNumber);
     {
       activeTab === "Outlet" && setOutletCurrentPage(pageNumber);
@@ -583,7 +716,7 @@ const AdminDashboardPage: React.FC = () => {
       apiGetLoyaltyConfig().then(setLoyaltyConfig);
     else if (activeTab === "complaints") fetchComplaints();
     else if (activeTab === "reservations") fetchReservations();
-    else if (activeTab === "restaurants") fetchRestaurants();
+    else if (activeTab === "restaurants") fetchBrands();
   }, [
     activeTab,
     selectedRestaurantId,
@@ -591,14 +724,16 @@ const AdminDashboardPage: React.FC = () => {
     fetchOrders,
     fetchComplaints,
     fetchReservations,
-    fetchRestaurants,
+    fetchBrands,
   ]);
   useEffect(() => {
     if (activeTab === "Outlet") {
       fetchOutlets();
     }
   }, [OutletcurrentPage, activeTab]);
-
+  useEffect(() => {
+    if (activeTab === "location") fetchLocations();
+  }, [locationCurrentPage, activeTab]);
   const handleFetchRestaurantData = async () => {
     setIsFetching(true);
 
@@ -670,36 +805,35 @@ const AdminDashboardPage: React.FC = () => {
     setIsUploading(true);
 
     const payload = {
-      name: brandName,
+      brand_name: brandName,
       tagline: tagline,
       description: description,
-      // ✅ image urls from uploads
       logo: logoUrl,
       hero_image: heroImageUrl,
-
-      // ✅ about section
       about_text: aboutText,
       about_image: aboutImageUrl,
-
-      // theme
-      theme_primary: themePrimary,
-      theme_accent: themeAccent,
-      theme_text_on_primary: themeText,
+      primary_color: themePrimary,
+      accent_color: themeAccent,
+      text_color_on_primary: themeText,
     };
     console.log("Payload: ", payload);
 
-    const res = await apiAddRestaurant(payload, restaurentid);
+    if (!restaurentid) return;
+
+    const res = await apiUpdateBrand(restaurentid, payload);
 
     if (!res.error) {
       setFetchedData(null);
       setRestId("");
       setActiveTab("restaurants");
-      fetchRestaurants();
+
+      setTimeout(() => {
+        fetchBrands();
+      }, 0);
     }
 
     setIsUploading(false);
     setrestaurentid(null);
-    fetchRestaurants();
   };
 
   const handleSubmitRestaurant = async () => {
@@ -740,7 +874,7 @@ const AdminDashboardPage: React.FC = () => {
       setFetchedData(null);
       setRestId("");
       setActiveTab("restaurants");
-      fetchRestaurants();
+      fetchBrands();
     }
 
     setIsSubmitting(false);
@@ -949,8 +1083,8 @@ const AdminDashboardPage: React.FC = () => {
           <button
             onClick={() => setActiveTab("menu")}
             className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "menu"
-                ? "border-b-2 border-cyan-400 text-cyan-400"
-                : "text-gray-400"
+              ? "border-b-2 border-cyan-400 text-cyan-400"
+              : "text-gray-400"
               }`}
           >
             Live Menu
@@ -958,8 +1092,8 @@ const AdminDashboardPage: React.FC = () => {
           <button
             onClick={() => setActiveTab("orders")}
             className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "orders"
-                ? "border-b-2 border-cyan-400 text-cyan-400"
-                : "text-gray-400"
+              ? "border-b-2 border-cyan-400 text-cyan-400"
+              : "text-gray-400"
               }`}
           >
             Orders
@@ -967,8 +1101,8 @@ const AdminDashboardPage: React.FC = () => {
           <button
             onClick={() => setActiveTab("reservations")}
             className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "reservations"
-                ? "border-b-2 border-cyan-400 text-cyan-400"
-                : "text-gray-400"
+              ? "border-b-2 border-cyan-400 text-cyan-400"
+              : "text-gray-400"
               }`}
           >
             Reservations ({reservations.length})
@@ -976,8 +1110,8 @@ const AdminDashboardPage: React.FC = () => {
           <button
             onClick={() => setActiveTab("complaints")}
             className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "complaints"
-                ? "border-b-2 border-cyan-400 text-cyan-400"
-                : "text-gray-400"
+              ? "border-b-2 border-cyan-400 text-cyan-400"
+              : "text-gray-400"
               }`}
           >
             Complaints
@@ -985,17 +1119,20 @@ const AdminDashboardPage: React.FC = () => {
           <button
             onClick={() => setActiveTab("loyalty")}
             className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "loyalty"
-                ? "border-b-2 border-cyan-400 text-cyan-400"
-                : "text-gray-400"
+              ? "border-b-2 border-cyan-400 text-cyan-400"
+              : "text-gray-400"
               }`}
           >
             Loyalty
           </button>
           <button
-            onClick={() => setActiveTab("restaurants")}
+            onClick={() => {
+              setrestaurentid(null);
+              setActiveTab("restaurants");
+            }}
             className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "restaurants"
-                ? "border-b-2 border-cyan-400 text-cyan-400"
-                : "text-gray-400"
+              ? "border-b-2 border-cyan-400 text-cyan-400"
+              : "text-gray-400"
               }`}
           >
             All Brands
@@ -1016,11 +1153,20 @@ const AdminDashboardPage: React.FC = () => {
               fetchOutlets();
             }}
             className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "Outlet"
-                ? "border-b-2 border-cyan-400 text-cyan-400"
-                : "text-gray-400"
+              ? "border-b-2 border-cyan-400 text-cyan-400"
+              : "text-gray-400"
               }`}
           >
             Outlet
+          </button>
+          <button
+            onClick={() => { setActiveTab("location"); fetchLocations(); }}
+            className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "location"
+              ? "border-b-2 border-cyan-400 text-cyan-400"
+              : "text-gray-400"
+              }`}
+          >
+            Locations
           </button>
         </div>
         {activeTab === "menu" && (
@@ -1065,7 +1211,7 @@ const AdminDashboardPage: React.FC = () => {
 
                     <ul className="space-y-2">
                       {Array.isArray(category.items) &&
-                        category.items.map((item) => (
+                        category.items.map((item: any) => (
                           <li
                             key={item.name}
                             className="flex items-center justify-between bg-gray-900/50 p-2 rounded-md"
@@ -1075,8 +1221,8 @@ const AdminDashboardPage: React.FC = () => {
                             <button
                               // onClick={() => handleToggleAvailability(item.name)}
                               className={`px-2 py-1 text-xs font-bold rounded transition-colors ${item.isAvailable
-                                  ? "bg-green-900 text-green-300 hover:bg-green-800"
-                                  : "bg-red-900 text-red-300 hover:bg-red-800"
+                                ? "bg-green-900 text-green-300 hover:bg-green-800"
+                                : "bg-red-900 text-red-300 hover:bg-red-800"
                                 }`}
                             >
                               {item.isAvailable ? "In Stock" : "Unavailable"}
@@ -1095,215 +1241,6 @@ const AdminDashboardPage: React.FC = () => {
           </div>
         )}
 
-        {activeTab === "addRestaurant" && (
-          // <div className="animate-fade-in max-w-2xl mx-auto space-y-6">
-          //   <h2 className="text-2xl font-semibold text-center">
-          //     Add Restaurant
-          //   </h2>
-
-          //   {/* STEP 1: ENTER REST ID */}
-          //   <div className="space-y-2">
-          //     <label className="text-gray-300 text-sm">
-          //       PetPuja Restaurant ID
-          //     </label>
-          //     <input
-          //       type="text"
-          //       value={restId}
-          //       onChange={(e) => {
-          //         setRestId(e.target.value);
-          //         setFetchedData(null);
-          //       }}
-          //       placeholder="e.g. c9ignw2k50"
-          //       className="w-full bg-gray-800 text-gray-200 border border-gray-700 rounded-md p-3"
-          //     />
-
-          //     <button
-          //       onClick={handleFetchRestaurantData}
-          //       disabled={!restId || isFetching}
-          //       className="bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-md disabled:opacity-60 flex items-center gap-2"
-          //     >
-          //       {isFetching ? <Spinner className="w-4 h-4" /> : null}
-          //       Fetch Data
-          //     </button>
-          //   </div>
-
-          //   {/* STEP 2: SHOW AUTO-FETCHED DATA */}
-          //   {/* STEP 2.5: EDIT FIELDS + UPLOADS */}
-          //   {fetchedData && (
-          //     <div className="bg-gray-900 border border-gray-700 rounded-md p-5 space-y-4">
-          //       <h3 className="text-lg font-semibold text-cyan-400">
-          //         Restaurant Details
-          //       </h3>
-
-          //       <div>
-          //         <label className="text-gray-400 text-sm">Tagline</label>
-          //         <input
-          //           type="text"
-          //           value={tagline}
-          //           onChange={(e) => setTagline(e.target.value)}
-          //           placeholder="Short tagline"
-          //           className="w-full bg-gray-800 text-gray-200 border border-gray-700 rounded-md p-3"
-          //         />
-          //       </div>
-
-          //       <div>
-          //         <label className="text-gray-400 text-sm">Description</label>
-          //         <textarea
-          //           value={description}
-          //           onChange={(e) => setDescription(e.target.value)}
-          //           placeholder="About this restaurant"
-          //           className="w-full bg-gray-800 text-gray-200 border border-gray-700 rounded-md p-3 h-24"
-          //         />
-          //       </div>
-
-          //       <div className="grid sm:grid-cols-2 gap-4">
-          //         {/* LOGO */}
-          //         <div className="space-y-2">
-          //           <label className="text-gray-400 text-sm">Logo</label>
-          //           <input
-          //             type="file"
-          //             accept="image/*"
-          //             disabled={isUploading}
-          //             onChange={async (e) => {
-          //               const file = e.target.files?.[0];
-          //               if (!file) return;
-
-          //               // instant preview
-          //               const localUrl = URL.createObjectURL(file);
-          //               setLogoUrl(localUrl);
-
-          //               // upload to storage
-          //               const url = await uploadImage(file, "logo");
-          //               if (url) setLogoUrl(url);
-          //             }}
-          //             className="w-full text-sm text-gray-300"
-          //           />
-          //           <img
-          //             src={logoUrl || DEFAULT_IMAGE}
-          //             alt="Logo Preview"
-          //             className="w-full h-40 object-cover border border-gray-700 rounded"
-          //           />
-          //         </div>
-
-          //         {/* HERO IMAGE */}
-          //         <div className="space-y-2">
-          //           <label className="text-gray-400 text-sm">Hero Image</label>
-          //           <input
-          //             type="file"
-          //             accept="image/*"
-          //             disabled={isUploading}
-          //             onChange={async (e) => {
-          //               const file = e.target.files?.[0];
-          //               if (!file) return;
-
-          //               const localUrl = URL.createObjectURL(file);
-          //               setHeroImageUrl(localUrl);
-
-          //               const url = await uploadImage(file, "hero");
-          //               if (url) setHeroImageUrl(url);
-          //             }}
-          //             className="w-full text-sm text-gray-300"
-          //           />
-          //           <img
-          //             src={heroImageUrl || DEFAULT_IMAGE}
-          //             alt="Hero Preview"
-          //             className="w-full h-40 object-cover border border-gray-700 rounded"
-          //           />
-          //         </div>
-          //       </div>
-
-          //       <div>
-          //         <label className="text-gray-400 text-sm">About Text</label>
-          //         <textarea
-          //           value={aboutText}
-          //           onChange={(e) => setAboutText(e.target.value)}
-          //           placeholder="Story / about section"
-          //           className="w-full bg-gray-800 text-gray-200 border border-gray-700 rounded-md p-3 h-24"
-          //         />
-          //       </div>
-
-          //       {/* ABOUT IMAGE */}
-          //       <div className="space-y-2">
-          //         <label className="text-gray-400 text-sm">About Image</label>
-          //         <input
-          //           type="file"
-          //           accept="image/*"
-          //           disabled={isUploading}
-          //           onChange={async (e) => {
-          //             const file = e.target.files?.[0];
-          //             if (!file) return;
-
-          //             const localUrl = URL.createObjectURL(file);
-          //             setAboutImageUrl(localUrl);
-          //             const url = await uploadImage(file, "about");
-          //             if (url) setAboutImageUrl(url);
-          //           }}
-          //           className="w-full text-sm text-gray-300"
-          //         />
-          //         <img
-          //           src={aboutImageUrl || DEFAULT_IMAGE}
-          //           alt="About Preview"
-          //           className="w-full h-56 object-cover border border-gray-700 rounded"
-          //         />
-          //       </div>
-
-          //       {uploadError ? (
-          //         <p className="text-sm text-red-400">{uploadError}</p>
-          //       ) : null}
-
-          //       {isUploading ? (
-          //         <p className="text-xs text-gray-400 flex items-center gap-2">
-          //           <Spinner className="w-4 h-4" /> Uploading image...
-          //         </p>
-          //       ) : null}
-          //     </div>
-          //   )}
-
-          //   {/* STEP 3: THEME INPUTS */}
-          //   <div className="bg-gray-900 border border-gray-700 p-5 rounded-md space-y-4">
-          //     <h3 className="text-lg font-semibold text-cyan-400">
-          //       Theme Configuration
-          //     </h3>
-
-          //     <input
-          //       type="color"
-          //       value={themePrimary}
-          //       onChange={(e) => setThemePrimary(e.target.value)}
-          //       className="w-full h-10 cursor-pointer"
-          //     />
-          //     <label className="text-gray-400 text-sm">Primary Color</label>
-
-          //     <input
-          //       type="color"
-          //       value={themeAccent}
-          //       onChange={(e) => setThemeAccent(e.target.value)}
-          //       className="w-full h-10 cursor-pointer"
-          //     />
-          //     <label className="text-gray-400 text-sm">Accent Color</label>
-
-          //     <input
-          //       type="color"
-          //       value={themeText}
-          //       onChange={(e) => setThemeText(e.target.value)}
-          //       className="w-full h-10 cursor-pointer"
-          //     />
-          //     <label className="text-gray-400 text-sm">
-          //       Text Color On Primary
-          //     </label>
-          //   </div>
-
-          //   {/* STEP 4: SUBMIT */}
-          //   <button
-          //     disabled={!fetchedData || isSubmitting || isUploading}
-          //     onClick={handleSubmitRestaurant}
-          //     className="w-full bg-green-600 hover:bg-green-500 text-white px-4 py-3 rounded-md font-semibold disabled:opacity-50 flex justify-center gap-2"
-          //   >
-          //     {isSubmitting ? <Spinner className="w-5 h-5" /> : null}
-          //     Save Restaurant
-          //   </button>
-          // </div>
-          <></>
-        )}
         {activeTab === "restaurants" && (
           <div className="animate-fade-in">
             {isLoadingRestaurants ? (
@@ -1312,7 +1249,7 @@ const AdminDashboardPage: React.FC = () => {
               </div>
             ) : restaurants.length === 0 ? (
               <p className="text-center text-gray-400 py-8">
-                No restaurants found.
+                No brands found.
               </p>
             ) : (
               <>
@@ -1321,7 +1258,7 @@ const AdminDashboardPage: React.FC = () => {
                     <thead>
                       <tr className="text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                         <th className="px-4 py-3">Brand Name</th>
-                        <th className="px-4 py-3">City</th>
+                        {/* <th className="px-4 py-3">City</th> */}
                         {/* <th className="px-4 py-3">Rest ID</th> */}
                         <th className="px-4 py-3">Tagline</th>
                         <th className="px-4 py-3 text-right">Actions</th>
@@ -1329,32 +1266,70 @@ const AdminDashboardPage: React.FC = () => {
                     </thead>
                     <tbody className="divide-y divide-gray-700">
                       {restaurants.map((r) => (
-                        <tr key={r.rest_id}>
+                        <tr key={r.id}>
                           <td className="px-4 py-3 text-sm text-white">
-                            {r.name}
+                            {r.brand_name}
                           </td>
-                          <td className="px-4 py-3 text-xs font-mono text-cyan-400">
-                            {r.city}
-                          </td>
+
+                          {/* <td className="px-4 py-3 text-xs font-mono text-cyan-400">
+                            -
+                          </td> */}
+
                           <td className="px-4 py-3 text-sm text-gray-400">
                             {r.tagline || "-"}
                           </td>
                           <td className="px-4 py-3 text-right">
                             <button
-                              onClick={() => {
-                                setrestaurentid(r.id);
-                                loadResturent(r.id);
-                                console.log(r);
+                              onClick={async () => {
+                                if (!r.id) return;
 
-                                // EditTable(r);
-                                // setTableNumber("");
-                                // setCapacity("");
-                                // setTableError(null);
+                                setrestaurentid(r.id); // ✅ this alone opens modal
+
+                                const res = await apiGetBrandById(r.id);
+                                const data = res.data;
+
+                                setbrandName(data.brand_name || "");
+                                setTagline(data.tagline || "");
+                                setDescription(data.description || "");
+                                setAboutText(data.about_text || "");
+
+                                const logo = data.logo
+                                  ? `${SUPABASE_URL}/${IMAGE_BASE_URL}/restaurant-images/${data.logo}`
+                                  : "";
+
+                                const hero = data.hero_image
+                                  ? `${SUPABASE_URL}/${IMAGE_BASE_URL}/restaurant-images/${data.hero_image}`
+                                  : "";
+
+                                const about = data.about_image
+                                  ? `${SUPABASE_URL}/${IMAGE_BASE_URL}/restaurant-images/${data.about_image}`
+                                  : "";
+
+                                setLogoUrl(logo);
+                                setHeroImageUrl(hero);
+                                setAboutImageUrl(about);
+
+                                setThemePrimary(data.primary_color || "#000000");
+                                setThemeAccent(data.accent_color || "#FFAB00");
+                                setThemeText(data.text_color_on_primary || "#FFFFFF");
+
+                                // ❌ REMOVE THIS LINE
+                                // setActiveTab("addRestaurant");
                               }}
                               className="inline-flex items-center gap-1 bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-1.5 m-1 rounded-md text-xs font-semibold"
                             >
                               <Icon type="plus-circle" className="w-4 h-4" />
                               Edit
+                            </button>
+                            <button
+                              onClick={() => {
+                                setSelectedBrand(r); // full brand object
+                                setIsOutletModalOpen(true);
+                              }}
+                              className="inline-flex items-center gap-1 bg-green-600 hover:bg-green-500 text-white px-3 py-1.5 m-1 rounded-md text-xs font-semibold"
+                            >
+                              <Icon type="plus-circle" className="w-4 h-4" />
+                              Add Outlets
                             </button>
                           </td>
                         </tr>
@@ -1406,7 +1381,7 @@ const AdminDashboardPage: React.FC = () => {
                           <div className="text-sm font-bold text-cyan-400 font-mono">
                             {o.id}
                           </div>
-                          <div className="text-xs text-gray-400">{o.name}</div>
+                          <div className="text-xs text-gray-400">{o.resturantName}</div>
 
                           {o.status && (
                             <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-700 text-gray-300 mt-1 capitalize">
@@ -1492,8 +1467,8 @@ const AdminDashboardPage: React.FC = () => {
               <button
                 onClick={() => setReservationTab("active")}
                 className={`px-4 py-2 rounded-full font-semibold text-sm ${reservationTab === "active"
-                    ? "bg-cyan-600 text-white"
-                    : "bg-gray-800 text-gray-400 hover:bg-gray-700"
+                  ? "bg-cyan-600 text-white"
+                  : "bg-gray-800 text-gray-400 hover:bg-gray-700"
                   }`}
               >
                 Active
@@ -1502,8 +1477,8 @@ const AdminDashboardPage: React.FC = () => {
               <button
                 onClick={() => setReservationTab("history")}
                 className={`px-4 py-2 rounded-full font-semibold text-sm ${reservationTab === "history"
-                    ? "bg-green-600 text-white"
-                    : "bg-gray-800 text-gray-400 hover:bg-gray-700"
+                  ? "bg-green-600 text-white"
+                  : "bg-gray-800 text-gray-400 hover:bg-gray-700"
                   }`}
               >
                 History
@@ -1567,7 +1542,7 @@ const AdminDashboardPage: React.FC = () => {
                             </div>
                             <div className="text-sm font-light text-white">
                               {formatTimeToAMPM(res.time)} to{" "}
-                              {formatTimeToAMPM(res.endtime)}
+                              {formatTimeToAMPM(res.endtime!)}
                             </div>
                           </td>
                           <td className="px-4 py-4 whitespace-nowrap text-sm text-white font-bold">
@@ -1610,8 +1585,8 @@ const AdminDashboardPage: React.FC = () => {
                             ) : (
                               <span
                                 className={`px-3 py-1 rounded-full text-xs font-semibold ${res.status === "completed"
-                                    ? "bg-green-900 text-green-300"
-                                    : "bg-red-900 text-red-300"
+                                  ? "bg-green-900 text-green-300"
+                                  : "bg-red-900 text-red-300"
                                   }`}
                               >
                                 {res.status === "completed"
@@ -1629,15 +1604,144 @@ const AdminDashboardPage: React.FC = () => {
             )}
           </div>
         )}
+        {isOutletModalOpen && (
+          <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+            <div className="bg-gray-900 w-full max-w-3xl rounded-xl shadow-xl p-6 space-y-5">
 
+              {/* HEADER */}
+              <div className="flex justify-between items-center border-b border-gray-700 pb-3">
+                <h2 className="text-xl font-bold text-white">Add Outlets</h2>
+                <button
+                  onClick={() => setIsOutletModalOpen(false)}
+                  className="text-red-400 text-xl"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* BRAND SELECT */}
+              <div>
+                <label className="text-sm text-gray-400">Select Brand</label>
+                <select
+                  value={selectedBrand?.id || ""}
+                  onChange={(e) => {
+                    const brand = restaurants.find(b => b.id === e.target.value);
+                    setSelectedBrand(brand);
+                  }}
+                  className="w-full mt-1 p-2 bg-gray-800 border border-gray-700 rounded"
+                >
+                  <option value="">Select Brand</option>
+                  {restaurants.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.brand_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* OUTLET FORMS */}
+              <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
+                {outlets.map((o, index) => (
+                  <div
+                    key={index}
+                    className="bg-gray-800 p-4 rounded-lg border border-gray-700 space-y-3"
+                  >
+
+                    {/* BRAND NAME AUTO */}
+                    <div className="text-xs text-gray-400">
+                      Brand: <span className="text-white">{selectedBrand?.brand_name || "-"}</span>
+                    </div>
+
+                    <input
+                      placeholder="Outlet Name"
+                      value={o.name}
+                      onChange={(e) => {
+                        const updated = [...outlets];
+                        updated[index].name = e.target.value;
+                        setOutlets(updated);
+                      }}
+                      className="w-full p-2 bg-gray-900 border border-gray-700 rounded"
+                    />
+
+                    <input
+                      placeholder="Contact"
+                      value={o.contact}
+                      onChange={(e) => {
+                        const updated = [...outlets];
+                        updated[index].contact = e.target.value;
+                        setOutlets(updated);
+                      }}
+                      className="w-full p-2 bg-gray-900 border border-gray-700 rounded"
+                    />
+
+                    {/* LOCATION */}
+                    <select
+                      value={o.location_id}
+                      onChange={(e) => {
+                        const updated = [...outlets];
+                        const loc = locations.find(l => l.id === e.target.value);
+
+                        updated[index].location_id = e.target.value;
+
+                        // ✅ AUTO ADDRESS SET
+                        if (loc) {
+                          updated[index].address = loc.full_address || "";
+                        }
+
+                        setOutlets(updated);
+                      }}
+                      className="w-full p-2 bg-gray-900 border border-gray-700 rounded"
+                    >
+                      <option value="">Select Location</option>
+                      {locations.map((l: any) => (
+                        <option key={l.id} value={l.id}>
+                          {l.location_name}
+                        </option>
+                      ))}
+                    </select>
+
+                    {/* AUTO FILLED ADDRESS */}
+                    <input
+                      placeholder="Address (auto from location)"
+                      value={o.address}
+                      readOnly
+                      className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-gray-300"
+                    />
+                  </div>
+                ))}
+              </div>
+
+              {/* ADD MORE */}
+              <button
+                onClick={() =>
+                  setOutlets([
+                    ...outlets,
+                    { name: "", contact: "", address: "", location_id: "" }
+                  ])
+                }
+                className="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded text-sm"
+              >
+                + Add Another Outlet
+              </button>
+
+              {/* SAVE */}
+              <button
+                onClick={handleSaveOutlets}
+                className="w-full bg-green-600 hover:bg-green-500 py-3 rounded font-semibold"
+              >
+                Save All Outlets
+              </button>
+            </div>
+          </div>
+        )}
         {activeTab === "complaints" && (
           <div className="animate-fade-in">
             <div className="flex justify-center gap-4 mb-6">
               <button
                 onClick={() => setComplaintFilter("active")}
                 className={`px-4 py-2 rounded-full font-semibold text-sm ${complaintFilter === "active"
-                    ? "bg-red-600 text-white"
-                    : "bg-gray-800 text-gray-400 hover:bg-gray-700"
+                  ? "bg-red-600 text-white"
+                  : "bg-gray-800 text-gray-400 hover:bg-gray-700"
                   }`}
               >
                 Active (
@@ -1650,8 +1754,8 @@ const AdminDashboardPage: React.FC = () => {
               <button
                 onClick={() => setComplaintFilter("resolved")}
                 className={`px-4 py-2 rounded-full font-semibold text-sm ${complaintFilter === "resolved"
-                    ? "bg-green-600 text-white"
-                    : "bg-gray-800 text-gray-400 hover:bg-gray-700"
+                  ? "bg-green-600 text-white"
+                  : "bg-gray-800 text-gray-400 hover:bg-gray-700"
                   }`}
               >
                 Resolved
@@ -1684,10 +1788,10 @@ const AdminDashboardPage: React.FC = () => {
                         </p>
                         <span
                           className={`px-2 py-0.5 text-xs font-bold rounded-full capitalize shrink-0 ${order.complaint?.status === "pending"
-                              ? "bg-yellow-900 text-yellow-300"
-                              : order.complaint?.status === "approved"
-                                ? "bg-green-900 text-green-300"
-                                : "bg-red-900 text-red-300"
+                            ? "bg-yellow-900 text-yellow-300"
+                            : order.complaint?.status === "approved"
+                              ? "bg-green-900 text-green-300"
+                              : "bg-red-900 text-red-300"
                             }`}
                         >
                           {order.complaint?.status}
@@ -1872,7 +1976,79 @@ const AdminDashboardPage: React.FC = () => {
             )}
           </div>
         )}
+        {activeTab === "location" && (
+          <div className="animate-fade-in">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-semibold text-white">All Locations</h2>
+              <button
+                onClick={openAddLocation}
+                className="inline-flex items-center gap-1 bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 rounded-md text-sm font-semibold"
+              >
+                + Add Location
+              </button>
+            </div>
 
+            {isLoadingLocations ? (
+              <div className="flex justify-center p-8"><Spinner className="w-8 h-8" /></div>
+            ) : locations.length === 0 ? (
+              <p className="text-center text-gray-400 py-8">No locations found.</p>
+            ) : (
+              <>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-700">
+                    <thead>
+                      <tr className="text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                        <th className="px-4 py-3">Location Name</th>
+                        <th className="px-4 py-3">Latitude</th>
+                        <th className="px-4 py-3">Longitude</th>
+                        <th className="px-4 py-3">Address</th>
+                        <th className="px-4 py-3">Created At</th>
+                        <th className="px-4 py-3 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-700">
+                      {locations.map((loc) => (
+                        <tr key={loc.id}>
+                          <td className="px-4 py-3 text-sm text-white font-medium">{loc.location_name}</td>
+                          <td className="px-4 py-3 text-sm text-cyan-400 font-mono">{loc.lat}</td>
+                          <td className="px-4 py-3 text-sm text-cyan-400 font-mono">{loc.long}</td>
+                          <td className="px-4 py-3 text-sm text-gray-400 max-w-xs truncate">{loc.full_address || "-"}</td>
+                          <td className="px-4 py-3 text-xs text-gray-400">{new Date(loc.created_at).toLocaleDateString()}</td>
+
+                          <td className="px-4 py-3">
+                            <div className="flex justify-end gap-2">
+                              <button
+                                onClick={() => openEditLocation(loc)}
+                                className="inline-flex items-center gap-1 bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-1.5 rounded-md text-xs font-semibold"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => handleDeleteLocation(loc.id)}
+                                className="inline-flex items-center gap-1 bg-red-700 hover:bg-red-600 text-white px-3 py-1.5 rounded-md text-xs font-semibold"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {/* Pagination */}
+                <div className="flex items-center justify-between px-4 py-3 border-t border-gray-700">
+                  <span className="text-sm text-gray-400">Page {locationCurrentPage} of {locationTotalPages}</span>
+                  <div className="flex gap-2">
+                    <button onClick={() => setLocationCurrentPage((p) => Math.max(p - 1, 1))} disabled={locationCurrentPage === 1} className="px-3 py-1.5 text-sm font-medium text-white bg-gray-700 rounded-md hover:bg-gray-600 disabled:opacity-50">Previous</button>
+                    <button onClick={() => setLocationCurrentPage((p) => Math.min(p + 1, locationTotalPages))} disabled={locationCurrentPage === locationTotalPages} className="px-3 py-1.5 text-sm font-medium text-white bg-gray-700 rounded-md hover:bg-gray-600 disabled:opacity-50">Next</button>
+                  </div>
+                </div>
+              </>
+            )}
+            {locationError && <p className="mt-4 text-center text-sm text-red-400">{locationError}</p>}
+          </div>
+        )}
         <div className="text-center mt-8">
           <button
             onClick={() => handleNavigate("#login")}
@@ -1956,7 +2132,7 @@ const AdminDashboardPage: React.FC = () => {
                     setAddTableFor(null);
                     setTableNumber("");
                     setCapacity("");
-                    await fetchRestaurants(); // reload restaurants
+                    await fetchBrands(); // reload restaurants
                   }
 
                   setIsSavingTable(false);
@@ -2043,7 +2219,7 @@ const AdminDashboardPage: React.FC = () => {
                     setTableId(null);
                     setTableNumber("");
                     setCapacity("");
-                    await fetchRestaurants(); // reload restaurants
+                    await fetchBrands(); // reload restaurants
                   }
                   setIsSavingTable(false);
                 }}
@@ -2088,8 +2264,8 @@ const AdminDashboardPage: React.FC = () => {
 
                     <button
                       className={`px-2 py-1 rounded text-xs text-white ${t.is_active
-                          ? "bg-green-600 hover:bg-green-500"
-                          : "bg-red-600 hover:bg-red-500"
+                        ? "bg-green-600 hover:bg-green-500"
+                        : "bg-red-600 hover:bg-red-500"
                         }`}
                       onClick={async () => {
                         await apiToggleTable(t.id, !t.is_active);
@@ -2144,8 +2320,8 @@ const AdminDashboardPage: React.FC = () => {
                     <div className="flex gap-2">
                       <button
                         className={`px-2 py-1 rounded text-xs text-white ${t.is_active
-                            ? "bg-green-600 hover:bg-green-500"
-                            : "bg-red-600 hover:bg-red-500"
+                          ? "bg-green-600 hover:bg-green-500"
+                          : "bg-red-600 hover:bg-red-500"
                           }`}
                         onClick={async () => {
                           console.log(t);
@@ -2157,8 +2333,8 @@ const AdminDashboardPage: React.FC = () => {
                       </button>
                       <button
                         className={`px-2 py-1 rounded text-xs text-white ${!t.is_booked
-                            ? "bg-green-600 hover:bg-green-500"
-                            : "bg-red-600 hover:bg-red-500"
+                          ? "bg-green-600 hover:bg-green-500"
+                          : "bg-red-600 hover:bg-red-500"
                           }`}
                       // onClick={async () => {
                       //   await apiToggleTable(t.id, !t.is_booked);
@@ -2205,7 +2381,7 @@ const AdminDashboardPage: React.FC = () => {
         ) : (
           <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
             <div className="bg-gray-900 border border-gray-700 rounded-lg w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto scrollbar-hide">
-              <style jsx>{`
+              <style >{`
                 .scrollbar-hide::-webkit-scrollbar {
                   display: none;
                 }
@@ -2435,7 +2611,7 @@ const AdminDashboardPage: React.FC = () => {
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center">
           <div className="bg-gray-900 border border-gray-700 p-6 rounded-lg w-full max-w-md shadow-xl">
             <h3 className="text-lg font-semibold flex items-center gap-2">
-              <Icon type="alert-triangle" className="w-5 h-5 text-yellow-400" />
+              <Icon type="warning" className="w-5 h-5 text-yellow-400" />
               Confirm Cancellation
             </h3>
 
@@ -2468,6 +2644,55 @@ const AdminDashboardPage: React.FC = () => {
                 onClick={handleConfirmCancel}
               >
                 {isCancelling ? "Cancelling..." : "Confirm Cancel"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showAddLocationModal && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center">
+          <div className="bg-gray-900 border border-gray-700 p-6 rounded-lg w-full max-w-md shadow-xl">
+            <h3 className="text-lg font-semibold mb-4 text-cyan-400">
+              {editLocationData ? "Edit Location" : "Add Location"}
+            </h3>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm text-gray-300 mb-1">Location Name</label>
+                <input className="w-full bg-gray-800 text-gray-200 border border-gray-700 rounded-md p-2" placeholder="e.g. Kolkata Central" value={locationName} onChange={(e) => setLocationName(e.target.value)} />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-300 mb-1">Latitude</label>
+                <input className="w-full bg-gray-800 text-gray-200 border border-gray-700 rounded-md p-2" placeholder="e.g. 22.572646" value={locationLat} onChange={(e) => setLocationLat(e.target.value)} />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-300 mb-1">Longitude</label>
+                <input className="w-full bg-gray-800 text-gray-200 border border-gray-700 rounded-md p-2" placeholder="e.g. 88.363895" value={locationLong} onChange={(e) => setLocationLong(e.target.value)} />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-300 mb-1">Full Address</label>
+                <input
+                  className="w-full bg-gray-800 text-gray-200 border border-gray-700 rounded-md p-2"
+                  placeholder="e.g. 123 MG Road, Bengaluru, Karnataka"
+                  value={locationAddress}
+                  onChange={(e) => setLocationAddress(e.target.value)}
+                />
+              </div>
+              {locationError && <p className="text-sm text-red-400">{locationError}</p>}
+            </div>
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                className="px-4 py-2 text-sm rounded-md border border-gray-600 text-gray-200 hover:bg-gray-800"
+                disabled={isSavingLocation}
+                onClick={() => { setShowAddLocationModal(false); setEditLocationData(null); setLocationError(null); }}
+              >
+                Cancel
+              </button>
+              <button
+                className="px-4 py-2 text-sm rounded-md bg-cyan-600 text-white hover:bg-cyan-500 disabled:opacity-60"
+                disabled={isSavingLocation}
+                onClick={handleSaveLocation}
+              >
+                {isSavingLocation ? "Saving..." : editLocationData ? "Update" : "Add Location"}
               </button>
             </div>
           </div>
