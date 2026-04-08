@@ -25,7 +25,8 @@ import {
   apiUpdateTable,
   apiGetAllReservations,
   apiDeleteTable,
-
+  apiAddBrandOutlet,      // ✅ ADD
+  apiRemoveBrandOutlet,
   apiGetAllLocations,
   apiAddLocation,
   apiUpdateLocation,
@@ -33,6 +34,7 @@ import {
   apiGetAllBrands,
   apiGetBrandById,
   apiUpdateBrand,
+  apiGetOutletsByBrand,
 
 } from "../services/apiService";
 import {
@@ -85,10 +87,89 @@ const AdminDashboardPage: React.FC = () => {
   const [menu, setMenu] = useState<any[] | null>(null);
   const [isOutletModalOpen, setIsOutletModalOpen] = useState(false);
   const [selectedBrand, setSelectedBrand] = useState<any>(null);
-
+  const [brandOutletsModal, setBrandOutletsModal] = useState<{ brand: any, outlets: any[] } | null>(null);
+  const [isLoadingBrandOutlets, setIsLoadingBrandOutlets] = useState(false);
+  const [newOutletRow, setNewOutletRow] = useState({
+    location_id: "",
+    outlet_id: ""
+  });
   const [outlets, setOutlets] = useState([
     { name: "", contact: "", address: "", location_id: "" }
   ]);
+  const [addingOutlet, setAddingOutlet] = useState(false);
+  const [addOutletError, setAddOutletError] = useState<string | null>(null);
+  const fetchOutletsByBrand = async (brand: any) => {
+    setIsLoadingBrandOutlets(true);
+    setAddOutletError(null);
+
+    try {
+      const [brandOutletRes, locationRes, allOutletRes] = await Promise.all([
+        apiGetOutletsByBrand(brand.id, 1, 100),
+        apiGetAllLocations(1, 1000),
+        apiGetOutlet(1, 1000),
+      ]);
+
+      setLocations(locationRes?.data?.result || []);
+      setAllOutlet(allOutletRes?.data?.result || []);
+
+      setBrandOutletsModal({
+        brand,
+        outlets: brandOutletRes?.data?.result || [],
+      });
+
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsLoadingBrandOutlets(false);
+    }
+  };
+  const handleAddOutlet = async () => {
+    if (!newOutletRow.outlet_id || !newOutletRow.location_id) {
+      setAddOutletError("Select outlet and location");
+      return;
+    }
+
+    try {
+      setAddingOutlet(true);
+      setAddOutletError(null);
+
+      const res = await apiAddBrandOutlet({
+        brand_id: brandOutletsModal?.brand.id,
+        outlet_id: newOutletRow.outlet_id,
+        location_id: newOutletRow.location_id
+      });
+
+      if (res.error) {
+        setAddOutletError(res.message || "Failed");
+        return;
+      }
+
+      // ✅ refresh list
+      await fetchOutletsByBrand(brandOutletsModal?.brand);
+
+      // ✅ reset form
+      setNewOutletRow({
+        outlet_id: "",
+        location_id: ""
+      });
+
+    } catch (err) {
+      setAddOutletError("Something went wrong");
+    } finally {
+      setAddingOutlet(false);
+    }
+  };
+  const handleRemoveOutlet = async (id: string) => {
+    if (!window.confirm("Remove this outlet?")) return;
+
+    try {
+      await apiRemoveBrandOutlet(id);
+
+      await fetchOutletsByBrand(brandOutletsModal?.brand);
+    } catch (err) {
+      console.error(err);
+    }
+  };
   const [isLoadingMenu, setIsLoadingMenu] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reservationTab, setReservationTab] = useState<"active" | "history">(
@@ -1322,14 +1403,11 @@ const AdminDashboardPage: React.FC = () => {
                               Edit
                             </button>
                             <button
-                              onClick={() => {
-                                setSelectedBrand(r); // full brand object
-                                setIsOutletModalOpen(true);
-                              }}
+                              onClick={() => fetchOutletsByBrand(r)}
                               className="inline-flex items-center gap-1 bg-green-600 hover:bg-green-500 text-white px-3 py-1.5 m-1 rounded-md text-xs font-semibold"
                             >
                               <Icon type="plus-circle" className="w-4 h-4" />
-                              Add Outlets
+                              See Outlets
                             </button>
                           </td>
                         </tr>
@@ -1604,132 +1682,199 @@ const AdminDashboardPage: React.FC = () => {
             )}
           </div>
         )}
+        {brandOutletsModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
+            <div className="bg-gray-900 p-6 rounded-lg w-full max-w-2xl">
+
+              <h2 className="text-xl font-semibold mb-4">
+                Manage Outlets - {brandOutletsModal.brand.brand_name}
+              </h2>
+
+              {/* ================= EXISTING OUTLETS ================= */}
+              <div className="mb-6">
+                <h3 className="text-sm text-gray-400 mb-2">Assigned Outlets</h3>
+
+                {brandOutletsModal.outlets.length === 0 && (
+                  <p className="text-gray-500 text-sm">No outlets assigned</p>
+                )}
+
+                <div className="space-y-2 max-h-40 overflow-y-auto">
+                  {brandOutletsModal.outlets.map((o: any) => (
+                    <div
+                      key={o.id}
+                      className="flex justify-between items-center bg-gray-800 p-3 rounded"
+                    >
+                      <div>
+                        <p>{o.name}</p>
+                        <p className="text-xs text-gray-400">{o.address}</p>
+                      </div>
+
+                      <button
+                        onClick={() => handleRemoveOutlet(o.id)}
+                        className="text-red-400 text-sm"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* ================= ADD NEW OUTLET ================= */}
+              <div className="space-y-3">
+
+                <h3 className="text-sm text-gray-400">Add Outlet</h3>
+
+                {/* Outlet Dropdown */}
+                <select
+                  className="w-full p-2 bg-gray-800 rounded"
+                  value={newOutletRow.outlet_id}
+                  onChange={(e) =>
+                    setNewOutletRow({
+                      ...newOutletRow,
+                      outlet_id: e.target.value
+                    })
+                  }
+                >
+                  <option value="">Select Outlet</option>
+
+                  {AllOutlet.map((o: any) => (
+                    <option
+                      key={o.id}
+                      value={o.id}
+                      disabled={o.brand_id !== null}
+                    >
+                      {o.petpooja_outlet_id} {o.brand_id ? "(Assigned)" : ""}
+                    </option>
+                  ))}
+                </select>
+
+                {/* Location Dropdown */}
+                <select
+                  className="w-full p-2 bg-gray-800 rounded"
+                  value={newOutletRow.location_id}
+                  onChange={(e) =>
+                    setNewOutletRow({
+                      ...newOutletRow,
+                      location_id: e.target.value
+                    })
+                  }
+                >
+                  <option value="">Select Location</option>
+
+                  {locations.map((loc: any) => (
+                    <option key={loc.id} value={loc.id}>
+                      {loc.location_name}
+                    </option>
+                  ))}
+                </select>
+
+                {/* Error */}
+                {addOutletError && (
+                  <p className="text-red-400 text-sm">{addOutletError}</p>
+                )}
+
+                {/* Button */}
+                <button
+                  onClick={handleAddOutlet}
+                  disabled={addingOutlet}
+                  className="w-full bg-cyan-600 py-2 rounded"
+                >
+                  {addingOutlet ? "Adding..." : "Add Outlet"}
+                </button>
+              </div>
+
+              {/* Close */}
+              <button
+                onClick={() => setBrandOutletsModal(null)}
+                className="mt-4 text-gray-400 text-sm"
+              >
+                Close
+              </button>
+
+            </div>
+          </div>
+        )}
         {isOutletModalOpen && (
           <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-            <div className="bg-gray-900 w-full max-w-3xl rounded-xl shadow-xl p-6 space-y-5">
+            <div className="bg-gray-900 w-full max-w-lg rounded-xl shadow-xl p-6 space-y-5">
 
               {/* HEADER */}
               <div className="flex justify-between items-center border-b border-gray-700 pb-3">
                 <h2 className="text-xl font-bold text-white">Add Outlets</h2>
-                <button
-                  onClick={() => setIsOutletModalOpen(false)}
-                  className="text-red-400 text-xl"
-                >
-                  ✕
-                </button>
+                <button onClick={() => setIsOutletModalOpen(false)} className="text-red-400 text-xl">✕</button>
               </div>
 
-              {/* BRAND SELECT */}
-              <div>
-                <label className="text-sm text-gray-400">Select Brand</label>
-                <select
-                  value={selectedBrand?.id || ""}
-                  onChange={(e) => {
-                    const brand = restaurants.find(b => b.id === e.target.value);
-                    setSelectedBrand(brand);
-                  }}
-                  className="w-full mt-1 p-2 bg-gray-800 border border-gray-700 rounded"
-                >
-                  <option value="">Select Brand</option>
-                  {restaurants.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.brand_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* OUTLET FORMS */}
-              <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2">
+              {/* ROWS */}
+              <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
                 {outlets.map((o, index) => (
-                  <div
-                    key={index}
-                    className="bg-gray-800 p-4 rounded-lg border border-gray-700 space-y-3"
-                  >
+                  <div key={index} className="flex items-end gap-3">
 
-                    {/* BRAND NAME AUTO */}
-                    <div className="text-xs text-gray-400">
-                      Brand: <span className="text-white">{selectedBrand?.brand_name || "-"}</span>
+                    {/* LOCATION DROPDOWN */}
+                    <div className="flex-1">
+                      {index === 0 && <label className="text-xs text-gray-400 mb-1 block">Location name</label>}
+                      <select
+                        value={o.location_id}
+                        onChange={(e) => {
+                          const updated = [...outlets];
+                          const loc = locations.find(l => l.id === e.target.value);
+                          updated[index].location_id = e.target.value;
+                          updated[index].address = loc?.full_address || "";
+                          setOutlets(updated);
+                        }}
+                        className="w-full p-2 bg-gray-800 border border-gray-700 rounded text-white text-sm"
+                      >
+                        <option value="">Select location</option>
+                        {locations.map((l: any) => (
+                          <option key={l.id} value={l.id}>{l.location_name}</option>
+                        ))}
+                      </select>
                     </div>
 
-                    <input
-                      placeholder="Outlet Name"
-                      value={o.name}
-                      onChange={(e) => {
-                        const updated = [...outlets];
-                        updated[index].name = e.target.value;
-                        setOutlets(updated);
-                      }}
-                      className="w-full p-2 bg-gray-900 border border-gray-700 rounded"
-                    />
+                    {/* OUTLET NAME DROPDOWN */}
+                    <div className="flex-1">
+                      {index === 0 && <label className="text-xs text-gray-400 mb-1 block">Outlet name</label>}
+                      <select
+                        value={o.name}
+                        onChange={(e) => {
+                          const updated = [...outlets];
+                          updated[index].name = e.target.value;
+                          setOutlets(updated);
+                        }}
+                        className="w-full p-2 bg-gray-800 border border-gray-700 rounded text-white text-sm"
+                      >
+                        <option value="">Select outlet</option>
+                        {AllOutlet.map((r: any) => (
+                          <option key={r.id} value={r.name}>{r.name}</option>
+                        ))}
+                      </select>
+                    </div>
 
-                    <input
-                      placeholder="Contact"
-                      value={o.contact}
-                      onChange={(e) => {
-                        const updated = [...outlets];
-                        updated[index].contact = e.target.value;
-                        setOutlets(updated);
-                      }}
-                      className="w-full p-2 bg-gray-900 border border-gray-700 rounded"
-                    />
-
-                    {/* LOCATION */}
-                    <select
-                      value={o.location_id}
-                      onChange={(e) => {
-                        const updated = [...outlets];
-                        const loc = locations.find(l => l.id === e.target.value);
-
-                        updated[index].location_id = e.target.value;
-
-                        // ✅ AUTO ADDRESS SET
-                        if (loc) {
-                          updated[index].address = loc.full_address || "";
-                        }
-
-                        setOutlets(updated);
-                      }}
-                      className="w-full p-2 bg-gray-900 border border-gray-700 rounded"
+                    {/* REMOVE */}
+                    <button
+                      onClick={() => setOutlets(outlets.filter((_, i) => i !== index))}
+                      className="text-red-400 hover:text-red-300 text-lg pb-1"
                     >
-                      <option value="">Select Location</option>
-                      {locations.map((l: any) => (
-                        <option key={l.id} value={l.id}>
-                          {l.location_name}
-                        </option>
-                      ))}
-                    </select>
-
-                    {/* AUTO FILLED ADDRESS */}
-                    <input
-                      placeholder="Address (auto from location)"
-                      value={o.address}
-                      readOnly
-                      className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-gray-300"
-                    />
+                      ✕
+                    </button>
                   </div>
                 ))}
               </div>
 
               {/* ADD MORE */}
               <button
-                onClick={() =>
-                  setOutlets([
-                    ...outlets,
-                    { name: "", contact: "", address: "", location_id: "" }
-                  ])
-                }
-                className="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded text-sm"
+                onClick={() => setOutlets([...outlets, { name: "", contact: "", address: "", location_id: "" }])}
+                className="text-sm text-cyan-400 hover:underline"
               >
-                + Add Another Outlet
+                + Add more
               </button>
 
               {/* SAVE */}
               <button
                 onClick={handleSaveOutlets}
-                className="w-full bg-green-600 hover:bg-green-500 py-3 rounded font-semibold"
+                className="w-full bg-green-600 hover:bg-green-500 py-3 rounded font-semibold text-white"
               >
-                Save All Outlets
+                Save all
               </button>
             </div>
           </div>

@@ -169,7 +169,45 @@ export const apiCheckServiceAvailability = async (
 
   return json.data;
 };
-
+export async function apiAddBrandOutlet(payload: {
+  location_id: string;
+  outlet_id: string;  // UUID from outlet table
+  brand_id: string;
+}) {
+  const res = await fetch(`${BASE_URL}/brand-outlet`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return res.json();
+}
+ 
+// DELETE /brand-outlet/:id  — Remove by brand_outlet row id
+export async function apiRemoveBrandOutlet(brandOutletId: string) {
+  const res = await fetch(`${BASE_URL}/brand-outlet/${brandOutletId}`, {
+    method: "DELETE",
+  });
+  return res.json();
+}
+ 
+// GET /brand-outlet/:brand_id?page=1&per_page=100
+// Returns outlets linked to a specific brand
+export async function apiGetOutletsByBrand(
+  brand_id: string,
+  page = 1,
+  perPage = 100
+) {
+  const res = await fetch(
+    `${BASE_URL}/brand-outlet/${brand_id}?page=${page}&per_page=${perPage}`
+  );
+  return res.json();
+}
+ 
+// GET /brand-outlet  — All brand_outlets grouped by brand
+export async function apiGetAllBrandOutlets() {
+  const res = await fetch(`${BASE_URL}/brand-outlet`);
+  return res.json();
+}
 export const apiAddRestaurant = async (payload: any, restId: string) => {
   const res = await fetch(`${BASE_URL}/outlet/${restId}`, {
     method: "PUT",
