@@ -5,7 +5,7 @@ import HelpBuddyIcon from "./HelpBuddyIcon";
 import HelpBuddyModal from "./HelpBuddyModal";
 import { Icon } from "./Icon";
 import { useOutlet } from "../context/OutletContext";
-import { apiGetOutletByLocation } from "../services/apiService";
+import { apiGetBrandsWithOutlet } from "../services/apiService";
 import { IMAGE_BASE_URL, SUPABASE_URL } from "../src/config";
 import { useCart } from "../context/CartContext"; // ✅ Added
 
@@ -105,13 +105,17 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
   const isFirstLoad = React.useRef(true);
   const { setOutletLocation } = useOutlet();
   const { switchRestaurant } = useCart(); // ✅ Added
+  const selectedAddress = currentUser?.addresses?.find((a: any) => a.isDefault)
+    || currentUser?.addresses?.[0];
 
+  const selectedLat = selectedAddress?.coordinates?.lat;
+  const selectedLng = selectedAddress?.coordinates?.lng;
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locationName, setLocationName] = useState<string | null>(null);
   const [locationPending, setLocationPending] = useState(true);
   const locationResolved = React.useRef(false);
   const locationRef = React.useRef<{ lat: number; lng: number } | null>(null);
-  const [outlets, setOutlets] = useState<any[]>([]);
+  const [brands, setBrands] = useState<any[]>([]);
   const [isLoadingOutlets, setIsLoadingOutlets] = useState(false);
   const [outletsError, setOutletsError] = useState<string | null>(null);
 
@@ -148,21 +152,34 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
   }, [location]);
 
   useEffect(() => {
-    if (currentUser?.addresses?.length) {
-      const defaultAddress = currentUser.addresses.find((a: any) => a.isDefault) || currentUser.addresses[0];
-      if (defaultAddress?.coordinates?.lat && defaultAddress?.coordinates?.lng) {
-        setLocation({ lat: defaultAddress.coordinates.lat, lng: defaultAddress.coordinates.lng });
-        setLocationPending(false);
-        return;
-      }
-    }
-    if (!navigator.geolocation) { setLocationPending(false); return; }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => { setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }); setLocationPending(false); },
-      () => { setLocationPending(false); },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-    );
-  }, [currentUser]);
+  // ✅ LOGIN USER → use selected address
+  if (isAuthenticated && selectedLat && selectedLng) {
+    setLocation({ lat: selectedLat, lng: selectedLng });
+    setLocationPending(false);
+    return;
+  }
+
+  // ✅ LOGOUT USER → use browser GPS
+  if (!navigator.geolocation) {
+    setLocationPending(false);
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      setLocation({
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude
+      });
+      setLocationPending(false);
+    },
+    () => {
+      setLocationPending(false);
+    },
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+  );
+
+}, [isAuthenticated, selectedLat, selectedLng]);
 
   const loadOutlets = useCallback(async (coords: { lat: number; lng: number } | null) => {
     locationResolved.current = true;
@@ -170,18 +187,18 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
     setIsLoadingOutlets(true);
 
     try {
-      const data = await apiGetOutletByLocation(coords ?? undefined);
-      const result = data?.data?.result;
+      const data = await apiGetBrandsWithOutlet(coords ?? undefined);
+      const result = data?.data;
+
       if (Array.isArray(result)) {
-        const active = result.filter((o) => o.is_active);
-        const inactive = result.filter((o) => !o.is_active);
-        setOutlets([...active, ...inactive]);
+        setBrands(result);
       } else {
-        setOutlets([]);
+        setBrands([]);
       }
+
     } catch (e: any) {
-      setOutletsError(e?.message || "Failed to load outlets");
-      setOutlets([]);
+      setOutletsError(e?.message || "Failed to load brands");
+      setBrands([]);
     } finally {
       hasFetched.current = true;
       setIsLoadingOutlets(false);
@@ -227,7 +244,11 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
               <span className="text-sm sm:text-base font-light text-gray-300 tracking-widest">DELICACY</span>
             </div>
           </div>
-
+          {location && (
+            <div className="text-[10px] text-gray-400 bg-gray-800 px-3 py-1 rounded-full">
+              📍 Current: {location.lat.toFixed(4)}, {location.lng.toFixed(4)}
+            </div>
+          )}
           {/* Desktop nav */}
           <div className="hidden md:flex items-center gap-4">
             {locationName && (
@@ -330,35 +351,49 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
       {/* BRANDS GRID */}
       <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-16 -mt-24 relative z-20">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+
           {showSkeleton ? (
             Array.from({ length: 4 }).map((_, i) => <RestaurantCardSkeleton key={i} />)
+
           ) : outletsError ? (
             <div className="col-span-full text-center text-red-400 py-10">{outletsError}</div>
-          ) : outlets.length === 0 ? (
-            <div className="col-span-full text-center text-gray-400 py-10">No outlets found.</div>
-          ) : (
-            outlets.map((outlet) => {
-              const disabled = isOutletDisabled(outlet);
 
-              const hero = outlet.hero_image
-                ? `${SUPABASE_URL}/${IMAGE_BASE_URL}/restaurant-images/${outlet.hero_image}`
+          ) : brands.length === 0 ? (
+            <div className="col-span-full text-center text-gray-400 py-10">No brands found.</div>
+
+          ) : (
+            brands.map((brand) => {
+              const disabled = brand.is_closed;
+              const outlet = brand.selected_outlet;
+
+              const hero = brand.hero_image
+                ? `${SUPABASE_URL}/${IMAGE_BASE_URL}/restaurant-images/${brand.hero_image}`
                 : "https://images.unsplash.com/photo-1604329760661-e71dc83f8f26?q=80&w=2070";
-              const logo = outlet.logo
-                ? `${SUPABASE_URL}/${IMAGE_BASE_URL}/restaurant-images/${outlet.logo}`
+
+              const logo = brand.logo
+                ? `${SUPABASE_URL}/${IMAGE_BASE_URL}/restaurant-images/${brand.logo}`
                 : null;
 
               return (
                 <div
-                  key={outlet.id}
+                  key={brand.id}
                   onClick={() => {
-                    if (disabled) return;
+                    if (disabled || !outlet) return;
+
                     setOutletLocation({ lat: outlet.lat, lng: outlet.long });
-                    // ✅ Clears cart if switching to a different outlet
-                    switchRestaurant(outlet.id);
+
+                    // clear cart if switching outlet
+                    switchRestaurant(outlet.outlet_id);
+
                     localStorage.setItem("selectedPetpoojaOutletId", outlet.petpooja_outlet_id);
                     localStorage.setItem("selectedRestaurantId", outlet.resturent_id);
-                    localStorage.setItem("SelectedOuletId", outlet.id);
-                    onSelectBrand(outlet.petpooja_outlet_id, outlet.resturent_id, outlet.id);
+                    localStorage.setItem("SelectedOuletId", outlet.outlet_id);
+
+                    onSelectBrand(
+                      outlet.petpooja_outlet_id,
+                      outlet.resturent_id,
+                      outlet.outlet_id
+                    );
                   }}
                   className={[
                     "group relative h-[320px] rounded-2xl overflow-hidden transition-all duration-500 shadow-xl transform",
@@ -367,43 +402,58 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
                       : "cursor-pointer hover:-translate-y-2 hover:shadow-2xl",
                   ].join(" ")}
                 >
+
                   <div className="absolute inset-0">
                     <img
                       src={hero}
-                      alt={outlet.name}
-                      className={`w-full h-full object-cover transition-transform duration-700 ${!disabled ? "group-hover:scale-110" : ""}`}
+                      alt={brand.brand_name}
+                      className={`w-full h-full object-cover transition-transform duration-700 ${!disabled ? "group-hover:scale-110" : ""
+                        }`}
                     />
+
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent opacity-85 group-hover:opacity-95 transition-opacity" />
                   </div>
 
                   {disabled && (
-                    <ClosedBadge outlet_open_date_time={outlet.outlet_open_date_time} />
+                    <ClosedBadge />
                   )}
 
                   <div className="absolute inset-0 p-5 flex flex-col justify-end">
-                    <div className={`transform transition-transform duration-500 ${!disabled ? "translate-y-2 group-hover:translate-y-0" : ""}`}>
+                    <div className={`transform transition-transform duration-500 ${!disabled ? "translate-y-2 group-hover:translate-y-0" : ""
+                      }`}>
+
                       {logo && (
                         <img
                           src={logo}
-                          alt={`${outlet.name} logo`}
+                          alt={`${brand.brand_name} logo`}
                           className="h-10 w-auto mb-3 bg-white/10 rounded px-2 py-1"
                         />
                       )}
-                      <h3 className="text-2xl font-serif font-bold text-white mb-2">{outlet.name}</h3>
+
+                      <h3 className="text-2xl font-serif font-bold text-white mb-2">
+                        {brand.brand_name}
+                      </h3>
+                      {outlet?.city && (
+                        <p className="text-xs text-gray-400 mt-1">
+                          {outlet.city}
+                        </p>
+                      )}
                       {!disabled && (
                         <>
                           <div className="h-1 w-16 bg-cyan-500 mb-3 transform scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-500" />
                           <p className="text-gray-300 text-sm opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-75 line-clamp-3">
-                            {outlet.tagline || outlet.description}
+                            {brand.tagline || brand.description}
                           </p>
                         </>
                       )}
                     </div>
                   </div>
+
                 </div>
               );
             })
           )}
+
         </div>
       </main>
 

@@ -35,6 +35,8 @@ import {
   apiGetBrandById,
   apiUpdateBrand,
   apiGetOutletsByBrand,
+  apiGetDeliveryPoints,
+  apiUploadDeliveryPoints,
 
 } from "../services/apiService";
 import {
@@ -81,6 +83,7 @@ const AdminDashboardPage: React.FC = () => {
     | "addRestaurant"
     | "Outlet"
     | "location"
+    | "deliveryPoints"
   >("menu");
 
   // Menu State
@@ -240,6 +243,9 @@ const AdminDashboardPage: React.FC = () => {
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [isLoadingReservations, setIsLoadingReservations] = useState(false);
   const [processingResId, setProcessingResId] = useState<string | null>(null);
+  const [deliveryPoints, setDeliveryPoints] = useState<any[]>([]);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
   // useEffect(() => {
   //   const brands = apiGetAllBrands(); // already synchronous in your code
   //   if (!selectedBrandId && brands.length > 0) {
@@ -305,6 +311,40 @@ const AdminDashboardPage: React.FC = () => {
 
     setIsOutletModalOpen(false);
     setOutlets([{ name: "", contact: "", address: "", location_id: "" }]);
+  };
+  const fetchDeliveryPoints = async () => {
+    try {
+      const res = await apiGetDeliveryPoints();
+      setDeliveryPoints(res.data || []);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+  useEffect(() => {
+    if (activeTab === "deliveryPoints") {
+      fetchDeliveryPoints();
+    }
+  }, [activeTab]); const handleUploadDeliveryFile = async () => {
+    if (!uploadFile) return;
+
+    try {
+      setIsUploadingFile(true);
+
+      const res = await apiUploadDeliveryPoints(uploadFile);
+
+      if (res.error) {
+        alert(res.message || "Upload failed");
+        return;
+      }
+
+      fetchDeliveryPoints();
+      setUploadFile(null);
+
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsUploadingFile(false);
+    }
   };
   const uploadImage = async (file: File, type: "logo" | "hero" | "about") => {
     setUploadError(null);
@@ -1249,6 +1289,15 @@ const AdminDashboardPage: React.FC = () => {
           >
             Locations
           </button>
+          <button
+            onClick={() => setActiveTab("deliveryPoints")}
+            className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "deliveryPoints"
+              ? "border-b-2 border-cyan-400 text-cyan-400"
+              : "text-gray-400"
+              }`}
+          >
+            Delivery Points
+          </button>
         </div>
         {activeTab === "menu" && (
           <div className="animate-fade-in">
@@ -1676,6 +1725,58 @@ const AdminDashboardPage: React.FC = () => {
                         </tr>
                       );
                     })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === "deliveryPoints" && (
+          <div className="animate-fade-in">
+
+            {/* Upload */}
+            <div className="mb-4 flex gap-2">
+              <input
+                type="file"
+                onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
+                className="text-sm"
+              />
+
+              <button
+                onClick={handleUploadDeliveryFile}
+                className="bg-green-600 px-4 py-2 rounded text-sm"
+              >
+                {isUploadingFile ? "Uploading..." : "Upload"}
+              </button>
+            </div>
+
+            {/* Data Table */}
+            {deliveryPoints.length === 0 ? (
+              <p className="text-gray-400">No data found</p>
+            ) : (
+              <div className="overflow-auto max-h-[500px]">
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr>
+                      {Object.keys(deliveryPoints[0]?.data || {}).map((key) => (
+                        <th key={key} className="px-3 py-2 text-left text-gray-400">
+                          {key}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {deliveryPoints.map((row, i) => (
+                      <tr key={i} className="border-t border-gray-700">
+                        {Object.values(row.data).map((val: any, idx) => (
+                          <td key={idx} className="px-3 py-2">
+                            {String(val)}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>

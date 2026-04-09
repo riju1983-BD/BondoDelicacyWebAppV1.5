@@ -181,7 +181,11 @@ export async function apiAddBrandOutlet(payload: {
   });
   return res.json();
 }
- 
+ export async function apiGetBrandsWithOutlet(coords?: { lat: number; lng: number }) {
+  const params = coords ? `?lat=${coords.lat}&lng=${coords.lng}` : "";
+  const res = await fetch(`${BASE_URL}/brand/with-outlets${params}`);
+  return res.json();
+}
 // DELETE /brand-outlet/:id  — Remove by brand_outlet row id
 export async function apiRemoveBrandOutlet(brandOutletId: string) {
   const res = await fetch(`${BASE_URL}/brand-outlet/${brandOutletId}`, {
@@ -189,7 +193,26 @@ export async function apiRemoveBrandOutlet(brandOutletId: string) {
   });
   return res.json();
 }
- 
+ // ==========================
+// 📦 DELIVERY POINTS API
+// ==========================
+
+export const apiUploadDeliveryPoints = async (file: File) => {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await fetch(`${BASE_URL}/delivery-points/upload`, {
+    method: "POST",
+    body: formData,
+  });
+
+  return res.json();
+};
+
+export const apiGetDeliveryPoints = async () => {
+  const res = await fetch(`${BASE_URL}/delivery-points`);
+  return res.json();
+};
 // GET /brand-outlet/:brand_id?page=1&per_page=100
 // Returns outlets linked to a specific brand
 export async function apiGetOutletsByBrand(
