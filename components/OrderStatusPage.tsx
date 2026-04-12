@@ -57,6 +57,7 @@ const StatusTracker: React.FC<StatusTrackerProps> = ({ status }) => {
                 {step}
               </p>
             </div>
+
             {index < steps.length - 1 && (
               <div
                 className={`flex-shrink-0 w-12 md:flex-1 h-1 mt-4 ${
@@ -70,6 +71,7 @@ const StatusTracker: React.FC<StatusTrackerProps> = ({ status }) => {
     </div>
   );
 };
+
 interface OrderStatusPageProps {
   orderId?: string;
   isEmbedded?: boolean;
@@ -88,6 +90,9 @@ const OrderStatusPage: React.FC<OrderStatusPageProps> = ({
   const [cancelReason, setCancelReason] = useState("");
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
+
+  // ✅ Collapsible state (FIXED POSITION)
+  const [isDeliveryOpen, setIsDeliveryOpen] = useState(false);
 
   const fetchOrder = async (id: string) => {
     setIsLoading(true);
@@ -126,7 +131,6 @@ const OrderStatusPage: React.FC<OrderStatusPageProps> = ({
 
   const normalizedStatus = normalizeOrderStatus(foundOrder?.status ?? "");
 
-  // REFUND LOGIC UPDATED
   const refundPercent =
     normalizedStatus === "Food Ready"
       ? 40
@@ -134,7 +138,6 @@ const OrderStatusPage: React.FC<OrderStatusPageProps> = ({
         ? 60
         : 0;
 
-  // CANCEL RULE
   const canCancel =
     normalizedStatus !== "Cancelled" &&
     normalizedStatus !== "Delivered" &&
@@ -148,10 +151,7 @@ const OrderStatusPage: React.FC<OrderStatusPageProps> = ({
     setCancelError(null);
 
     try {
-      // original order amount from DB
       const orderAmount = Number(foundOrder.totalAmount || 0);
-
-      // calculate refundable amount based on your percentage rules
       const refundAmount = Math.round((orderAmount * refundPercent) / 100);
       await apiCancelOrder(foundOrder.id, refundAmount, cancelReason);
 
@@ -163,6 +163,13 @@ const OrderStatusPage: React.FC<OrderStatusPageProps> = ({
       setIsCancelling(false);
     }
   };
+
+  // ✅ Delivery person data
+  const deliveryName = foundOrder?.deliveryInfo?.rider_name;
+  const deliveryContact = foundOrder?.deliveryInfo?.rider_contact;
+  const trackingUrl = foundOrder?.deliveryInfo?.tracking_url;
+
+  const hasDeliveryInfo = !!(deliveryName || deliveryContact || trackingUrl);
 
   const OrderContent = (
     <>
@@ -188,7 +195,49 @@ const OrderStatusPage: React.FC<OrderStatusPageProps> = ({
               <h3 className="text-center text-lg font-semibold mb-6">
                 Current Status
               </h3>
+
               <StatusTracker status={normalizedStatus} />
+
+              {/* ✅ DELIVERY PERSON COLLAPSIBLE */}
+              {hasDeliveryInfo && (
+                <div className="mt-6 border border-gray-700 rounded-lg overflow-hidden">
+                  <button
+                    onClick={() => setIsDeliveryOpen(!isDeliveryOpen)}
+                    className="w-full flex justify-between items-center px-4 py-3 bg-gray-800 hover:bg-gray-700 transition"
+                  >
+                    <span className="font-semibold text-white">
+                      🚚 Delivery Person
+                    </span>
+                    <span className="text-sm text-gray-400">
+                      {isDeliveryOpen ? "Hide" : "Show"}
+                    </span>
+                  </button>
+
+                  {isDeliveryOpen && (
+                    <div className="p-4 bg-gray-900 space-y-2 text-sm text-gray-300">
+                      {deliveryName && (
+                        <p>
+                          <strong>Name:</strong> {deliveryName}
+                        </p>
+                      )}
+                      {deliveryContact && (
+                        <p>
+                          <strong>Contact:</strong> {deliveryContact}
+                        </p>
+                      )}
+                      {trackingUrl && (
+                        <a
+                          href={trackingUrl}
+                          target="_blank"
+                          className="text-cyan-400 underline"
+                        >
+                          Track Live Location
+                        </a>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {canCancel && (
                 <div className="flex flex-col items-center mt-6 gap-3">
@@ -212,54 +261,8 @@ const OrderStatusPage: React.FC<OrderStatusPageProps> = ({
                   </button>
                 </div>
               )}
-
-              {!canCancel && normalizedStatus !== "Cancelled" && (
-                <p className="text-xs text-gray-400 mt-4 text-center">
-                  This order can no longer be cancelled at this stage.
-                </p>
-              )}
             </div>
           )}
-        </div>
-      )}
-
-      {showCancelModal && foundOrder && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center">
-          <div className="bg-gray-900 border border-gray-700 p-6 rounded-lg w-full max-w-md shadow-xl">
-            <h3 className="text-lg font-semibold flex items-center gap-2">
-              <Icon type="alert-triangle" className="w-5 h-5 text-yellow-400" />
-              Confirm Cancellation
-            </h3>
-
-            <textarea
-              placeholder="Reason for cancellation..."
-              className="w-full h-24 mt-4 bg-gray-800 text-gray-200 border border-gray-700 p-3 rounded-md"
-              value={cancelReason}
-              onChange={(e) => setCancelReason(e.target.value)}
-            />
-
-            {cancelError && (
-              <p className="text-sm text-red-400 mt-2">{cancelError}</p>
-            )}
-
-            <div className="flex justify-end gap-3 mt-4">
-              <button
-                className="px-4 py-2 text-sm rounded-md border border-gray-600 text-gray-200 hover:bg-gray-800"
-                disabled={isCancelling}
-                onClick={() => setShowCancelModal(false)}
-              >
-                Keep Order
-              </button>
-
-              <button
-                className="px-4 py-2 text-sm rounded-md bg-red-600 text-white hover:bg-red-500 disabled:opacity-70"
-                disabled={isCancelling}
-                onClick={handleConfirmCancel}
-              >
-                {isCancelling ? "Cancelling..." : "Confirm Cancel"}
-              </button>
-            </div>
-          </div>
         </div>
       )}
     </>
@@ -278,44 +281,9 @@ const OrderStatusPage: React.FC<OrderStatusPageProps> = ({
           <h1 className="text-2xl sm:text-4xl font-serif mt-4">
             Track Your Order
           </h1>
-          <p className="text-xs sm:text-sm text-gray-400 mt-1">
-            Enter your order ID to see its status
-          </p>
         </header>
 
-        <form
-          className="flex flex-col sm:flex-row gap-2 mb-6 sm:mb-10"
-          onSubmit={handleTrack}
-        >
-          <input
-            type="text"
-            value={trackingId}
-            onChange={(e) => setTrackingId(e.target.value)}
-            placeholder="Enter your order ID..."
-            className="flex-grow bg-gray-800 border border-gray-600 text-white rounded-md py-3 px-4 focus:ring-2 focus:ring-cyan-500 text-sm sm:text-base"
-            disabled={isLoading}
-          />
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="bg-cyan-600 px-6 py-3 rounded-md text-white hover:bg-cyan-500 disabled:opacity-70 flex items-center justify-center gap-2 text-sm sm:text-base"
-          >
-            {isLoading ? "..." : <Icon type="search" className="w-5 h-5" />}
-            {!isLoading && "Track"}
-          </button>
-        </form>
-
-        {/* Wrapper for horizontal scroll on mobile */}
         <div className="mb-6 sm:mb-10">{OrderContent}</div>
-
-        <div className="text-center mt-6 sm:mt-10">
-          <button
-            onClick={() => (window.location.hash = "#")}
-            className="text-xs sm:text-sm text-cyan-400 hover:underline"
-          >
-            ← Back to Main Site
-          </button>
-        </div>
       </div>
     </div>
   );

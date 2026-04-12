@@ -3,6 +3,10 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 interface OutletLocation {
   lat: number;
   lng: number;
+  contact?: string;
+  address?: string;
+  city?: string;
+  brandName?: string; // ← ADD
 }
 
 interface OutletContextType {

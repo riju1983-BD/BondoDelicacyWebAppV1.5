@@ -125,9 +125,17 @@ export interface User {
 ========================= */
 
 export interface DeliveryInfo {
-  riderName: string;
-  riderPhone: string;
-  etaMinutes: number;
+  riderName?: string;
+  riderPhone?: string;
+  etaMinutes?: number;
+  taskId?: string;
+  rider_name?: string;
+  rider_contact?: string;
+  tracking_url?: string;
+  status_code?: string;
+  rider_lat?: string;
+  rider_long?: string;
+  rider_cancelled?: boolean;
 }
 
 export interface DeliveryAddress {

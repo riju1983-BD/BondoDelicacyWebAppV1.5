@@ -429,11 +429,11 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
             return;
           }
 
-          if (!riderOk) {
-            setIsAddressServiceable(false);
-            setAddressError("Rider not available in this location.");
-            return;
-          }
+          // if (!riderOk) {
+          //   setIsAddressServiceable(false);
+          //   setAddressError("Rider not available in this location.");
+          //   return;
+          // }
 
           setIsAddressServiceable(true);
           setAddressError("");
@@ -784,7 +784,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
 
       // 4) Open Razorpay Checkout
       const rzp = new (window as any).Razorpay({
-        key: VITE_RAZORPAY_KEY_ID,
+        key: data.key,
         order_id: razorpayOrder.id,
         amount: razorpayOrder.amount,
         currency: razorpayOrder.currency,
@@ -814,6 +814,14 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
                     },
                     deliveryAddress,
                     pricing,
+                    pickup_details: {
+                      name: restaurantName,
+                      contact_number: outletLocation?.contact ?? "",
+                      latitude: String(RESTAURANT_LAT),
+                      longitude: String(RESTAURANT_LNG),
+                      address: outletLocation?.address ?? "",
+                      city: outletLocation?.city ?? "Bangalore",
+                    },
                   },
                 }),
               },
@@ -943,11 +951,11 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
         return false;
       }
 
-      if (!riderOk) {
-        setIsAddressServiceable(false);
-        setAddressError("Rider not available in this location.");
-        return false;
-      }
+      // if (!riderOk) {
+      //   setIsAddressServiceable(false);
+      //   setAddressError("Rider not available in this location.");
+      //   return false;
+      // }
 
       setIsAddressServiceable(true);
       setAddressError("");

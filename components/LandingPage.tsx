@@ -380,7 +380,14 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
                   onClick={() => {
                     if (disabled || !outlet) return;
 
-                    setOutletLocation({ lat: outlet.lat, lng: outlet.long });
+                   setOutletLocation({
+                     lat: outlet.lat,
+                     lng: outlet.long,
+                     contact: outlet.contact ?? "",
+                     address: outlet.address ?? "",
+                     city: outlet.city ?? "Bangalore",
+                     brandName: outlet.brand_name ?? "", // ← ADD
+                   });
 
                     // clear cart if switching outlet
                     switchRestaurant(outlet.outlet_id);
