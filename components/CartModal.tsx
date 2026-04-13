@@ -429,11 +429,11 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
             return;
           }
 
-          // if (!riderOk) {
-          //   setIsAddressServiceable(false);
-          //   setAddressError("Rider not available in this location.");
-          //   return;
-          // }
+          if (!riderOk) {
+            setIsAddressServiceable(false);
+            setAddressError("Rider not available in this location.");
+            return;
+          }
 
           setIsAddressServiceable(true);
           setAddressError("");
@@ -692,7 +692,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
                 total: Number(finalTotalForPayload || 0).toFixed(2),
 
                 created_on: getCurrentDateTime(),
-                enable_delivery: 1,
+                enable_delivery: 0,
                 callback_url: `${BASE_URL}/petpuja/callback`,
                 collect_cash: "0",
               },
@@ -951,11 +951,11 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
         return false;
       }
 
-      // if (!riderOk) {
-      //   setIsAddressServiceable(false);
-      //   setAddressError("Rider not available in this location.");
-      //   return false;
-      // }
+      if (!riderOk) {
+        setIsAddressServiceable(false);
+        setAddressError("Rider not available in this location.");
+        return false;
+      }
 
       setIsAddressServiceable(true);
       setAddressError("");
