@@ -143,7 +143,7 @@ export interface DeliveryAddress {
   fullAddress: string;
   flatNo: string;
   landmark: string;
-
+  city?: string;    
   coordinates?: {
     lat: number;
     lng: number;

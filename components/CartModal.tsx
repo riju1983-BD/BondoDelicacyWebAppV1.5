@@ -47,7 +47,16 @@ type TaxLine = {
   tax_percentage: string;
   amount?: string | number;
 };
-
+const extractCity = (address: DeliveryAddress): string => {
+  if (address.city) return address.city;
+  // Parse from the formatted address string as fallback
+  const parts = address.fullAddress.split(",").map((p) => p.trim());
+  // City is typically the part before the state/pincode segment
+  const cityPart = parts.find(
+    (p) => p.length > 2 && !/^\d{6}$/.test(p) && !/^\d/.test(p)
+  );
+  return cityPart ?? "Bangalore";
+};
 // ✅ Load Razorpay script dynamically — prevents "not a constructor" error
 //    when the API response comes back faster than the script tag loads
 const loadRazorpayScript = (): Promise<boolean> => {
@@ -228,6 +237,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
     fullAddress: "",
     flatNo: "",
     landmark: "",
+    city : "",
   });
   const [isAddressServiceable, setIsAddressServiceable] = useState(true);
   const [addressError, setAddressError] = useState("");
@@ -389,11 +399,15 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
           );
           return;
         }
-
+        const cityComponent = place.address_components?.find((c: any) =>
+          c.types.includes("locality")
+        );
+        const city = cityComponent?.long_name ?? "";
         setNewAddressData((prev) => ({
           ...prev,
           fullAddress: formatted,
           coordinates: { lat: dropLat, lng: dropLng },
+          city,
         }));
 
         try {
@@ -650,6 +664,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
                 phone: currentUser.phone,
                 latitude: deliveryAddress.coordinates?.lat?.toString() ?? "",
                 longitude: deliveryAddress.coordinates?.lng?.toString() ?? "",
+                city: extractCity(deliveryAddress),
               },
             },
 
@@ -808,9 +823,13 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
                     userId: currentUser.id,
                     items,
                     customer: {
-                      name: currentUser.name,
                       email: currentUser.email,
+                      name: currentUser.name,
+                      address: `${deliveryAddress.flatNo}, ${deliveryAddress.fullAddress}`,
                       phone: currentUser.phone,
+                      latitude: deliveryAddress.coordinates?.lat?.toString() ?? "",
+                      longitude: deliveryAddress.coordinates?.lng?.toString() ?? "",
+                      city: extractCity(deliveryAddress),
                     },
                     deliveryAddress,
                     pricing,
@@ -1219,7 +1238,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
               <button
                 onClick={() => {
                   setShowAddressForm(true);
-                  setNewAddressData({ fullAddress: "", flatNo: "", landmark: "" });
+                  setNewAddressData({ fullAddress: "", flatNo: "", landmark: "", city: "" });
                 }}
                 className="w-full py-3 border-2 border-dashed border-gray-600 text-gray-400 rounded-lg font-semibold hover:border-cyan-500 hover:text-cyan-400 transition-colors flex items-center justify-center gap-2"
               >

@@ -244,11 +244,11 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectBrand }) => {
               <span className="text-sm sm:text-base font-light text-gray-300 tracking-widest">DELICACY</span>
             </div>
           </div>
-          {location && (
+          {/* {location && (
             <div className="text-[10px] text-gray-400 bg-gray-800 px-3 py-1 rounded-full">
               📍 Current: {location.lat.toFixed(4)}, {location.lng.toFixed(4)}
             </div>
-          )}
+          )} */}
           {/* Desktop nav */}
           <div className="hidden md:flex items-center gap-4">
             {locationName && (
