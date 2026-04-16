@@ -237,7 +237,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
     fullAddress: "",
     flatNo: "",
     landmark: "",
-    city : "",
+    city: "",
   });
   const [isAddressServiceable, setIsAddressServiceable] = useState(true);
   const [addressError, setAddressError] = useState("");
@@ -660,6 +660,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
               details: {
                 email: currentUser.email,
                 name: currentUser.name,
+                state: deliveryAddress.state || "Karnataka",
                 address: `${deliveryAddress.flatNo}, ${deliveryAddress.fullAddress}`,
                 phone: currentUser.phone,
                 latitude: deliveryAddress.coordinates?.lat?.toString() ?? "",
@@ -708,7 +709,8 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
 
                 created_on: getCurrentDateTime(),
                 enable_delivery: 0,
-                callback_url: `${BASE_URL}/petpuja/callback`,
+                // callback_url: `https://cherish-rollable-anahi.ngrok-free.dev/api/petpuja/callback`,
+                  callback_url: `${BASE_URL}/petpuja/callback`,
                 collect_cash: "0",
               },
             },
@@ -830,6 +832,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
                       latitude: deliveryAddress.coordinates?.lat?.toString() ?? "",
                       longitude: deliveryAddress.coordinates?.lng?.toString() ?? "",
                       city: extractCity(deliveryAddress),
+                      state: deliveryAddress.state || "Karnataka",
                     },
                     deliveryAddress,
                     pricing,
@@ -840,6 +843,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
                       longitude: String(RESTAURANT_LNG),
                       address: outletLocation?.address ?? "",
                       city: outletLocation?.city ?? "Bangalore",
+                      state: deliveryAddress.state || "Karnataka",
                     },
                   },
                 }),

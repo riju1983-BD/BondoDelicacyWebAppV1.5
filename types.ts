@@ -143,12 +143,12 @@ export interface DeliveryAddress {
   fullAddress: string;
   flatNo: string;
   landmark: string;
-  city?: string;    
+  city?: string;
   coordinates?: {
     lat: number;
     lng: number;
   };
-
+  state?: string;
   isDefault?: boolean;
 }
 

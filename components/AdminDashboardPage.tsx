@@ -493,7 +493,7 @@ const AdminDashboardPage: React.FC = () => {
     var heroURL = `${SUPABASE_URL}/${IMAGE_BASE_URL}/restaurant-images/${res.data.hero_image}`;
     console.log("LogoURL: ", LogoURL);
 
-    setresturent(res.data);
+    setresturent(res.data); 
     setbrandName(res.data.name || "");
     setTagline(res.data.tagline || "");
     setDescription(res.data.description || "");
