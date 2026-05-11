@@ -37,6 +37,7 @@ import {
   apiGetOutletsByBrand,
   apiGetDeliveryPoints,
   apiUploadDeliveryPoints,
+  apiGetMenuWebhookLogs,
 
 } from "../services/apiService";
 import {
@@ -84,6 +85,7 @@ const AdminDashboardPage: React.FC = () => {
     | "Outlet"
     | "location"
     | "deliveryPoints"
+    | "webhookLogs"
   >("menu");
 
   // Menu State
@@ -96,11 +98,36 @@ const AdminDashboardPage: React.FC = () => {
     location_id: "",
     outlet_id: ""
   });
+  const [showDeliveryModal, setShowDeliveryModal] = useState(false);
+  const [selectedDelivery, setSelectedDelivery] = useState<{
+    name?: string;
+    contact?: string;
+    url?: string;
+  } | null>(null);
   const [outlets, setOutlets] = useState([
     { name: "", contact: "", address: "", location_id: "" }
   ]);
   const [addingOutlet, setAddingOutlet] = useState(false);
   const [addOutletError, setAddOutletError] = useState<string | null>(null);
+  // ── Webhook Logs State ──────────────────────────────────────────────
+  const [webhookLogs, setWebhookLogs] = useState<any[]>([]);
+  const [isLoadingWebhookLogs, setIsLoadingWebhookLogs] = useState(false);
+  const fetchWebhookLogs = useCallback(async () => {
+    setIsLoadingWebhookLogs(true);
+    try {
+      const json = await apiGetMenuWebhookLogs(10);
+      if (json.ok) setWebhookLogs(json.data || []);
+    } catch (err) {
+      console.error("fetchWebhookLogs error:", err);
+    } finally {
+      setIsLoadingWebhookLogs(false);
+    }
+  }, []);
+    useEffect(() => {
+    if (activeTab === "webhookLogs") {
+      fetchWebhookLogs();
+    }
+  }, [activeTab]);
   const fetchOutletsByBrand = async (brand: any) => {
     setIsLoadingBrandOutlets(true);
     setAddOutletError(null);
@@ -324,7 +351,8 @@ const AdminDashboardPage: React.FC = () => {
     if (activeTab === "deliveryPoints") {
       fetchDeliveryPoints();
     }
-  }, [activeTab]); const handleUploadDeliveryFile = async () => {
+  }, [activeTab]);
+   const handleUploadDeliveryFile = async () => {
     if (!uploadFile) return;
 
     try {
@@ -493,7 +521,7 @@ const AdminDashboardPage: React.FC = () => {
     var heroURL = `${SUPABASE_URL}/${IMAGE_BASE_URL}/restaurant-images/${res.data.hero_image}`;
     console.log("LogoURL: ", LogoURL);
 
-    setresturent(res.data); 
+    setresturent(res.data);
     setbrandName(res.data.name || "");
     setTagline(res.data.tagline || "");
     setDescription(res.data.description || "");
@@ -1298,6 +1326,15 @@ const AdminDashboardPage: React.FC = () => {
           >
             Delivery Points
           </button>
+          <button
+            onClick={() => setActiveTab("webhookLogs")}
+            className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "webhookLogs"
+                ? "border-b-2 border-cyan-400 text-cyan-400"
+                : "text-gray-400"
+              }`}
+          >
+            Webhook Logs
+          </button>
         </div>
         {activeTab === "menu" && (
           <div className="animate-fade-in">
@@ -1475,7 +1512,84 @@ const AdminDashboardPage: React.FC = () => {
             )}
           </div>
         )}
+        {activeTab === "webhookLogs" && (
+          <div className="animate-fade-in">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-semibold text-white">
+                Last 10 Webhook Hits
+              </h2>
+              <span className="flex items-center gap-2 text-xs text-green-400">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                </span>
+                Live
+              </span>
+            </div>
 
+            {isLoadingWebhookLogs ? (
+              <div className="flex justify-center p-8">
+                <Spinner className="w-8 h-8" />
+              </div>
+            ) : webhookLogs.length === 0 ? (
+              <p className="text-center text-gray-400 py-8">No webhook hits yet.</p>
+            ) : (
+              <div className="space-y-3 max-h-[65vh] overflow-y-auto pr-1">
+                {webhookLogs.map((log) => (
+                  <div
+                    key={log.id}
+                    className={`bg-gray-800 rounded-lg border p-4 space-y-2 ${log.is_success ? "border-green-700" : "border-red-800"
+                      }`}
+                  >
+                    {/* Header row */}
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <span className="font-mono text-xs text-cyan-400">
+                        #{log.id}
+                      </span>
+                      <span
+                        className={`px-2 py-0.5 text-xs font-bold rounded-full ${log.is_success
+                            ? "bg-green-900 text-green-300"
+                            : "bg-red-900 text-red-300"
+                          }`}
+                      >
+                        {log.is_success ? "✓ Success" : "✗ Failed"}
+                      </span>
+                      <span className="text-xs text-gray-400 ml-auto">
+                        {new Date(log.created_at).toLocaleString()}
+                      </span>
+                    </div>
+
+                    {/* URL */}
+                    <p className="text-xs text-gray-300 font-mono truncate">
+                      <span className="text-gray-500">URL: </span>
+                      {log.request_url}
+                    </p>
+
+                    {/* Request / Response bodies */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <p className="text-xs text-gray-500 mb-1">Request Body</p>
+                        <pre className="text-xs bg-gray-900 text-gray-300 p-2 rounded max-h-32 overflow-auto whitespace-pre-wrap break-all">
+                          {log.request_body
+                            ? JSON.stringify(log.request_body, null, 2)
+                            : "—"}
+                        </pre>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500 mb-1">Response Body</p>
+                        <pre className="text-xs bg-gray-900 text-gray-300 p-2 rounded max-h-32 overflow-auto whitespace-pre-wrap break-all">
+                          {log.response_body
+                            ? JSON.stringify(log.response_body, null, 2)
+                            : "—"}
+                        </pre>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
         {activeTab === "orders" && (
           <div className="animate-fade-in">
             {isLoadingOrders ? (
@@ -1559,7 +1673,26 @@ const AdminDashboardPage: React.FC = () => {
 
                         {/* ACTIONS */}
                         <td className="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <td className="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <div className="flex justify-end gap-2">
+
+                            {/* 🔵 TRACK BUTTON */}
+                            {o.deliveryInfo?.tracking_url && (
+                              <button
+                                onClick={() => {
+                                  setSelectedDelivery({
+                                    name: o.deliveryInfo?.rider_name,
+                                    contact: o.deliveryInfo?.rider_contact,
+                                    url: o.deliveryInfo?.tracking_url,
+                                  });
+                                  setShowDeliveryModal(true);
+                                }}
+                                className="bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-1.5 rounded-md text-xs font-bold flex items-center gap-1"
+                              >
+                                📍 Track
+                              </button>
+                            )}
+
+                            {/* 🔴 EXISTING CANCEL / REFUND LOGIC */}
                             {o.refundAmount != null ? (
                               <span className="text-xs font-bold text-green-400">
                                 Refund ₹{o.refundAmount.toFixed(2)}
@@ -1570,14 +1703,15 @@ const AdminDashboardPage: React.FC = () => {
                                 onClick={() => handleOpenCancelModal(o)}
                               >
                                 <Icon type="x-circle" className="w-4 h-4" />
-                                Cancel Order
+                                Cancel
                               </button>
                             ) : (
                               <span className="text-xs text-gray-500">
                                 Not cancellable
                               </span>
                             )}
-                          </td>
+
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -3001,6 +3135,56 @@ const AdminDashboardPage: React.FC = () => {
                 {isRefunding ? "Processing..." : "Confirm Refund"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {showDeliveryModal && selectedDelivery && (
+        <div
+          className="fixed inset-0 bg-black/75 z-50 flex items-center justify-center"
+          onClick={() => setShowDeliveryModal(false)}
+        >
+          <div
+            className="bg-gray-900 border border-gray-700 rounded-xl shadow-2xl flex flex-col overflow-hidden w-[95vw] h-[85vh] sm:w-[75vw] sm:h-[82vh] md:w-[60vw] md:h-[80vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 bg-gray-800 border-b border-gray-700">
+              <div className="flex items-center gap-2">
+                <span>🚚</span>
+                <h3 className="font-semibold text-white">Delivery Tracking</h3>
+              </div>
+              <button
+                onClick={() => setShowDeliveryModal(false)}
+                className="text-gray-400 hover:text-white text-xl"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Rider Info */}
+            {(selectedDelivery.name || selectedDelivery.contact) && (
+              <div className="flex gap-6 px-5 py-3 bg-gray-800/50 border-b border-gray-700 text-sm text-gray-300">
+                {selectedDelivery.name && (
+                  <p><strong className="text-white">Name:</strong> {selectedDelivery.name}</p>
+                )}
+                {selectedDelivery.contact && (
+                  <p><strong className="text-white">Contact:</strong> {selectedDelivery.contact}</p>
+                )}
+              </div>
+            )}
+
+            {/* Iframe */}
+            {selectedDelivery.url ? (
+              <iframe
+                src={selectedDelivery.url}
+                className="flex-1 w-full border-0"
+                allow="geolocation"
+              />
+            ) : (
+              <div className="flex-1 flex items-center justify-center text-gray-500">
+                No tracking available
+              </div>
+            )}
           </div>
         </div>
       )}

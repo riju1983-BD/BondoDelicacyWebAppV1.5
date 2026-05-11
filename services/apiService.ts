@@ -196,7 +196,13 @@ export async function apiRemoveBrandOutlet(brandOutletId: string) {
  // ==========================
 // 📦 DELIVERY POINTS API
 // ==========================
+export const apiGetMenuWebhookLogs = async () => {
+  const res = await fetch(
+    `${BASE_URL}webhooks/menu-webhook-logs?limit=10&page=1`
+  );
 
+  return res.json();
+};
 export const apiUploadDeliveryPoints = async (file: File) => {
   const formData = new FormData();
   formData.append("file", file);

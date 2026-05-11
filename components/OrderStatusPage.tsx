@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Order } from "../types";
-
+import riderlogo from "../src/assets/rider.png";
 import { Icon } from "./Icon";
 import { apiCancelOrder, apiGetOrderById } from "../services/apiService";
 import { normalizeOrderStatus } from "../model/status";
@@ -40,10 +40,10 @@ const StatusTracker: React.FC<StatusTrackerProps> = ({ status }) => {
             <div className="flex flex-col items-center flex-shrink-0 w-24 md:flex-1">
               <div
                 className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors duration-500 ${index < currentIndex
-                    ? "bg-green-500"
-                    : index === currentIndex
-                      ? "bg-cyan-500 animate-pulse"
-                      : "bg-gray-600"
+                  ? "bg-green-500"
+                  : index === currentIndex
+                    ? "bg-cyan-500 animate-pulse"
+                    : "bg-gray-600"
                   }`}
               >
                 <Icon type="check-circle" className="w-5 h-5 text-white" />
@@ -86,6 +86,8 @@ const OrderStatusPage: React.FC<OrderStatusPageProps> = ({
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
   const [isDeliveryOpen, setIsDeliveryOpen] = useState(false);
+  const [showDeliveryModal, setShowDeliveryModal] = useState(false);
+
   const fetchOrder = async (id: string) => {
     setIsLoading(true);
     setError(null);
@@ -212,46 +214,6 @@ const OrderStatusPage: React.FC<OrderStatusPageProps> = ({
                   >
                     Cancel Order
                   </button>
-                  {hasDeliveryInfo && (
-                    <div className="mt-6 border border-gray-700 rounded-lg overflow-hidden">
-                      <button
-                        onClick={() => setIsDeliveryOpen(!isDeliveryOpen)}
-                        className="w-full flex justify-between items-center px-4 py-3 bg-gray-800 hover:bg-gray-700 transition"
-                      >
-                        <span className="font-semibold text-white">
-                          🚚 Delivery Person
-                        </span>
-                        <span className="text-sm text-gray-400">
-                          {isDeliveryOpen ? "Hide" : "Show"}
-                        </span>
-                      </button>
-
-                      {isDeliveryOpen && (
-                        <div className="p-4 bg-gray-900 space-y-2 text-sm text-gray-300">
-                          {deliveryName && (
-                            <p>
-                              <strong>Name:</strong> {deliveryName}
-                            </p>
-                          )}
-                          {deliveryContact && (
-                            <p>
-                              <strong>Contact:</strong> {deliveryContact}
-                            </p>
-                          )}
-                          {trackingUrl && (
-                            <a
-                              href={trackingUrl}
-                              target="_blank"
-                              className="text-cyan-400 underline"
-                            >
-                              Track Live Location
-                            </a>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
                 </div>
               )}
 
@@ -260,9 +222,97 @@ const OrderStatusPage: React.FC<OrderStatusPageProps> = ({
                   This order can no longer be cancelled at this stage.
                 </p>
               )}
+
+              {/* ── Delivery Person Card ── */}
+              {hasDeliveryInfo && (
+                <div className="mt-6 flex items-center gap-3 px-4 py-3 rounded-xl border border-cyan-800/50 bg-gray-800/70 shadow-md">
+                  {/* Avatar */}
+                  <img
+                    src={riderlogo}
+                    alt="Delivery Person"
+                    className="w-8 h-8 object-cover flex-shrink-0"
+                  />
+                  {/* Name + contact */}
+                  <div className="flex-1 min-w-0">
+                    {deliveryName && (
+                      <p className="text-white font-semibold text-sm truncate leading-tight">
+                        {deliveryName}
+                      </p>
+                    )}
+                    {deliveryContact && (
+                      <p className="text-cyan-400 text-xs truncate leading-tight">
+                        {deliveryContact}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Track button */}
+                  {trackingUrl && (
+                    <button
+                      onClick={() => setShowDeliveryModal(true)}
+                      className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 active:scale-95 transition-all text-white text-xs font-semibold shadow"
+                    >
+                      📍 Track
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
 
           )}
+        </div>
+      )}
+
+      {/* ── Delivery Info Modal ── */}
+      {showDeliveryModal && (
+        <div
+          className="fixed inset-0 bg-black/75 z-50 flex items-center justify-center"
+          onClick={() => setShowDeliveryModal(false)}
+        >
+          <div
+            className="bg-gray-900 border border-gray-700 rounded-xl shadow-2xl flex flex-col overflow-hidden w-[95vw] h-[85vh] sm:w-[75vw] sm:h-[82vh] md:w-[60vw] md:h-[80vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal header */}
+            <div className="flex items-center justify-between px-5 py-4 bg-gray-800 border-b border-gray-700 flex-shrink-0">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">🚚</span>
+                <h3 className="font-semibold text-white text-base">Delivery Person</h3>
+              </div>
+              <button
+                onClick={() => setShowDeliveryModal(false)}
+                className="text-gray-400 hover:text-white transition text-xl leading-none"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Rider meta */}
+            {(deliveryName || deliveryContact) && (
+              <div className="flex gap-6 px-5 py-3 bg-gray-800/50 border-b border-gray-700 text-sm text-gray-300 flex-shrink-0">
+                {deliveryName && (
+                  <p><strong className="text-white">Name:</strong> {deliveryName}</p>
+                )}
+                {deliveryContact && (
+                  <p><strong className="text-white">Contact:</strong> {deliveryContact}</p>
+                )}
+              </div>
+            )}
+
+            {/* Tracking URL iframe — fills rest of modal */}
+            {trackingUrl ? (
+              <iframe
+                src={trackingUrl}
+                title="Live Tracking"
+                className="flex-1 w-full border-0"
+                allow="geolocation"
+              />
+            ) : (
+              <div className="flex-1 flex items-center justify-center text-gray-500 text-sm">
+                No tracking URL available.
+              </div>
+            )}
+          </div>
         </div>
       )}
 
