@@ -198,7 +198,7 @@ export async function apiRemoveBrandOutlet(brandOutletId: string) {
 // ==========================
 export const apiGetMenuWebhookLogs = async () => {
   const res = await fetch(
-    `${BASE_URL}webhooks/menu-webhook-logs?limit=10&page=1`
+    `${BASE_URL}/webhooks/menu-webhook-logs?limit=10&page=1`
   );
 
   return res.json();
