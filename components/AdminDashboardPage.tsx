@@ -38,6 +38,10 @@ import {
   apiGetDeliveryPoints,
   apiUploadDeliveryPoints,
   apiGetMenuWebhookLogs,
+  apiGetDeliveryCharges,
+  apiAddDeliveryCharge,
+  apiDeleteDeliveryCharge,
+  apiUpdateDeliveryCharge,
 
 } from "../services/apiService";
 import {
@@ -85,9 +89,15 @@ const AdminDashboardPage: React.FC = () => {
     | "Outlet"
     | "location"
     | "deliveryPoints"
+    | "deliveryCharges"
     | "webhookLogs"
   >("menu");
-
+  const [editId, setEditId] = useState<string | null>(null);
+  const [deliveryCharges, setDeliveryCharges] = useState<any[]>([]);
+  const [fromKm, setFromKm] = useState("");
+  const [toKm, setToKm] = useState("");
+  const [chargePrice, setChargePrice] = useState("");
+  const [loadingCharges, setLoadingCharges] = useState(false);
   // Menu State
   const [menu, setMenu] = useState<any[] | null>(null);
   const [isOutletModalOpen, setIsOutletModalOpen] = useState(false);
@@ -112,6 +122,94 @@ const AdminDashboardPage: React.FC = () => {
   // ── Webhook Logs State ──────────────────────────────────────────────
   const [webhookLogs, setWebhookLogs] = useState<any[]>([]);
   const [isLoadingWebhookLogs, setIsLoadingWebhookLogs] = useState(false);
+  const handleEditDeliveryCharge = (
+    item: any
+  ) => {
+
+    setEditId(item.id);
+
+    setFromKm(
+      String(item.from_km)
+    );
+
+    setToKm(
+      String(item.to_km)
+    );
+
+    setChargePrice(
+      String(item.charge)
+    );
+
+  };
+  const fetchDeliveryCharges = async () => {
+    try {
+      setLoadingCharges(true);
+
+      const res = await apiGetDeliveryCharges();
+
+      setDeliveryCharges(
+        res?.data?.result || []
+      );
+
+    } catch (err) {
+      console.log(err);
+    } finally {
+      setLoadingCharges(false);
+    }
+  };
+  // const handleAddDeliveryCharge = async () => {
+
+  //   if (
+  //     !fromKm ||
+  //     !toKm ||
+  //     !chargePrice
+  //   ) {
+  //     alert("All fields required");
+  //     return;
+  //   }
+
+  //   try {
+
+  //     const payload = {
+  //       from_km: Number(fromKm),
+  //       to_km: Number(toKm),
+  //       charge: Number(chargePrice)
+  //     };
+
+  //     let res;
+
+  //     if (editId) {
+
+  //       res = await apiUpdateDeliveryCharge(
+  //         editId,
+  //         payload
+  //       );
+
+  //     } else {
+
+  //       res = await apiAddDeliveryCharge(
+  //         payload
+  //       );
+
+  //     }
+
+  //     if (res.error) {
+  //       alert(res.message);
+  //       return;
+  //     }
+
+  //     setEditId(null);
+  //     setFromKm("");
+  //     setToKm("");
+  //     setChargePrice("");
+
+  //     fetchDeliveryCharges();
+
+  //   } catch (err) {
+  //     console.log(err);
+  //   }
+
+  // };
   const fetchWebhookLogs = useCallback(async () => {
     setIsLoadingWebhookLogs(true);
     try {
@@ -123,7 +221,7 @@ const AdminDashboardPage: React.FC = () => {
       setIsLoadingWebhookLogs(false);
     }
   }, []);
-    useEffect(() => {
+  useEffect(() => {
     if (activeTab === "webhookLogs") {
       fetchWebhookLogs();
     }
@@ -352,7 +450,7 @@ const AdminDashboardPage: React.FC = () => {
       fetchDeliveryPoints();
     }
   }, [activeTab]);
-   const handleUploadDeliveryFile = async () => {
+  const handleUploadDeliveryFile = async () => {
     if (!uploadFile) return;
 
     try {
@@ -496,7 +594,79 @@ const AdminDashboardPage: React.FC = () => {
     }
     setIsSavingLocation(false);
   };
+  const handleAddDeliveryCharge = async () => {
 
+    if (
+      !fromKm ||
+      !toKm ||
+      !chargePrice
+    ) {
+      alert("All fields required");
+      return;
+    }
+
+    try {
+
+      const payload = {
+        from_km: Number(fromKm),
+        to_km: Number(toKm),
+        charge: Number(chargePrice)
+      };
+
+      let res;
+
+      if (editId) {
+
+        res = await apiUpdateDeliveryCharge(
+          editId,
+          payload
+        );
+
+      } else {
+
+        res = await apiAddDeliveryCharge(
+          payload
+        );
+
+      }
+
+      if (res.error) {
+        alert(res.message);
+        return;
+      }
+
+      setEditId(null);
+
+      setFromKm("");
+      setToKm("");
+      setChargePrice("");
+
+      fetchDeliveryCharges();
+
+    } catch (err) {
+      console.log(err);
+    }
+
+  };
+  const handleDeleteDeliveryCharge = async (id: string) => {
+
+    if (
+      !window.confirm(
+        "Delete delivery charge?"
+      )
+    ) return;
+
+    try {
+
+      await apiDeleteDeliveryCharge(id);
+
+      fetchDeliveryCharges();
+
+    } catch (err) {
+      console.log(err);
+    }
+
+  };
   const handleDeleteLocation = async (id: string) => {
     if (!window.confirm("Delete this location?")) return;
     const res = await apiDeleteLocation(id);
@@ -552,6 +722,13 @@ const AdminDashboardPage: React.FC = () => {
       setIsLoadingRestaurants(false);
     }
   }, [currentPage, perPage]);
+  useEffect(() => {
+
+    if (activeTab === "deliveryCharges") {
+      fetchDeliveryCharges();
+    }
+
+  }, [activeTab]);
   useEffect(() => {
     // Subscribe to 'orders'
     const orderSubscription = supabase
@@ -1327,10 +1504,23 @@ const AdminDashboardPage: React.FC = () => {
             Delivery Points
           </button>
           <button
+            onClick={() =>
+              setActiveTab(
+                "deliveryCharges"
+              )
+            }
+            className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "deliveryCharges"
+              ? "border-b-2 border-cyan-400 text-cyan-400"
+              : "text-gray-400"
+              }`}
+          >
+            Delivery Charge
+          </button>
+          <button
             onClick={() => setActiveTab("webhookLogs")}
             className={`flex-shrink-0 py-2 px-4 font-semibold ${activeTab === "webhookLogs"
-                ? "border-b-2 border-cyan-400 text-cyan-400"
-                : "text-gray-400"
+              ? "border-b-2 border-cyan-400 text-cyan-400"
+              : "text-gray-400"
               }`}
           >
             Webhook Logs
@@ -1548,8 +1738,8 @@ const AdminDashboardPage: React.FC = () => {
                       </span>
                       <span
                         className={`px-2 py-0.5 text-xs font-bold rounded-full ${log.is_success
-                            ? "bg-green-900 text-green-300"
-                            : "bg-red-900 text-red-300"
+                          ? "bg-green-900 text-green-300"
+                          : "bg-red-900 text-red-300"
                           }`}
                       >
                         {log.is_success ? "✓ Success" : "✗ Failed"}
@@ -1588,6 +1778,192 @@ const AdminDashboardPage: React.FC = () => {
                 ))}
               </div>
             )}
+          </div>
+        )}
+        {activeTab === "deliveryCharges" && (
+          <div className="space-y-6">
+
+            {/* Add section */}
+            <div className="bg-gray-800 rounded-lg p-6">
+
+              <h2 className="text-xl font-bold mb-5">
+                Delivery Charge Setup
+              </h2>
+
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+
+                <input
+                  type="number"
+                  placeholder="From KM"
+                  value={fromKm}
+                  onChange={(e) =>
+                    setFromKm(e.target.value)
+                  }
+                  className="bg-gray-700 h-11 px-4 rounded-md outline-none"
+                />
+
+                <input
+                  type="number"
+                  placeholder="To KM"
+                  value={toKm}
+                  onChange={(e) =>
+                    setToKm(e.target.value)
+                  }
+                  className="bg-gray-700 h-11 px-4 rounded-md outline-none"
+                />
+
+                <input
+                  type="number"
+                  placeholder="Price"
+                  value={chargePrice}
+                  onChange={(e) =>
+                    setChargePrice(
+                      e.target.value
+                    )
+                  }
+                  className="bg-gray-700 h-11 px-4 rounded-md outline-none"
+                />
+
+                <button
+                  onClick={handleAddDeliveryCharge}
+                  className="
+    h-11
+    bg-cyan-600
+    rounded-md
+    hover:bg-cyan-700
+    font-medium
+  "
+                >
+                  {editId ? "Update Charge" : "Add Charge"}
+                </button>
+
+              </div>
+
+            </div>
+
+            {/* Table */}
+            <div className="bg-gray-800 rounded-lg overflow-hidden">
+
+              <table className="w-full">
+
+                <thead className="bg-gray-700">
+
+                  <tr>
+
+                    <th className="py-4 text-center">
+                      From
+                    </th>
+
+                    <th className="py-4 text-center">
+                      To
+                    </th>
+
+                    <th className="py-4 text-center">
+                      Price
+                    </th>
+
+                    <th className="py-4 text-center w-[150px]">
+                      Action
+                    </th>
+
+                  </tr>
+
+                </thead>
+
+                <tbody>
+
+                  {deliveryCharges.map(
+                    (item: any) => (
+
+                      <tr
+                        key={item.id}
+                        className="
+              border-t
+              border-gray-700
+              text-center
+              "
+                      >
+
+                        <td className="py-4">
+                          {item.from_km} KM
+                        </td>
+
+                        <td className="py-4">
+                          {item.to_km} KM
+                        </td>
+
+                        <td className="py-4">
+                          ₹{item.charge}
+                        </td>
+
+                        <td className="py-4">
+
+                          <div className="flex justify-center gap-2">
+
+                            <button
+                              onClick={() =>
+                                handleEditDeliveryCharge(
+                                  item
+                                )
+                              }
+                              className="
+w-8
+h-8
+rounded
+bg-cyan-600
+hover:bg-cyan-700
+flex
+items-center
+justify-center
+"
+                            >
+
+                              <Icon
+                                type="edit"
+                                className="w-4 h-4"
+                              />
+
+                            </button>
+
+                            <button
+                              onClick={() =>
+                                handleDeleteDeliveryCharge(
+                                  item.id
+                                )
+                              }
+                              className="
+w-8
+h-8
+rounded
+bg-red-600
+hover:bg-red-700
+flex
+items-center
+justify-center
+"
+                            >
+
+                              <Icon
+                                type="trash"
+                                className="w-4 h-4"
+                              />
+
+                            </button>
+
+                          </div>
+
+                        </td>
+
+                      </tr>
+
+                    ))}
+
+                </tbody>
+
+              </table>
+
+            </div>
+
           </div>
         )}
         {activeTab === "orders" && (

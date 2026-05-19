@@ -13,6 +13,7 @@ import {
   apiCancelOrderOnPaymentFailed,
   apiCheckServiceAvailability,
   apiBookRider,
+  apiGetDeliveryCharge,
 } from "../services/apiService";
 import { useOutlet } from "../context/OutletContext";
 
@@ -206,6 +207,9 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
     Record<string, any[]>
   >({});
   const [deliveryCharge, setDeliveryCharge] = useState(0);
+
+  const [deliveryDistance, setDeliveryDistance] =
+    useState(0);
   const [gstAfterDiscount, setGstAfterDiscount] = useState(0);
   const {
     items,
@@ -451,8 +455,46 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
 
           setIsAddressServiceable(true);
           setAddressError("");
+          const chargeResp =
+            await apiGetDeliveryCharge({
+
+              restaurantLat:
+                RESTAURANT_LAT,
+
+              restaurantLng:
+                RESTAURANT_LNG,
+
+              deliveryLat:
+                dropLat,
+
+              deliveryLng:
+                dropLng
+
+            });
+
+          // setDeliveryCharge(
+          //   Number(
+          //     chargeResp?.data
+          //       ?.delivery_charge || 0
+          //   )
+          // );
+
           setDeliveryCharge(
-            Number(resp?.data?.payouts?.total || resp?.payouts?.total || 0)
+
+            Number(
+              chargeResp?.data
+                ?.delivery_charge || 0
+            )
+
+          );
+
+          setDeliveryDistance(
+
+            Number(
+              chargeResp?.data
+                ?.distance_km || 0
+            )
+
           );
         } catch (err) {
           setIsAddressServiceable(false);
@@ -612,6 +654,71 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
     }
 
     const deliveryAddress = getFinalDeliveryAddress();
+    const latestChargeResp =
+      await apiGetDeliveryCharge({
+
+        restaurantLat:
+          RESTAURANT_LAT,
+
+        restaurantLng:
+          RESTAURANT_LNG,
+
+        deliveryLat:
+          deliveryAddress?.coordinates?.lat ?? 0,
+
+        deliveryLng:
+          deliveryAddress?.coordinates?.lng ?? 0
+
+      });
+
+
+    const latestCharge =
+      Number(
+        latestChargeResp?.data
+          ?.delivery_charge || 0
+      );
+
+    const latestDistance =
+      Number(
+        latestChargeResp?.data
+          ?.distance_km || 0
+      );
+
+
+    // compare with existing
+    if (
+      latestCharge !==
+      deliveryCharge
+    ) {
+
+      setDeliveryCharge(
+        latestCharge
+      );
+
+      setDeliveryDistance(
+        latestDistance
+      );
+
+
+      // snackbar
+      alert(
+        `Delivery charges revised from ${deliveryCharge <= 0
+          ? "Free"
+          : `₹${deliveryCharge}`
+        }
+to
+${latestCharge <= 0
+          ? "Free"
+          : `₹${latestCharge}`
+        }`
+      );
+
+
+      // stay on checkout
+      setIsProcessing(false);
+
+      return;
+    }
     if (!deliveryAddress) {
       alert("Please select a delivery address.");
       setView("address");
@@ -710,7 +817,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
                 created_on: getCurrentDateTime(),
                 enable_delivery: 0,
                 // callback_url: `https://cherish-rollable-anahi.ngrok-free.dev/api/petpuja/callback`,
-                  callback_url: `${BASE_URL}/petpuja/callback`,
+                callback_url: `${BASE_URL}/petpuja/callback`,
                 collect_cash: "0",
               },
             },
@@ -741,18 +848,27 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
 
                   quantity: String(i.quantity ?? "1"),
 
-                  variation_id: String(i.variation_id || ""),
-                  variation_name: String(i.variation_name || ""),
+                  variation_id: String(
+                    i.selectedVariation?.id || ""
+                  ),
+
+                  variation_name: String(
+                    i.selectedVariation?.name || ""
+                  ),
 
                   AddonItem: {
-                    details: (i.selected_addons || []).map((a: any) => ({
-                      id: String(a.id),
-                      name: String(a.name),
-                      group_id: String(a.group_id),
-                      group_name: String(a.group_name || ""),
-                      price: String(a.price),
-                      quantity: String(a.quantity),
-                    })),
+                    details: Object.values(
+                      i.selectedAddons || {}
+                    )
+                      .flat()
+                      .map((a: any) => ({
+                        id: String(a.id),
+                        name: String(a.name),
+                        group_id: String(a.group_id),
+                        group_name: String(a.group_name || ""),
+                        price: String(a.price),
+                        quantity: String(a.quantity),
+                      })),
                   },
                 };
               }),
@@ -982,7 +1098,44 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
 
       setIsAddressServiceable(true);
       setAddressError("");
-      setDeliveryCharge(Number(resp?.payouts?.total || 0));
+      const chargeResp =
+        await apiGetDeliveryCharge({
+
+          restaurantLat:
+            RESTAURANT_LAT,
+
+          restaurantLng:
+            RESTAURANT_LNG,
+
+          deliveryLat:
+            lat,
+
+          deliveryLng:
+            lng
+
+        });
+
+      setDeliveryCharge(
+
+        Number(
+          chargeResp?.data
+            ?.delivery_charge || 0
+        )
+
+      );
+
+      setDeliveryDistance(
+
+        Number(
+          chargeResp?.data
+            ?.distance_km || 0
+        )
+
+      );
+
+
+
+
 
       return true;
     } catch (error) {
@@ -1526,12 +1679,48 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, brandId, restaur
                 <span>GST</span>
                 <span>+ ₹{gstAfterDiscount.toFixed(2)}</span>
               </div>
+              {view === "checkout" && (
 
-              {view === "checkout" && deliveryCharge > 0 && (
-                <div className="flex justify-between text-gray-300">
-                  <span>Delivery Charges</span>
-                  <span>₹{deliveryCharge.toFixed(2)}</span>
-                </div>
+                <>
+
+                  <div className="
+flex
+justify-between
+text-gray-300
+">
+
+                    <span>
+                      Distance
+                    </span>
+
+                    <span>
+                      {deliveryDistance.toFixed(1)} KM
+                    </span>
+
+                  </div>
+
+                  <div className="
+flex
+justify-between
+text-gray-300
+">
+
+                    <span>
+                      Delivery Charges
+                    </span>
+
+                    <span>
+
+                      {deliveryCharge <= 0
+                        ? "Free"
+                        : `₹${deliveryCharge.toFixed(2)}`}
+
+                    </span>
+
+                  </div>
+
+                </>
+
               )}
 
               <div className="flex justify-between text-white font-bold text-lg border-t border-gray-700 pt-2 mt-2">

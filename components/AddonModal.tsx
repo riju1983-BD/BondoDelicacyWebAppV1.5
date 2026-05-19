@@ -36,23 +36,34 @@ const AddonModal: React.FC<Props> = ({ item, onClose, onConfirm }) => {
     Record<string, SelectedAddon[]>
   >({});
 
-  const currentAddonGroups = useMemo<AddonGroup[]>(() => {
-    if (Array.isArray(item.addons) && item.addons.length > 0) {
-      return item.addons;
-    }
+ const currentAddonGroups = useMemo<AddonGroup[]>(() => {
+  /**
+   * 1. VARIATION LEVEL ADDONS
+   * Highest priority
+   */
+  if (
+    selectedVariation?.addons &&
+    Array.isArray(selectedVariation.addons) &&
+    selectedVariation.addons.length > 0
+  ) {
+    return selectedVariation.addons;
+  }
 
-    if (!selectedVariation?.addon || !Array.isArray(item.addons)) {
-      return [];
-    }
+  /**
+   * 2. FALLBACK TO ITEM LEVEL ADDONS
+   */
+  if (
+    Array.isArray(item.addons) &&
+    item.addons.length > 0
+  ) {
+    return item.addons;
+  }
 
-    const addonGroupIds = selectedVariation.addon.map(
-      (ref: any) => ref.addon_group_id,
-    );
-
-    return item.addons.filter((group) =>
-      addonGroupIds.includes(group.addon_group_id),
-    );
-  }, [item.addons, selectedVariation]);
+  /**
+   * 3. NO ADDONS
+   */
+  return [];
+}, [item.addons, selectedVariation]);
 
   const basePrice = useMemo<number>(() => {
     const itemPrice = Number(item.price || 0);

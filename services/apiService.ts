@@ -48,7 +48,86 @@ export const apiAddBrand = async (payload: BrandPayload) => {
 
   return res.json();
 };
+// ==========================
+// 🚚 DELIVERY CHARGES API
+// ==========================
 
+export const apiGetDeliveryCharges = async (
+  page = 1,
+  perPage = 100
+) => {
+  const res = await fetch(
+    `${BASE_URL}/delivery-charge?page=${page}&per_page=${perPage}`
+  );
+
+  return res.json();
+};
+
+export const apiGetDeliveryChargeById = async (
+  id: string
+) => {
+  const res = await fetch(
+    `${BASE_URL}/delivery-charge/${id}`
+  );
+
+  return res.json();
+};
+
+export const apiAddDeliveryCharge = async (payload: {
+  from_km: number;
+  to_km: number;
+  charge: number;
+  is_active?: boolean;
+}) => {
+  const res = await fetch(
+    `${BASE_URL}/delivery-charge`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    }
+  );
+
+  return res.json();
+};
+
+export const apiUpdateDeliveryCharge = async (
+  id: string,
+  payload: Partial<{
+    from_km: number;
+    to_km: number;
+    charge: number;
+    is_active: boolean;
+  }>
+) => {
+  const res = await fetch(
+    `${BASE_URL}/delivery-charge/${id}`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    }
+  );
+
+  return res.json();
+};
+
+export const apiDeleteDeliveryCharge = async (
+  id: string
+) => {
+  const res = await fetch(
+    `${BASE_URL}/delivery-charge/${id}`,
+    {
+      method: "DELETE",
+    }
+  );
+
+  return res.json();
+};
 export const apiUpdateBrand = async (
   id: string,
   payload: Partial<BrandPayload>
@@ -181,7 +260,7 @@ export async function apiAddBrandOutlet(payload: {
   });
   return res.json();
 }
- export async function apiGetBrandsWithOutlet(coords?: { lat: number; lng: number }) {
+export async function apiGetBrandsWithOutlet(coords?: { lat: number; lng: number }) {
   const params = coords ? `?lat=${coords.lat}&lng=${coords.lng}` : "";
   const res = await fetch(`${BASE_URL}/brand/with-outlets${params}`);
   return res.json();
@@ -193,7 +272,36 @@ export async function apiRemoveBrandOutlet(brandOutletId: string) {
   });
   return res.json();
 }
- // ==========================
+// ==========================
+// 🚚 CALCULATE DELIVERY CHARGE
+// ==========================
+export const apiGetDeliveryCharge =
+  async (payload: {
+    restaurantLat: number;
+    restaurantLng: number;
+    deliveryLat: number;
+    deliveryLng: number;
+  }) => {
+
+    const res =
+      await fetch(
+        `${BASE_URL}/delivery-charge/delivery-charge`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/json"
+          },
+          body: JSON.stringify(
+            payload
+          )
+        }
+      );
+
+    return res.json();
+
+  };
+// ==========================
 // 📦 DELIVERY POINTS API
 // ==========================
 export const apiGetMenuWebhookLogs = async () => {
@@ -231,7 +339,7 @@ export async function apiGetOutletsByBrand(
   );
   return res.json();
 }
- 
+
 // GET /brand-outlet  — All brand_outlets grouped by brand
 export async function apiGetAllBrandOutlets() {
   const res = await fetch(`${BASE_URL}/brand-outlet`);

@@ -374,7 +374,7 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
   const [isMenuChanging, setIsMenuChanging] = useState(false);
   const [isInitialMenuLoading, setIsInitialMenuLoading] = useState(true);
 
-const { addItem, switchRestaurant, clearCart } = useCart();
+  const { addItem, switchRestaurant, clearCart } = useCart();
   const { currentUser } = useAuth();
   // Handle landing on hash sections after refresh (#terms, #refund, etc.)
   useEffect(() => {
@@ -1038,10 +1038,125 @@ const { addItem, switchRestaurant, clearCart } = useCart();
                                   alt={item.itemname}
                                 />
                                 {!isAvailable && (
-                                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                                  <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center text-center px-4">
                                     <span className="bg-red-600 px-3 py-1 text-white rounded-md font-semibold">
                                       Out of Stock
                                     </span>
+
+                                    {item.turn_on_time &&
+                                      (() => {
+                                        const turnOnDate = new Date(
+                                          item.turn_on_time,
+                                        );
+
+                                        const now = new Date();
+
+                                        /* -----------------------------
+                                           Convert to IST date strings
+                                        ----------------------------- */
+
+                                        const turnOnDateIST =
+                                          turnOnDate.toLocaleDateString(
+                                            "en-IN",
+                                            {
+                                              timeZone:
+                                                "Asia/Kolkata",
+                                            },
+                                          );
+
+                                        const todayIST =
+                                          now.toLocaleDateString(
+                                            "en-IN",
+                                            {
+                                              timeZone:
+                                                "Asia/Kolkata",
+                                            },
+                                          );
+
+                                        const tomorrow = new Date();
+
+                                        tomorrow.setDate(
+                                          tomorrow.getDate() + 1,
+                                        );
+
+                                        const tomorrowIST =
+                                          tomorrow.toLocaleDateString(
+                                            "en-IN",
+                                            {
+                                              timeZone:
+                                                "Asia/Kolkata",
+                                            },
+                                          );
+
+                                        const isToday =
+                                          turnOnDateIST === todayIST;
+
+                                        const isTomorrow =
+                                          turnOnDateIST ===
+                                          tomorrowIST;
+
+                                        let formattedText = "";
+
+                                        /* -----------------------------
+                                           Time formatter
+                                        ----------------------------- */
+
+                                        const formattedTime =
+                                          turnOnDate.toLocaleTimeString(
+                                            "en-IN",
+                                            {
+                                              timeZone:
+                                                "Asia/Kolkata",
+
+                                              hour: "numeric",
+
+                                              minute: "2-digit",
+
+                                              hour12: true,
+                                            },
+                                          );
+
+                                        /* -----------------------------
+                                           Display logic
+                                        ----------------------------- */
+
+                                        if (isToday) {
+                                          formattedText =
+                                            formattedTime;
+                                        } else if (isTomorrow) {
+                                          formattedText = `Tomorrow, ${formattedTime}`;
+                                        } else {
+                                          formattedText =
+                                            turnOnDate.toLocaleString(
+                                              "en-IN",
+                                              {
+                                                timeZone:
+                                                  "Asia/Kolkata",
+
+                                                day: "numeric",
+
+                                                month: "short",
+
+                                                hour: "numeric",
+
+                                                minute: "2-digit",
+
+                                                hour12: true,
+                                              },
+                                            );
+                                        }
+
+                                        return (
+                                          <p className="text-white text-sm mt-3 leading-relaxed">
+                                            Next available at
+                                            <br />
+
+                                            <span className="font-semibold text-yellow-300">
+                                              {formattedText}
+                                            </span>
+                                          </p>
+                                        );
+                                      })()}
                                   </div>
                                 )}
                               </div>
