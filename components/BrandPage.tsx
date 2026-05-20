@@ -91,6 +91,7 @@ const ChefRecommenderModal: React.FC<{
   const [recommendation, setRecommendation] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+const [currentTime, setCurrentTime] = useState(Date.now());
 
   const handleGetRecommendation = async () => {
     if (!preferences.trim()) {
@@ -376,6 +377,15 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
 
   const { addItem, switchRestaurant, clearCart } = useCart();
   const { currentUser } = useAuth();
+  const [currentTime, setCurrentTime] = useState(Date.now());
+
+useEffect(() => {
+  const timer = setInterval(() => {
+    setCurrentTime(Date.now());
+  }, 1000);
+
+  return () => clearInterval(timer);
+}, []);
   // Handle landing on hash sections after refresh (#terms, #refund, etc.)
   useEffect(() => {
     const scrollToHash = () => {
@@ -519,10 +529,18 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
 
   useEffect(() => {
     if (!restId || !activeCategory) return;
+
     const refreshCurrentCategory = async () => {
       try {
-        const currentCat = categories.find((c) => c.id === activeCategory);
-        const items = await apiGetMenu(restId, activeCategory);
+        const currentCat = categories.find(
+          (c) => c.id === activeCategory
+        );
+
+        const items = await apiGetMenu(
+          restId,
+          activeCategory
+        );
+
         setMenuData([
           {
             category: currentCat?.name || "Menu",
@@ -530,19 +548,24 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
             items,
           },
         ]);
-      } catch { }
+      } catch (err) {
+        console.log(err);
+      }
     };
-    const onFocus = () => refreshCurrentCategory();
-    const onVisibility = () => {
-      if (document.visibilityState === "visible") refreshCurrentCategory();
-    };
-    window.addEventListener("focus", onFocus);
-    document.addEventListener("visibilitychange", onVisibility);
+
+    // initial load
+    refreshCurrentCategory();
+
+    // auto refresh every 5 sec
+    const interval = setInterval(() => {
+      refreshCurrentCategory();
+    }, 5000);
+
     return () => {
-      window.removeEventListener("focus", onFocus);
-      document.removeEventListener("visibilitychange", onVisibility);
+      clearInterval(interval);
     };
-  }, [restId, activeCategory, categories]);
+
+  }, [restId, activeCategory]);
 
   const handleCategoryChange = async (cat: any) => {
     setActiveCategory(cat.id);
@@ -1023,9 +1046,18 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
                       </h4>
                       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
                         {category.items.map((item: any) => {
+                         const now = new Date(currentTime);
+
+                          const turnOnTime = item.turn_on_time
+                            ? new Date(item.turn_on_time + "Z")
+                            : null;
+
+                          const autoAvailable =
+                            !turnOnTime || now >= turnOnTime;
+
                           const isAvailable =
                             String(item.active) === "1" &&
-                            String(item.in_stock) !== "0";
+                            autoAvailable;
                           return (
                             <div
                               key={item.itemid}
@@ -1039,66 +1071,70 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
                                 />
                                 {!isAvailable && (
                                   <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center text-center px-4">
+
                                     <span className="bg-red-600 px-3 py-1 text-white rounded-md font-semibold">
                                       Out of Stock
                                     </span>
 
                                     {item.turn_on_time &&
                                       (() => {
+
+                                        /* -----------------------------
+                                           DB time is UTC
+                                           Example:
+                                           2026-05-20 09:10:56.974647
+                                        ----------------------------- */
+
                                         const turnOnDate = new Date(
-                                          item.turn_on_time,
+                                          item.turn_on_time + "Z"
                                         );
 
                                         const now = new Date();
-
-                                        /* -----------------------------
-                                           Convert to IST date strings
-                                        ----------------------------- */
 
                                         const turnOnDateIST =
                                           turnOnDate.toLocaleDateString(
                                             "en-IN",
                                             {
-                                              timeZone:
-                                                "Asia/Kolkata",
-                                            },
+                                              timeZone: "Asia/Kolkata"
+                                            }
                                           );
 
                                         const todayIST =
                                           now.toLocaleDateString(
                                             "en-IN",
                                             {
-                                              timeZone:
-                                                "Asia/Kolkata",
-                                            },
+                                              timeZone: "Asia/Kolkata"
+                                            }
                                           );
 
-                                        const tomorrow = new Date();
+                                        const tomorrow =
+                                          new Date();
 
                                         tomorrow.setDate(
-                                          tomorrow.getDate() + 1,
+                                          tomorrow.getDate() + 1
                                         );
 
                                         const tomorrowIST =
                                           tomorrow.toLocaleDateString(
                                             "en-IN",
                                             {
-                                              timeZone:
-                                                "Asia/Kolkata",
-                                            },
+                                              timeZone: "Asia/Kolkata"
+                                            }
                                           );
 
                                         const isToday =
-                                          turnOnDateIST === todayIST;
+                                          turnOnDateIST ===
+                                          todayIST;
 
                                         const isTomorrow =
                                           turnOnDateIST ===
                                           tomorrowIST;
 
-                                        let formattedText = "";
+                                        let formattedText =
+                                          "";
 
                                         /* -----------------------------
-                                           Time formatter
+                                           Format IST time
                                         ----------------------------- */
 
                                         const formattedTime =
@@ -1108,12 +1144,15 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
                                               timeZone:
                                                 "Asia/Kolkata",
 
-                                              hour: "numeric",
+                                              hour:
+                                                "numeric",
 
-                                              minute: "2-digit",
+                                              minute:
+                                                "2-digit",
 
-                                              hour12: true,
-                                            },
+                                              hour12:
+                                                true,
+                                            }
                                           );
 
                                         /* -----------------------------
@@ -1121,11 +1160,19 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
                                         ----------------------------- */
 
                                         if (isToday) {
+
                                           formattedText =
                                             formattedTime;
-                                        } else if (isTomorrow) {
-                                          formattedText = `Tomorrow, ${formattedTime}`;
+
+                                        } else if (
+                                          isTomorrow
+                                        ) {
+
+                                          formattedText =
+                                            `Tomorrow, ${formattedTime}`;
+
                                         } else {
+
                                           formattedText =
                                             turnOnDate.toLocaleString(
                                               "en-IN",
@@ -1133,16 +1180,21 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
                                                 timeZone:
                                                   "Asia/Kolkata",
 
-                                                day: "numeric",
+                                                day:
+                                                  "numeric",
 
-                                                month: "short",
+                                                month:
+                                                  "short",
 
-                                                hour: "numeric",
+                                                hour:
+                                                  "numeric",
 
-                                                minute: "2-digit",
+                                                minute:
+                                                  "2-digit",
 
-                                                hour12: true,
-                                              },
+                                                hour12:
+                                                  true,
+                                              }
                                             );
                                         }
 
@@ -1156,7 +1208,9 @@ const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
                                             </span>
                                           </p>
                                         );
+
                                       })()}
+
                                   </div>
                                 )}
                               </div>
