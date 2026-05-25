@@ -92,6 +92,7 @@ const AdminDashboardPage: React.FC = () => {
     | "deliveryCharges"
     | "webhookLogs"
   >("menu");
+  const [selectedWebhookLog, setSelectedWebhookLog] = useState<any | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
   const [deliveryCharges, setDeliveryCharges] = useState<any[]>([]);
   const [fromKm, setFromKm] = useState("");
@@ -108,6 +109,37 @@ const AdminDashboardPage: React.FC = () => {
     location_id: "",
     outlet_id: ""
   });
+  const WebhookLogBlock: React.FC<{ label: string; value: any }> = ({ label, value }) => {
+  const [copied, setCopied] = React.useState(false);
+  const text = value ? JSON.stringify(value, null, 2) : null;
+
+  const handleCopy = () => {
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1">
+        <p className="text-xs text-gray-500">{label}</p>
+        {text && (
+          <button
+            onClick={handleCopy}
+            className="text-xs text-cyan-400 hover:underline"
+          >
+            {copied ? "✓ Copied" : "Copy"}
+          </button>
+        )}
+      </div>
+      <pre className="text-xs bg-gray-800 text-gray-300 p-3 rounded-lg overflow-auto max-h-52 whitespace-pre-wrap break-all border border-gray-700">
+        {text ?? "—"}
+      </pre>
+    </div>
+  );
+};
   const [showDeliveryModal, setShowDeliveryModal] = useState(false);
   const [selectedDelivery, setSelectedDelivery] = useState<{
     name?: string;
@@ -1702,84 +1734,144 @@ const AdminDashboardPage: React.FC = () => {
             )}
           </div>
         )}
-        {activeTab === "webhookLogs" && (
-          <div className="animate-fade-in">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-semibold text-white">
-                Last 10 Webhook Hits
-              </h2>
-              <span className="flex items-center gap-2 text-xs text-green-400">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                </span>
-                Live
+      {activeTab === "webhookLogs" && (
+  <div className="animate-fade-in">
+
+    {/* ── Header ── */}
+    <div className="flex justify-between items-center mb-5">
+      <h2 className="text-lg font-semibold text-white">Webhook Logs</h2>
+      <button
+        onClick={fetchWebhookLogs}
+        className="text-xs text-cyan-400 hover:underline"
+      >
+        ↻ Refresh
+      </button>
+    </div>
+
+    {/* ── List ── */}
+    {isLoadingWebhookLogs ? (
+      <div className="flex justify-center p-8">
+        <Spinner className="w-8 h-8" />
+      </div>
+    ) : webhookLogs.length === 0 ? (
+      <p className="text-center text-gray-400 py-8">No webhook hits yet.</p>
+    ) : (
+      <div className="space-y-2">
+        {webhookLogs.map((log) => (
+          <button
+            key={log.id}
+            onClick={() => setSelectedWebhookLog(log)}
+            className="w-full text-left bg-gray-800 hover:bg-gray-750 border border-gray-700 rounded-lg px-4 py-3 flex items-center gap-4 transition-colors hover:border-gray-600"
+          >
+            {/* Status pill */}
+            <span
+              className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-bold ${
+                log.is_success === true
+                  ? "bg-green-900 text-green-300"
+                  : log.is_success === false
+                  ? "bg-red-900 text-red-300"
+                  : "bg-yellow-900 text-yellow-300"
+              }`}
+            >
+              {log.is_success === true
+                ? "✓ Success"
+                : log.is_success === false
+                ? "✗ Failed"
+                : "⏳ Processing"}
+            </span>
+
+            {/* URL */}
+            <span className="flex-1 text-xs font-mono text-cyan-400 truncate">
+              {log.request_url}
+            </span>
+
+            {/* Date / time */}
+            <span className="shrink-0 text-xs text-gray-400">
+              {new Date(log.created_at).toLocaleString()}
+            </span>
+
+            {/* Chevron */}
+            <span className="shrink-0 text-gray-500 text-sm">›</span>
+          </button>
+        ))}
+      </div>
+    )}
+
+    {/* ── Detail Modal ── */}
+    {selectedWebhookLog && (
+      <div
+        className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4"
+        onClick={() => setSelectedWebhookLog(null)}
+      >
+        <div
+          className="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-2xl shadow-2xl max-h-[85vh] flex flex-col"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Modal header */}
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700">
+            <div className="flex items-center gap-3">
+              <span
+                className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                  selectedWebhookLog.is_success === true
+                    ? "bg-green-900 text-green-300"
+                    : selectedWebhookLog.is_success === false
+                    ? "bg-red-900 text-red-300"
+                    : "bg-yellow-900 text-yellow-300"
+                }`}
+              >
+                {selectedWebhookLog.is_success === true
+                  ? "✓ Success"
+                  : selectedWebhookLog.is_success === false
+                  ? "✗ Failed"
+                  : "⏳ Processing"}
+              </span>
+              <span className="text-xs text-gray-400">
+                {new Date(selectedWebhookLog.created_at).toLocaleString()}
               </span>
             </div>
+            <button
+              onClick={() => setSelectedWebhookLog(null)}
+              className="text-gray-400 hover:text-white text-xl leading-none"
+            >
+              ✕
+            </button>
+          </div>
 
-            {isLoadingWebhookLogs ? (
-              <div className="flex justify-center p-8">
-                <Spinner className="w-8 h-8" />
-              </div>
-            ) : webhookLogs.length === 0 ? (
-              <p className="text-center text-gray-400 py-8">No webhook hits yet.</p>
-            ) : (
-              <div className="space-y-3 max-h-[65vh] overflow-y-auto pr-1">
-                {webhookLogs.map((log) => (
-                  <div
-                    key={log.id}
-                    className={`bg-gray-800 rounded-lg border p-4 space-y-2 ${log.is_success ? "border-green-700" : "border-red-800"
-                      }`}
-                  >
-                    {/* Header row */}
-                    <div className="flex items-center justify-between flex-wrap gap-2">
-                      <span className="font-mono text-xs text-cyan-400">
-                        #{log.id}
-                      </span>
-                      <span
-                        className={`px-2 py-0.5 text-xs font-bold rounded-full ${log.is_success
-                          ? "bg-green-900 text-green-300"
-                          : "bg-red-900 text-red-300"
-                          }`}
-                      >
-                        {log.is_success ? "✓ Success" : "✗ Failed"}
-                      </span>
-                      <span className="text-xs text-gray-400 ml-auto">
-                        {new Date(log.created_at).toLocaleString()}
-                      </span>
-                    </div>
+          {/* Modal body — scrollable */}
+          <div className="overflow-y-auto flex-1 px-6 py-5 space-y-5">
 
-                    {/* URL */}
-                    <p className="text-xs text-gray-300 font-mono truncate">
-                      <span className="text-gray-500">URL: </span>
-                      {log.request_url}
-                    </p>
+            {/* URL + message */}
+            <div>
+              <p className="text-xs text-gray-500 mb-1">Endpoint</p>
+              <p className="text-sm font-mono text-cyan-400 break-all">
+                {selectedWebhookLog.request_url}
+              </p>
+            </div>
 
-                    {/* Request / Response bodies */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div>
-                        <p className="text-xs text-gray-500 mb-1">Request Body</p>
-                        <pre className="text-xs bg-gray-900 text-gray-300 p-2 rounded max-h-32 overflow-auto whitespace-pre-wrap break-all">
-                          {log.request_body
-                            ? JSON.stringify(log.request_body, null, 2)
-                            : "—"}
-                        </pre>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500 mb-1">Response Body</p>
-                        <pre className="text-xs bg-gray-900 text-gray-300 p-2 rounded max-h-32 overflow-auto whitespace-pre-wrap break-all">
-                          {log.response_body
-                            ? JSON.stringify(log.response_body, null, 2)
-                            : "—"}
-                        </pre>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+            {selectedWebhookLog.message && (
+              <div>
+                <p className="text-xs text-gray-500 mb-1">Message</p>
+                <p className="text-sm text-gray-300">{selectedWebhookLog.message}</p>
               </div>
             )}
+
+            {/* Request body */}
+            <WebhookLogBlock
+              label="Request Body"
+              value={selectedWebhookLog.request_body}
+            />
+
+            {/* Response body */}
+            <WebhookLogBlock
+              label="Response Body"
+              value={selectedWebhookLog.response_body}
+            />
           </div>
-        )}
+        </div>
+      </div>
+    )}
+  </div>
+)}
         {activeTab === "deliveryCharges" && (
           <div className="space-y-6">
 

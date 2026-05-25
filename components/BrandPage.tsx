@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { MenuCategory, CartItem, RestaurantTable } from "../types";
 import { Icon } from "./Icon";
 import { useCart } from "../context/CartContext";
@@ -29,9 +29,9 @@ const buildCartKey = (item: any) => {
   const addonPart =
     addonsArray.length > 0
       ? addonsArray
-        .map((a: any) => `${a.id}:${a.quantity}`)
-        .sort()
-        .join("|")
+          .map((a: any) => `${a.id}:${a.quantity}`)
+          .sort()
+          .join("|")
       : "no-addons";
   return `${item.itemid}__${variationPart}__${addonPart}`;
 };
@@ -91,7 +91,6 @@ const ChefRecommenderModal: React.FC<{
   const [recommendation, setRecommendation] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-const [currentTime, setCurrentTime] = useState(Date.now());
 
   const handleGetRecommendation = async () => {
     if (!preferences.trim()) {
@@ -131,9 +130,7 @@ const [currentTime, setCurrentTime] = useState(Date.now());
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-xl font-bold text-white">
-            Chef's Recommendation
-          </h3>
+          <h3 className="text-xl font-bold text-white">Chef's Recommendation</h3>
           <button onClick={onClose}>
             <Icon type="x" className="w-6 h-6 text-gray-400 hover:text-white" />
           </button>
@@ -214,6 +211,7 @@ const CartIcon: React.FC<{ onClick: () => void }> = ({ onClick }) => {
     </>
   );
 };
+
 // ─── Table Map ───────────────────────────────────────────────────────────────
 
 const TableMap: React.FC<{
@@ -231,24 +229,21 @@ const TableMap: React.FC<{
     <>
       <div className="flex gap-4 text-xs text-gray-400 mb-3">
         <span className="flex items-center gap-1">
-          <span className="w-3 h-3 rounded-full bg-green-500 inline-block" />{" "}
-          Available
+          <span className="w-3 h-3 rounded-full bg-green-500 inline-block" /> Available
         </span>
         <span className="flex items-center gap-1">
-          <span className="w-3 h-3 rounded-full bg-red-500 inline-block" />{" "}
-          Booked
+          <span className="w-3 h-3 rounded-full bg-red-500 inline-block" /> Booked
         </span>
         <span className="flex items-center gap-1">
-          <span className="w-3 h-3 rounded-full bg-yellow-600 inline-block" />{" "}
-          Too Small
+          <span className="w-3 h-3 rounded-full bg-yellow-600 inline-block" /> Too Small
         </span>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-2">
         {tables.map((table) => {
           const isAvailable = table._status === "available";
-          const isBooked = table._status === "booked";
-          const isTooSmall = table._status === "too_small";
-          const isSelected = selectedTableId === table.id && isAvailable;
+          const isBooked    = table._status === "booked";
+          const isTooSmall  = table._status === "too_small";
+          const isSelected  = selectedTableId === table.id && isAvailable;
           return (
             <button
               key={table.id}
@@ -256,40 +251,34 @@ const TableMap: React.FC<{
               disabled={!isAvailable}
               onClick={() => isAvailable && onSelect(table.id)}
               className={`p-4 rounded-lg border-2 flex flex-col items-center justify-center transition-all relative
-                ${isBooked ? "opacity-60 cursor-not-allowed border-red-500 bg-red-900/20" : ""}
+                ${isBooked   ? "opacity-60 cursor-not-allowed border-red-500 bg-red-900/20"       : ""}
                 ${isTooSmall ? "opacity-60 cursor-not-allowed border-yellow-700 bg-yellow-900/10" : ""}
-                ${isSelected ? "border-green-500 bg-green-900/20 scale-105 shadow-lg" : ""}
+                ${isSelected ? "border-green-500 bg-green-900/20 scale-105 shadow-lg"             : ""}
                 ${isAvailable && !isSelected ? "border-gray-600 bg-gray-800 hover:border-green-500 hover:bg-gray-700" : ""}
               `}
             >
               <span
-                className={`absolute top-2 right-2 w-2.5 h-2.5 rounded-full ${isBooked ? "bg-red-500" : isTooSmall ? "bg-yellow-600" : isSelected ? "bg-[var(--accent-color)]" : "bg-green-500"}`}
+                className={`absolute top-2 right-2 w-2.5 h-2.5 rounded-full ${
+                  isBooked   ? "bg-red-500"            :
+                  isTooSmall ? "bg-yellow-600"         :
+                  isSelected ? "bg-[var(--accent-color)]" :
+                               "bg-green-500"
+                }`}
               />
               <Icon
                 type="users"
-                className={`w-8 h-8 mb-2 ${isBooked ? "text-red-400" : isTooSmall ? "text-yellow-600" : isSelected ? "text-[var(--accent-color)]" : "text-green-400"}`}
+                className={`w-8 h-8 mb-2 ${
+                  isBooked   ? "text-red-400"              :
+                  isTooSmall ? "text-yellow-600"           :
+                  isSelected ? "text-[var(--accent-color)]" :
+                               "text-green-400"
+                }`}
               />
-              <span className="font-semibold text-white text-sm">
-                {table.name}
-              </span>
-              <span className="text-xs text-gray-400">
-                {table.capacity} Seats
-              </span>
-              {isBooked && (
-                <span className="mt-1 text-xs text-red-400 font-semibold">
-                  Booked
-                </span>
-              )}
-              {isTooSmall && (
-                <span className="mt-1 text-xs text-yellow-500 font-semibold">
-                  Too Small
-                </span>
-              )}
-              {isSelected && (
-                <span className="mt-1 text-xs text-[var(--accent-color)] font-semibold">
-                  Selected ✓
-                </span>
-              )}
+              <span className="font-semibold text-white text-sm">{table.name}</span>
+              <span className="text-xs text-gray-400">{table.capacity} Seats</span>
+              {isBooked   && <span className="mt-1 text-xs text-red-400 font-semibold">Booked</span>}
+              {isTooSmall && <span className="mt-1 text-xs text-yellow-500 font-semibold">Too Small</span>}
+              {isSelected && <span className="mt-1 text-xs text-[var(--accent-color)] font-semibold">Selected ✓</span>}
             </button>
           );
         })}
@@ -306,14 +295,7 @@ const MobileDrawer: React.FC<{
   onNavigate: (id: string) => void;
 }> = ({ open, onClose, onNavigate }) => {
   if (!open) return null;
-  const items = [
-    "home",
-    "about",
-    "menu",
-    "contact",
-    // "Privacy Policy",
-    // "refund policies",
-  ];
+  const items = ["home", "about", "menu", "contact"];
   return (
     <div className="fixed inset-0 z-[60] md:hidden">
       <div className="absolute inset-0 bg-black/60" onClick={onClose} />
@@ -327,10 +309,7 @@ const MobileDrawer: React.FC<{
           {items.map((item) => (
             <li key={item}>
               <button
-                onClick={() => {
-                  onNavigate(item);
-                  onClose();
-                }}
+                onClick={() => { onNavigate(item); onClose(); }}
                 className="capitalize text-gray-300 hover:text-[var(--accent-color)] text-lg"
               >
                 {item}
@@ -343,6 +322,57 @@ const MobileDrawer: React.FC<{
   );
 };
 
+// ─── Turn-on countdown display ───────────────────────────────────────────────
+
+const TurnOnDisplay: React.FC<{ turnOnTime: string; currentTime: number }> = ({
+  turnOnTime,
+  currentTime,
+}) => {
+  const turnOnDate = new Date(turnOnTime); // UTC from DB
+  const now        = new Date(currentTime);
+
+  const turnOnDateIST = turnOnDate.toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" });
+  const todayIST      = now.toLocaleDateString("en-IN",        { timeZone: "Asia/Kolkata" });
+  const tomorrow      = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowIST   = tomorrow.toLocaleDateString("en-IN",   { timeZone: "Asia/Kolkata" });
+
+  const isToday    = turnOnDateIST === todayIST;
+  const isTomorrow = turnOnDateIST === tomorrowIST;
+
+  const formattedTime = turnOnDate.toLocaleTimeString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    hour:     "numeric",
+    minute:   "2-digit",
+    hour12:   true,
+  });
+
+  let formattedText = "";
+
+  if (isToday) {
+    formattedText = formattedTime;
+  } else if (isTomorrow) {
+    formattedText = `Tomorrow, ${formattedTime}`;
+  } else {
+    formattedText = turnOnDate.toLocaleString("en-IN", {
+      timeZone: "Asia/Kolkata",
+      day:      "numeric",
+      month:    "short",
+      hour:     "numeric",
+      minute:   "2-digit",
+      hour12:   true,
+    });
+  }
+
+  return (
+    <p className="text-white text-sm mt-3 leading-relaxed">
+      Next available at
+      <br />
+      <span className="font-semibold text-yellow-300">{formattedText}</span>
+    </p>
+  );
+};
+
 // ─── BrandPage ───────────────────────────────────────────────────────────────
 
 interface BrandPageProps {
@@ -352,134 +382,98 @@ interface BrandPageProps {
 const BrandPage: React.FC<BrandPageProps> = ({ onBack }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const id = localStorage.getItem("selectedRestaurantId") || "";
-  const restId = localStorage.getItem("selectedPetpoojaOutletId") || "";
-  const outletid = localStorage.getItem("SelectedOuletId") || "";
+  const id       = localStorage.getItem("selectedRestaurantId")    || "";
+  const restId   = localStorage.getItem("selectedPetpoojaOutletId") || "";
+  const outletid = localStorage.getItem("SelectedOuletId")          || "";
 
   const dateInputRef = React.useRef<HTMLInputElement>(null);
 
-  const [restaurant, setRestaurant] = useState<any>(null);
-  const [restaurantLoading, setRestaurantLoading] = useState(true);
-  const [restaurantError, setRestaurantError] = useState<string>("");
-  const [maxCapacity, setMaxCapacity] = useState<number>(8);
-  const [menuData, setMenuData] = useState<MenuCategory[]>([]);
-  const [activeCategory, setActiveCategory] = useState<string>("");
-  const [isRecommenderOpen, setIsRecommenderOpen] = useState(false);
-  const [isCartOpen, setIsCartOpen] = useState(false);
-  const [addonItem, setAddonItem] = useState<
-    EnrichedItemData | ItemData | null
-  >(null);
-  const [isAddonModalOpen, setIsAddonModalOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [categories, setCategories] = useState<any[]>([]);
-  const [isMenuChanging, setIsMenuChanging] = useState(false);
+  const [restaurant,           setRestaurant]           = useState<any>(null);
+  const [restaurantLoading,    setRestaurantLoading]    = useState(true);
+  const [restaurantError,      setRestaurantError]      = useState<string>("");
+  const [maxCapacity,          setMaxCapacity]          = useState<number>(8);
+  const [menuData,             setMenuData]             = useState<MenuCategory[]>([]);
+  const [activeCategory,       setActiveCategory]       = useState<string>("");
+  const [isRecommenderOpen,    setIsRecommenderOpen]    = useState(false);
+  const [isCartOpen,           setIsCartOpen]           = useState(false);
+  const [addonItem,            setAddonItem]            = useState<EnrichedItemData | ItemData | null>(null);
+  const [isAddonModalOpen,     setIsAddonModalOpen]     = useState(false);
+  const [searchQuery,          setSearchQuery]          = useState("");
+  const [categories,           setCategories]           = useState<any[]>([]);
+  const [isMenuChanging,       setIsMenuChanging]       = useState(false);
   const [isInitialMenuLoading, setIsInitialMenuLoading] = useState(true);
 
-  const { addItem, switchRestaurant, clearCart } = useCart();
-  const { currentUser } = useAuth();
+  /* ── Tick every second for countdown display ── */
   const [currentTime, setCurrentTime] = useState(Date.now());
 
-useEffect(() => {
-  const timer = setInterval(() => {
-    setCurrentTime(Date.now());
-  }, 1000);
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
-  return () => clearInterval(timer);
-}, []);
-  // Handle landing on hash sections after refresh (#terms, #refund, etc.)
+  const { addItem, switchRestaurant } = useCart();
+  const { currentUser } = useAuth();
+
+  // ── Scroll to hash on load ──
   useEffect(() => {
     const scrollToHash = () => {
       const hash = window.location.hash.replace("#", "");
       if (!hash) return;
-
-      // wait for React render
       setTimeout(() => {
-        const element = document.getElementById(hash);
-        if (element) {
-          element.scrollIntoView({ behavior: "smooth" });
-        }
+        document.getElementById(hash)?.scrollIntoView({ behavior: "smooth" });
       }, 200);
     };
-
-    // run on first load
     scrollToHash();
-
-    // run when hash changes
     window.addEventListener("hashchange", scrollToHash);
-
-    return () => {
-      window.removeEventListener("hashchange", scrollToHash);
-    };
+    return () => window.removeEventListener("hashchange", scrollToHash);
   }, []);
+
   useEffect(() => {
     if (id) switchRestaurant(id);
   }, [restId]);
 
   const [resStep, setResStep] = useState<1 | 2 | 3 | 4>(1);
   const [resForm, setResForm] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    date: "",
-    time: "",
-    end_time: "",
-    guests: 2,
-    requests: "",
-    tableId: "",
+    name: "", email: "", phone: "", date: "",
+    time: "", end_time: "", guests: 2, requests: "", tableId: "",
   });
 
   useEffect(() => {
     if (!currentUser) return;
     setResForm((prev) => ({
       ...prev,
-      name: prev.name || currentUser?.name || "",
+      name:  prev.name  || currentUser?.name  || "",
       phone: prev.phone || currentUser?.phone || "",
     }));
   }, [currentUser]);
 
   const toLocalISOString = (d: Date) =>
-    new Date(d.getTime() - d.getTimezoneOffset() * 60000)
-      .toISOString()
-      .split("T")[0];
+    new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().split("T")[0];
 
   const loadInitialCapacity = async () => {
     if (!outletid) return;
     try {
-      const tables = await apiGetAvailableTables(
-        outletid,
-        toLocalISOString(new Date()),
-        "11:00",
-        1,
-      );
-      const highest = Math.max(
-        ...tables.map((t) => Number(t.capacity || 0)),
-        0,
-      );
+      const tables = await apiGetAvailableTables(outletid, toLocalISOString(new Date()), "11:00", 1);
+      const highest = Math.max(...tables.map((t) => Number(t.capacity || 0)), 0);
       setMaxCapacity(Math.max(highest, 1));
     } catch {
       setMaxCapacity(8);
     }
   };
 
-  useEffect(() => {
-    loadInitialCapacity();
-  }, [outletid]);
+  useEffect(() => { loadInitialCapacity(); }, [outletid]);
 
-  const [availableTables, setAvailableTables] = useState<RestaurantTable[]>([]);
-  const [isLoadingTables, setIsLoadingTables] = useState(false);
-  const [otp, setOtp] = useState("");
-  const [otpSent, setOtpSent] = useState(false);
-  const [resError, setResError] = useState("");
-  const [lastReservationId, setLastReservationId] = useState<string | null>(
-    null,
-  );
-  const [isBooking, setIsBooking] = useState(false);
+  const [availableTables,  setAvailableTables]  = useState<RestaurantTable[]>([]);
+  const [isLoadingTables,  setIsLoadingTables]  = useState(false);
+  const [otp,              setOtp]              = useState("");
+  const [otpSent,          setOtpSent]          = useState(false);
+  const [resError,         setResError]         = useState("");
+  const [lastReservationId,setLastReservationId]= useState<string | null>(null);
+  const [isBooking,        setIsBooking]        = useState(false);
 
   useEffect(() => {
     if (!id) {
-      setRestaurantError(
-        "Restaurant not selected. Please go back and choose a restaurant.",
-      );
+      setRestaurantError("Restaurant not selected. Please go back and choose a restaurant.");
       setRestaurant(null);
       setRestaurantLoading(false);
       return;
@@ -501,6 +495,7 @@ useEffect(() => {
     }
   };
 
+  // ── Initial menu load ──
   useEffect(() => {
     const loadMenu = async () => {
       if (!restId) return;
@@ -511,9 +506,7 @@ useEffect(() => {
         if (cats?.length > 0) {
           setActiveCategory(cats[0].id);
           const items = await apiGetMenu(restId, cats[0].id);
-          setMenuData([
-            { category: cats[0].name, category_id: cats[0].id, items },
-          ]);
+          setMenuData([{ category: cats[0].name, category_id: cats[0].id, items }]);
         } else {
           setMenuData([]);
         }
@@ -527,44 +520,63 @@ useEffect(() => {
     loadMenu();
   }, [restId]);
 
+  /* ─────────────────────────────────────────────────────────────────────────
+     SMART MENU REFRESH
+     - Normal polling: every 5 seconds
+     - When any out-of-stock item has turn_on_time within 30s → poll every 1s
+       so the item "auto-opens" nearly instantly when its time comes
+  ───────────────────────────────────────────────────────────────────────── */
+
+  const intervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
     if (!restId || !activeCategory) return;
 
-    const refreshCurrentCategory = async () => {
+    const refreshMenu = async () => {
       try {
-        const currentCat = categories.find(
-          (c) => c.id === activeCategory
-        );
-
-        const items = await apiGetMenu(
-          restId,
-          activeCategory
-        );
-
-        setMenuData([
-          {
-            category: currentCat?.name || "Menu",
-            category_id: activeCategory,
-            items,
-          },
-        ]);
+        const currentCat = categories.find((c) => c.id === activeCategory);
+        const items      = await apiGetMenu(restId, activeCategory);
+        setMenuData([{
+          category:    currentCat?.name || "Menu",
+          category_id: activeCategory,
+          items,
+        }]);
+        return items;
       } catch (err) {
-        console.log(err);
+        console.error("[MenuRefresh]", err);
+        return null;
       }
     };
 
-    // initial load
-    refreshCurrentCategory();
-
-    // auto refresh every 5 sec
-    const interval = setInterval(() => {
-      refreshCurrentCategory();
-    }, 5000);
-
-    return () => {
-      clearInterval(interval);
+    const getNextInterval = (items: any[] | null): number => {
+      if (!items) return 5000;
+      const now = Date.now();
+      const hasImminent = items.some((item) => {
+        if (!item.turn_on_time || String(item.in_stock) !== "0") return false;
+        const diff = new Date(item.turn_on_time).getTime() - now;
+        return diff > 0 && diff <= 30_000; // within 30 seconds
+      });
+      return hasImminent ? 1000 : 5000;
     };
 
+    let cancelled = false;
+
+    const scheduleNext = async () => {
+      if (cancelled) return;
+      const items    = await refreshMenu();
+      const interval = getNextInterval(items);
+      if (!cancelled) {
+        intervalRef.current = setTimeout(scheduleNext, interval);
+      }
+    };
+
+    // Kick off
+    intervalRef.current = setTimeout(scheduleNext, 5000);
+
+    return () => {
+      cancelled = true;
+      if (intervalRef.current) clearTimeout(intervalRef.current);
+    };
   }, [restId, activeCategory]);
 
   const handleCategoryChange = async (cat: any) => {
@@ -586,7 +598,7 @@ useEffect(() => {
         ...cat,
         items: cat.items.filter(
           (i: any) =>
-            (i.itemname || "").toLowerCase().includes(q) ||
+            (i.itemname        || "").toLowerCase().includes(q) ||
             (i.itemdescription || "").toLowerCase().includes(q),
         ),
       }))
@@ -594,42 +606,37 @@ useEffect(() => {
   }, [searchQuery, menuData]);
 
   const handleAddToCart = (item: any) => {
-    const cartKey = buildCartKey(item);
-    const flatAddons = item.selectedAddons
-      ? Object.values(item.selectedAddons).flat()
-      : [];
+    const cartKey   = buildCartKey(item);
+    const flatAddons = item.selectedAddons ? Object.values(item.selectedAddons).flat() : [];
     const cartItem: CartItem = {
-      itemid: item.itemid,
-      itemname: item.itemname,
-      itemdescription: item.itemdescription,
-      item_image_url: item.item_image_url,
+      itemid:           item.itemid,
+      itemname:         item.itemname,
+      itemdescription:  item.itemdescription,
+      item_image_url:   item.item_image_url,
       ...item,
       cartKey,
-      quantity: 1,
-      variation_id: item.selectedVariation?.variationid || "",
-      variation_name: item.selectedVariation?.name || "",
-      selected_addons: flatAddons,
-      unit_price: item.computed?.final_price ?? Number(item.price || 0),
-      base_price: item.computed?.base_price ?? Number(item.price || 0),
-      addon_price: item.computed?.addon_price ?? 0,
+      quantity:         1,
+      variation_id:     item.selectedVariation?.variationid || "",
+      variation_name:   item.selectedVariation?.name        || "",
+      selected_addons:  flatAddons,
+      unit_price:       item.computed?.final_price ?? Number(item.price || 0),
+      base_price:       item.computed?.base_price  ?? Number(item.price || 0),
+      addon_price:      item.computed?.addon_price ?? 0,
     };
     addItem(cartItem);
   };
 
-  const today = new Date();
+  const today      = new Date();
   const minDateStr = toLocalISOString(today);
-  const maxDate = new Date();
+  const maxDate    = new Date();
   maxDate.setDate(today.getDate() + 14);
   const maxDateStr = toLocalISOString(maxDate);
 
   const [availableTimeSlots, setAvailableTimeSlots] = useState<string[]>([]);
 
   useEffect(() => {
-    if (!resForm.date) {
-      setAvailableTimeSlots([]);
-      return;
-    }
-    const now = new Date();
+    if (!resForm.date) { setAvailableTimeSlots([]); return; }
+    const now     = new Date();
     const isToday = resForm.date === toLocalISOString(now);
     const slots: string[] = [];
     for (let hour = 11; hour <= 22; hour++) {
@@ -641,9 +648,7 @@ useEffect(() => {
   }, [resForm.date]);
 
   const handleResFormChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >,
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
   ) => {
     const { name, value } = e.target;
     setResForm((prev) => ({
@@ -661,23 +666,13 @@ useEffect(() => {
     setResError("");
     setResForm((prev) => ({ ...prev, tableId: "" }));
     try {
-      const tables = await apiGetAvailableTables(
-        outletid,
-        resForm.date,
-        resForm.time,
-        resForm.guests,
-      );
+      const tables  = await apiGetAvailableTables(outletid, resForm.date, resForm.time, resForm.guests);
       setAvailableTables(tables);
-      const highest = Math.max(
-        ...tables.map((t: any) => Number(t.capacity || 0)),
-        0,
-      );
+      const highest = Math.max(...tables.map((t: any) => Number(t.capacity || 0)), 0);
       setMaxCapacity(highest || 1);
       setResStep(2);
     } catch (err: unknown) {
-      setResError(
-        err instanceof Error ? err.message : "Could not load tables.",
-      );
+      setResError(err instanceof Error ? err.message : "Could not load tables.");
     } finally {
       setIsLoadingTables(false);
     }
@@ -687,8 +682,7 @@ useEffect(() => {
     let cleaned = phone.replace(/\D/g, "");
     if (cleaned.startsWith("91") && cleaned.length === 12) return `+${cleaned}`;
     if (cleaned.length === 10) return `+91${cleaned}`;
-    if (cleaned.startsWith("0") && cleaned.length === 11)
-      return `+91${cleaned.slice(1)}`;
+    if (cleaned.startsWith("0") && cleaned.length === 11) return `+91${cleaned.slice(1)}`;
     return `+${cleaned}`;
   };
 
@@ -700,13 +694,8 @@ useEffect(() => {
       return;
     }
     try {
-      const success = await apiSendReservationOTP(
-        formatIndianPhone(resForm.phone),
-      );
-      if (!success) {
-        setResError("Failed to send OTP.");
-        return;
-      }
+      const success = await apiSendReservationOTP(formatIndianPhone(resForm.phone));
+      if (!success) { setResError("Failed to send OTP."); return; }
       setOtpSent(true);
     } catch (err: any) {
       setResError(err?.message || "Failed to send OTP.");
@@ -718,19 +707,11 @@ useEffect(() => {
     setIsBooking(true);
     setResError("");
     try {
-      const success = await apiVerifyReservationOTP(
-        formatIndianPhone(resForm.phone),
-        otp,
-      );
-      if (!success) {
-        setResError("Invalid or expired OTP.");
-        return;
-      }
-      const reservation = await apiCreateReservation(
-        outletid,
-        currentUser?.id,
-        { ...resForm, brand_id: restId, outlet_id: outletid },
-      );
+      const success = await apiVerifyReservationOTP(formatIndianPhone(resForm.phone), otp);
+      if (!success) { setResError("Invalid or expired OTP."); return; }
+      const reservation = await apiCreateReservation(outletid, currentUser?.id, {
+        ...resForm, brand_id: restId, outlet_id: outletid,
+      });
       setLastReservationId(reservation.bookingId);
       setResStep(4);
     } catch (err: any) {
@@ -752,50 +733,39 @@ useEffect(() => {
 
   // ─── Theme / derived values ───────────────────────────────────────────────
 
-  const logoURL = `${SUPABASE_URL}/${IMAGE_BASE_URL}/restaurant-images/${restaurant?.logo}`;
+  const logoURL  = `${SUPABASE_URL}/${IMAGE_BASE_URL}/restaurant-images/${restaurant?.logo}`;
   const aboutURL = `${SUPABASE_URL}/${IMAGE_BASE_URL}/restaurant-images/${restaurant?.about_image}`;
-  const heroURL = `${SUPABASE_URL}/${IMAGE_BASE_URL}/restaurant-images/${restaurant?.hero_image}`;
+  const heroURL  = `${SUPABASE_URL}/${IMAGE_BASE_URL}/restaurant-images/${restaurant?.hero_image}`;
 
-  const themePrimary = restaurant?.theme_primary || "#ff0000";
-  const themeAccent = restaurant?.theme_accent || "#e5f502";
-  const themeText = restaurant?.theme_text_on_primary || "#ffffff";
+  const themePrimary = restaurant?.theme_primary         || "#ff0000";
+  const themeAccent  = restaurant?.theme_accent          || "#e5f502";
+  const themeText    = restaurant?.theme_text_on_primary || "#ffffff";
 
-  // ✅ Persist theme to localStorage so Terms & Refund pages can use it
   if (restaurant) {
     localStorage.setItem("themePrimary", themePrimary);
-    localStorage.setItem("themeAccent", themeAccent);
-    localStorage.setItem("themeText", themeText);
+    localStorage.setItem("themeAccent",  themeAccent);
+    localStorage.setItem("themeText",    themeText);
   }
 
-  const restaurantName = restaurant?.name || "Restaurant";
+  const restaurantName    = restaurant?.name    || "Restaurant";
   const restaurantTagline = restaurant?.tagline || restaurantName;
-  const heroImage =
-    heroURL ||
-    "https://images.unsplash.com/photo-1604329760661-e71dc83f8f26?q=80&w=2070&auto=format&fit=crop";
+  const heroImage  = heroURL  || "https://images.unsplash.com/photo-1604329760661-e71dc83f8f26?q=80&w=2070&auto=format&fit=crop";
   const aboutImage = aboutURL || heroImage;
-  const aboutText = restaurant?.about_text || restaurant?.description || "";
-  const logo = logoURL || "https://placehold.co/160x60?text=Logo";
+  const aboutText  = restaurant?.about_text || restaurant?.description || "";
+  const logo       = logoURL  || "https://placehold.co/160x60?text=Logo";
 
   const contactInfo = {
     locations: [
-      {
-        title: "Takeaway & Delivery",
-        address:
-          "L S Enclave, 1st Floor, Horamavu Main Road, 2nd Cross, Bangalore - 560045",
-      },
-      {
-        title: "Dine In",
-        address:
-          "Amigo's Avenue, Ground Floor, 15, New Temple Road, Nallurhalli Main Road, Whitefield, Bangalore - 560066",
-      },
+      { title: "Takeaway & Delivery", address: "L S Enclave, 1st Floor, Horamavu Main Road, 2nd Cross, Bangalore - 560045" },
+      { title: "Dine In",             address: "Amigo's Avenue, Ground Floor, 15, New Temple Road, Nallurhalli Main Road, Whitefield, Bangalore - 560066" },
     ],
     phone: "9611774424",
     email: "contact@bongodelicacy.com",
   };
 
   const brandThemeStyle = {
-    "--primary-color": themePrimary,
-    "--accent-color": themeAccent,
+    "--primary-color":       themePrimary,
+    "--accent-color":        themeAccent,
     "--text-on-primary-color": themeText,
   } as React.CSSProperties;
 
@@ -806,10 +776,7 @@ useEffect(() => {
       <div className="bg-gray-900 min-h-screen" style={brandThemeStyle}>
         <header className="bg-gray-900/80 backdrop-blur-sm sticky top-0 z-40">
           <nav className="container mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center py-4">
-            <button
-              onClick={onBack}
-              className="flex items-center gap-2 text-gray-300 hover:text-[var(--accent-color)]"
-            >
+            <button onClick={onBack} className="flex items-center gap-2 text-gray-300 hover:text-[var(--accent-color)]">
               <Icon type="arrow-left" className="w-5 h-5" />
               <span className="hidden sm:inline">All Brands</span>
             </button>
@@ -819,10 +786,7 @@ useEffect(() => {
             </div>
             <div className="hidden md:flex space-x-6">
               {Array.from({ length: 5 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="h-4 w-16 bg-gray-700 animate-pulse rounded"
-                />
+                <div key={i} className="h-4 w-16 bg-gray-700 animate-pulse rounded" />
               ))}
             </div>
           </nav>
@@ -839,18 +803,10 @@ useEffect(() => {
 
   if (restaurantError) {
     return (
-      <div
-        className="bg-gray-900 min-h-screen flex items-center justify-center text-center p-6"
-        style={brandThemeStyle}
-      >
+      <div className="bg-gray-900 min-h-screen flex items-center justify-center text-center p-6" style={brandThemeStyle}>
         <div>
           <p className="text-red-400 font-semibold">{restaurantError}</p>
-          <button
-            onClick={onBack}
-            className="mt-4 text-cyan-400 hover:underline"
-          >
-            Go back
-          </button>
+          <button onClick={onBack} className="mt-4 text-cyan-400 hover:underline">Go back</button>
         </div>
       </div>
     );
@@ -863,26 +819,16 @@ useEffect(() => {
       {/* ── Header ── */}
       <header className="bg-gray-900/80 backdrop-blur-sm sticky top-0 z-40">
         <nav className="container mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center py-4">
-          <button
-            onClick={onBack}
-            className="flex items-center gap-2 text-gray-300 hover:text-[var(--accent-color)]"
-          >
+          <button onClick={onBack} className="flex items-center gap-2 text-gray-300 hover:text-[var(--accent-color)]">
             <Icon type="arrow-left" className="w-5 h-5" />
             <span className="hidden sm:inline">All Brands</span>
           </button>
 
           <div className="flex items-center gap-4">
-            <img
-              src={logo}
-              alt={`${restaurantName} logo`}
-              className="h-8 object-contain"
-            />
-            <h1 className="text-2xl font-bold font-serif text-white hidden sm:block">
-              {restaurantName}
-            </h1>
+            <img src={logo} alt={`${restaurantName} logo`} className="h-8 object-contain" />
+            <h1 className="text-2xl font-bold font-serif text-white hidden sm:block">{restaurantName}</h1>
           </div>
 
-          {/* Desktop nav */}
           <ul className="hidden md:flex space-x-6 text-gray-300">
             {["home", "about", "menu", "contact"].map((item) => (
               <li key={item}>
@@ -894,31 +840,8 @@ useEffect(() => {
                 </button>
               </li>
             ))}
-            {/* <li>
-              <button
-                onClick={() => {
-                  window.open(`${window.location.origin}#terms`, "_blank");
-                  // window.location.hash = "#terms";
-                }}
-                className="hover:text-[var(--accent-color)] transition-colors bg-transparent border-none cursor-pointer p-0"
-              >
-                Terms & Conditions
-              </button>
-            </li>
-            <li>
-              <button
-                onClick={() => {
-                  window.open(`${window.location.origin}#refund`, "_blank");
-                  // window.location.hash = "refund";
-                }}
-                className="hover:text-[var(--accent-color)] transition-colors bg-transparent border-none cursor-pointer p-0"
-              >
-                Refund Policy
-              </button>
-            </li> */}
           </ul>
 
-          {/* Mobile hamburger */}
           <button
             className="md:hidden text-white"
             onClick={() => setIsMobileMenuOpen(true)}
@@ -929,17 +852,14 @@ useEffect(() => {
         </nav>
       </header>
 
-      {/* ── Mobile Drawer ── */}
       <MobileDrawer
         open={isMobileMenuOpen}
         onClose={() => setIsMobileMenuOpen(false)}
         onNavigate={(id) => {
           if (id === "terms & Condition") {
             window.open(`${window.location.origin}#terms`, "_blank");
-            // window.location.hash = "terms";
           } else if (id === "refund policies") {
             window.open(`${window.location.origin}#refund`, "_blank");
-            // window.location.hash = "refund";
           } else {
             handleScrollTo(id);
           }
@@ -951,20 +871,13 @@ useEffect(() => {
         <section
           id="home"
           className="h-screen bg-cover bg-center flex items-center justify-center"
-          style={{
-            backgroundImage: `linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url('${heroImage}')`,
-          }}
+          style={{ backgroundImage: `linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url('${heroImage}')` }}
         >
           <div className="text-center text-white p-4 animate-fade-in-slow">
-            <h2 className="text-5xl md:text-7xl font-serif">
-              {restaurantTagline}
-            </h2>
+            <h2 className="text-5xl md:text-7xl font-serif">{restaurantTagline}</h2>
             <button
               onClick={() => handleScrollTo("menu")}
-              style={{
-                backgroundColor: "var(--primary-color)",
-                color: "var(--text-on-primary-color)",
-              }}
+              style={{ backgroundColor: "var(--primary-color)", color: "var(--text-on-primary-color)" }}
               className="mt-8 inline-block font-bold py-3 px-8 rounded-md hover:opacity-90 transition-opacity"
             >
               Explore Menu
@@ -976,11 +889,7 @@ useEffect(() => {
         <section id="about" className="py-20 bg-gray-900">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8 grid md:grid-cols-2 gap-12 items-center">
             <div className="animate-fade-in">
-              <img
-                src={aboutImage}
-                alt="Restaurant Interior"
-                className="rounded-lg shadow-2xl"
-              />
+              <img src={aboutImage} alt="Restaurant Interior" className="rounded-lg shadow-2xl" />
             </div>
             <div className="animate-fade-in">
               <h3 className="text-4xl font-serif text-white">Our Story</h3>
@@ -992,14 +901,10 @@ useEffect(() => {
         {/* ── Menu ── */}
         <section id="menu" className="py-20 bg-gray-800">
           <div className="container mx-auto px-4">
-            <h3 className="text-4xl font-serif text-white text-center mb-12">
-              Our Menu
-            </h3>
+            <h3 className="text-4xl font-serif text-white text-center mb-12">Our Menu</h3>
+
             <div className="max-w-lg mx-auto mb-10 relative">
-              <Icon
-                type="search"
-                className="absolute left-3 top-3 w-5 h-5 text-gray-400"
-              />
+              <Icon type="search" className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
               <input
                 type="text"
                 value={searchQuery}
@@ -1017,12 +922,12 @@ useEffect(() => {
                   <button
                     key={cat.id}
                     onClick={() => handleCategoryChange(cat)}
-                    className={`px-4 py-2 rounded-md font-semibold transition-all ${activeCategory === cat.id ? "text-[var(--text-on-primary-color)]" : "bg-gray-700 text-white hover:bg-gray-600"}`}
-                    style={
+                    className={`px-4 py-2 rounded-md font-semibold transition-all ${
                       activeCategory === cat.id
-                        ? { backgroundColor: "var(--primary-color)" }
-                        : {}
-                    }
+                        ? "text-[var(--text-on-primary-color)]"
+                        : "bg-gray-700 text-white hover:bg-gray-600"
+                    }`}
+                    style={activeCategory === cat.id ? { backgroundColor: "var(--primary-color)" } : {}}
                   >
                     {cat.name}
                   </button>
@@ -1032,337 +937,198 @@ useEffect(() => {
 
             {isInitialMenuLoading || isMenuChanging ? (
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                <ShimmerCard />
-                <ShimmerCard />
-                <ShimmerCard />
+                <ShimmerCard /><ShimmerCard /><ShimmerCard />
               </div>
             ) : (
               <div className="space-y-12">
-                {(searchQuery.trim() ? filteredMenu : menuData).map(
-                  (category: any) => (
-                    <div key={category.category_id}>
-                      <h4 className="text-2xl text-white font-serif mb-6">
-                        {category.category}
-                      </h4>
-                      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                        {category.items.map((item: any) => {
-                         const now = new Date(currentTime);
+                {(searchQuery.trim() ? filteredMenu : menuData).map((category: any) => (
+                  <div key={category.category_id}>
+                    <h4 className="text-2xl text-white font-serif mb-6">{category.category}</h4>
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                      {category.items.map((item: any) => {
 
-                          const turnOnTime = item.turn_on_time
-                            ? new Date(item.turn_on_time + "Z")
-                            : null;
+                        /* ─────────────────────────────────────────
+                           AVAILABILITY CHECK — pure UTC comparison.
+                           DB stores turn_on_time WITHOUT timezone
+                           suffix (e.g. "2026-05-21 16:26:00"), so
+                           we append "Z" to force UTC parsing.
+                           currentTime ticks every second via state.
+                        ───────────────────────────────────────── */
 
-                          const autoAvailable =
-                            !turnOnTime || now >= turnOnTime;
+                        const now = new Date(currentTime);
 
-                          const isAvailable =
-                            String(item.active) === "1" &&
-                            autoAvailable;
-                          return (
-                            <div
-                              key={item.itemid}
-                              className="bg-gray-900 rounded-lg shadow-lg overflow-hidden flex flex-col"
-                            >
-                              <div className="relative">
-                                <img
-                                  src={item.item_image_url}
-                                  className="w-full h-48 object-cover"
-                                  alt={item.itemname}
-                                />
-                                {!isAvailable && (
-                                  <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center text-center px-4">
+                        const turnOnTime = item.turn_on_time
+                          ? new Date(item.turn_on_time + "Z")
+                          : null;
 
-                                    <span className="bg-red-600 px-3 py-1 text-white rounded-md font-semibold">
-                                      Out of Stock
-                                    </span>
+                        // Item is auto-available if no turn_on_time
+                        // OR if turn_on_time has already passed
+                        const autoAvailable =
+                          !turnOnTime || now >= turnOnTime;
 
-                                    {item.turn_on_time &&
-                                      (() => {
+                        const isAvailable =
+                          String(item.active) === "1" &&
+                          autoAvailable;
 
-                                        /* -----------------------------
-                                           DB time is UTC
-                                           Example:
-                                           2026-05-20 09:10:56.974647
-                                        ----------------------------- */
+                        return (
+                          <div
+                            key={item.itemid}
+                            className="bg-gray-900 rounded-lg shadow-lg overflow-hidden flex flex-col"
+                          >
+                            <div className="relative">
+                              <img
+                                src={item.item_image_url}
+                                className="w-full h-48 object-cover"
+                                alt={item.itemname}
+                              />
+                              {!isAvailable && (
+                                <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center text-center px-4">
+                                  <span className="bg-red-600 px-3 py-1 text-white rounded-md font-semibold">
+                                    Out of Stock
+                                  </span>
 
-                                        const turnOnDate = new Date(
-                                          item.turn_on_time + "Z"
-                                        );
+                                  {item.turn_on_time && (() => {
+                                    /* DB stores time WITHOUT tz suffix
+                                       e.g. "2026-05-20 09:10:56.974647"
+                                       Append "Z" to parse as UTC */
+                                    const turnOnDate = new Date(item.turn_on_time + "Z");
+                                    const now        = new Date();
 
-                                        const now = new Date();
+                                    const turnOnDateIST = turnOnDate.toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" });
+                                    const todayIST      = now.toLocaleDateString("en-IN",         { timeZone: "Asia/Kolkata" });
+                                    const tomorrow      = new Date();
+                                    tomorrow.setDate(tomorrow.getDate() + 1);
+                                    const tomorrowIST   = tomorrow.toLocaleDateString("en-IN",    { timeZone: "Asia/Kolkata" });
 
-                                        const turnOnDateIST =
-                                          turnOnDate.toLocaleDateString(
-                                            "en-IN",
-                                            {
-                                              timeZone: "Asia/Kolkata"
-                                            }
-                                          );
+                                    const isToday    = turnOnDateIST === todayIST;
+                                    const isTomorrow = turnOnDateIST === tomorrowIST;
 
-                                        const todayIST =
-                                          now.toLocaleDateString(
-                                            "en-IN",
-                                            {
-                                              timeZone: "Asia/Kolkata"
-                                            }
-                                          );
+                                    const formattedTime = turnOnDate.toLocaleTimeString("en-IN", {
+                                      timeZone: "Asia/Kolkata",
+                                      hour:     "numeric",
+                                      minute:   "2-digit",
+                                      hour12:   true,
+                                    });
 
-                                        const tomorrow =
-                                          new Date();
+                                    let formattedText = "";
+                                    if (isToday) {
+                                      formattedText = formattedTime;
+                                    } else if (isTomorrow) {
+                                      formattedText = `Tomorrow, ${formattedTime}`;
+                                    } else {
+                                      formattedText = turnOnDate.toLocaleString("en-IN", {
+                                        timeZone: "Asia/Kolkata",
+                                        day:      "numeric",
+                                        month:    "short",
+                                        hour:     "numeric",
+                                        minute:   "2-digit",
+                                        hour12:   true,
+                                      });
+                                    }
 
-                                        tomorrow.setDate(
-                                          tomorrow.getDate() + 1
-                                        );
-
-                                        const tomorrowIST =
-                                          tomorrow.toLocaleDateString(
-                                            "en-IN",
-                                            {
-                                              timeZone: "Asia/Kolkata"
-                                            }
-                                          );
-
-                                        const isToday =
-                                          turnOnDateIST ===
-                                          todayIST;
-
-                                        const isTomorrow =
-                                          turnOnDateIST ===
-                                          tomorrowIST;
-
-                                        let formattedText =
-                                          "";
-
-                                        /* -----------------------------
-                                           Format IST time
-                                        ----------------------------- */
-
-                                        const formattedTime =
-                                          turnOnDate.toLocaleTimeString(
-                                            "en-IN",
-                                            {
-                                              timeZone:
-                                                "Asia/Kolkata",
-
-                                              hour:
-                                                "numeric",
-
-                                              minute:
-                                                "2-digit",
-
-                                              hour12:
-                                                true,
-                                            }
-                                          );
-
-                                        /* -----------------------------
-                                           Display logic
-                                        ----------------------------- */
-
-                                        if (isToday) {
-
-                                          formattedText =
-                                            formattedTime;
-
-                                        } else if (
-                                          isTomorrow
-                                        ) {
-
-                                          formattedText =
-                                            `Tomorrow, ${formattedTime}`;
-
-                                        } else {
-
-                                          formattedText =
-                                            turnOnDate.toLocaleString(
-                                              "en-IN",
-                                              {
-                                                timeZone:
-                                                  "Asia/Kolkata",
-
-                                                day:
-                                                  "numeric",
-
-                                                month:
-                                                  "short",
-
-                                                hour:
-                                                  "numeric",
-
-                                                minute:
-                                                  "2-digit",
-
-                                                hour12:
-                                                  true,
-                                              }
-                                            );
-                                        }
-
-                                        return (
-                                          <p className="text-white text-sm mt-3 leading-relaxed">
-                                            Next available at
-                                            <br />
-
-                                            <span className="font-semibold text-yellow-300">
-                                              {formattedText}
-                                            </span>
-                                          </p>
-                                        );
-
-                                      })()}
-
-                                  </div>
-                                )}
-                              </div>
-                              <div className="p-4 flex flex-col flex-grow">
-                                <div className="flex justify-between items-start">
-                                  <h4 className="text-xl text-white flex-1">
-                                    {item.itemname}
-                                  </h4>
-                                  {(() => {
-                                    const hasVariation =
-                                      Array.isArray(item.variation) &&
-                                      item.variation.length > 0;
-                                    const variationPrices = hasVariation
-                                      ? item.variation
-                                        .map((v: any) => Number(v.price))
-                                        .filter((p: number) => p > 0)
-                                      : [];
-                                    const minVariationPrice =
-                                      variationPrices.length > 0
-                                        ? Math.min(...variationPrices)
-                                        : null;
-                                    const displayPrice =
-                                      Number(item.price) > 0
-                                        ? Number(item.price)
-                                        : minVariationPrice;
                                     return (
-                                      <p className="text-lg font-bold text-[var(--accent-color)]">
-                                        {displayPrice !== null
-                                          ? hasVariation &&
-                                            Number(item.price) === 0
-                                            ? `From ₹${displayPrice}`
-                                            : `₹${displayPrice}`
-                                          : "Customisable"}
+                                      <p className="text-white text-sm mt-3 leading-relaxed">
+                                        Next available at
+                                        <br />
+                                        <span className="font-semibold text-yellow-300">
+                                          {formattedText}
+                                        </span>
                                       </p>
                                     );
                                   })()}
                                 </div>
-                                <p className="text-gray-400 text-sm mt-2 flex-grow">
-                                  {item.itemdescription}
-                                </p>
-                                <button
-                                  onClick={() => {
-                                    const hasVariations =
-                                      Array.isArray(item.variation) &&
-                                      item.variation.length > 0;
-                                    const hasAddons =
-                                      Array.isArray(item.addons) &&
-                                      item.addons.length > 0;
-                                    if (hasVariations || hasAddons) {
-                                      setAddonItem(item);
-                                      setIsAddonModalOpen(true);
-                                    } else {
-                                      const basePrice = Number(item.price || 0);
-                                      const gstPercentage = Array.isArray(
-                                        item.tax_breakup,
-                                      )
-                                        ? item.tax_breakup.reduce(
-                                          (sum: number, t: any) =>
-                                            sum +
-                                            Number(t.tax_percentage || 0),
-                                          0,
-                                        )
-                                        : 0;
-                                      const gstAmount =
-                                        (basePrice * gstPercentage) / 100;
-                                      handleAddToCart({
-                                        ...item,
-                                        selectedVariation: null,
-                                        selectedAddons: {},
-                                        computed: {
-                                          base_price: basePrice,
-                                          addon_price: 0,
-                                          taxable_amount: basePrice,
-                                          gst_percentage: gstPercentage,
-                                          gst_amount: gstAmount,
-                                          final_price: basePrice + gstAmount,
-                                        },
-                                      });
-                                    }
-                                  }}
-                                  disabled={!isAvailable}
-                                  className="mt-4 w-full py-2 rounded-md border-2 font-semibold transition-all text-[var(--primary-color)] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--primary-color)] hover:text-white"
-                                  style={{
-                                    borderColor: "var(--primary-color)",
-                                  }}
-                                >
-                                  {isAvailable ? "Add to Cart" : "Unavailable"}
-                                </button>
-                              </div>
+                              )}
                             </div>
-                          );
-                        })}
-                      </div>
+
+                            <div className="p-4 flex flex-col flex-grow">
+                              <div className="flex justify-between items-start">
+                                <h4 className="text-xl text-white flex-1">{item.itemname}</h4>
+                                {(() => {
+                                  const hasVariation    = Array.isArray(item.variation) && item.variation.length > 0;
+                                  const variationPrices = hasVariation
+                                    ? item.variation.map((v: any) => Number(v.price)).filter((p: number) => p > 0)
+                                    : [];
+                                  const minVariationPrice = variationPrices.length > 0 ? Math.min(...variationPrices) : null;
+                                  const displayPrice      = Number(item.price) > 0 ? Number(item.price) : minVariationPrice;
+                                  return (
+                                    <p className="text-lg font-bold text-[var(--accent-color)]">
+                                      {displayPrice !== null
+                                        ? hasVariation && Number(item.price) === 0
+                                          ? `From ₹${displayPrice}`
+                                          : `₹${displayPrice}`
+                                        : "Customisable"}
+                                    </p>
+                                  );
+                                })()}
+                              </div>
+
+                              <p className="text-gray-400 text-sm mt-2 flex-grow">{item.itemdescription}</p>
+
+                              <button
+                                onClick={() => {
+                                  const hasVariations = Array.isArray(item.variation) && item.variation.length > 0;
+                                  const hasAddons     = Array.isArray(item.addons)    && item.addons.length    > 0;
+                                  if (hasVariations || hasAddons) {
+                                    setAddonItem(item);
+                                    setIsAddonModalOpen(true);
+                                  } else {
+                                    const basePrice      = Number(item.price || 0);
+                                    const gstPercentage  = Array.isArray(item.tax_breakup)
+                                      ? item.tax_breakup.reduce((sum: number, t: any) => sum + Number(t.tax_percentage || 0), 0)
+                                      : 0;
+                                    const gstAmount = (basePrice * gstPercentage) / 100;
+                                    handleAddToCart({
+                                      ...item,
+                                      selectedVariation: null,
+                                      selectedAddons:    {},
+                                      computed: {
+                                        base_price:     basePrice,
+                                        addon_price:    0,
+                                        taxable_amount: basePrice,
+                                        gst_percentage: gstPercentage,
+                                        gst_amount:     gstAmount,
+                                        final_price:    basePrice + gstAmount,
+                                      },
+                                    });
+                                  }
+                                }}
+                                disabled={!isAvailable}
+                                className="mt-4 w-full py-2 rounded-md border-2 font-semibold transition-all text-[var(--primary-color)] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--primary-color)] hover:text-white"
+                                style={{ borderColor: "var(--primary-color)" }}
+                              >
+                                {isAvailable ? "Add to Cart" : "Unavailable"}
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                  ),
-                )}
+                  </div>
+                ))}
               </div>
             )}
           </div>
-        </section>
-
-        {/* ── Gallery placeholder ── */}
-        <section id="gallery" className="py-20 bg-gray-900">
-          {/* <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-12 animate-fade-in">
-              <h3 className="text-4xl font-serif text-white">Visual Feast</h3>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {gallery.map((src: string, index: number) => (
-                <div
-                  key={index}
-                  className="overflow-hidden rounded-lg shadow-lg animate-fade-in"
-                >
-                  <img
-                    src={src}
-                    alt={`Gallery image ${index + 1}`}
-                    className="w-full h-full object-cover aspect-square hover:scale-105 transition-transform duration-300"
-                  />
-                </div>
-              ))}
-            </div>
-          </div> */}
         </section>
 
         {/* ── Contact / Reservation ── */}
         <section id="contact" className="py-20 bg-gray-800">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-12 animate-fade-in">
-              <h3 className="text-4xl font-serif text-white">
-                Make a Reservation
-              </h3>
+              <h3 className="text-4xl font-serif text-white">Make a Reservation</h3>
             </div>
 
             <div className="grid md:grid-cols-2 gap-12">
-              {/* Reservation form */}
               <div className="animate-fade-in bg-gray-900 p-6 rounded-lg border border-gray-700">
                 {resError && (
-                  <p className="mb-4 p-3 bg-red-900/50 text-red-200 rounded-md text-sm">
-                    {resError}
-                  </p>
+                  <p className="mb-4 p-3 bg-red-900/50 text-red-200 rounded-md text-sm">{resError}</p>
                 )}
 
                 {resStep === 1 && (
                   <div className="space-y-4 animate-fade-in">
-                    <h4 className="text-xl font-semibold text-white mb-4">
-                      Step 1: Booking Details
-                    </h4>
+                    <h4 className="text-xl font-semibold text-white mb-4">Step 1: Booking Details</h4>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="text-xs text-gray-400 block mb-1">
-                          Date
-                        </label>
+                        <label className="text-xs text-gray-400 block mb-1">Date</label>
                         <input
                           ref={dateInputRef}
                           type="date"
@@ -1373,47 +1139,31 @@ useEffect(() => {
                           value={resForm.date}
                           onKeyDown={(e) => e.preventDefault()}
                           onPaste={(e) => e.preventDefault()}
-                          onFocus={() =>
-                            (dateInputRef.current as any)?.showPicker?.()
-                          }
-                          onClick={() =>
-                            (dateInputRef.current as any)?.showPicker?.()
-                          }
+                          onFocus={() => (dateInputRef.current as any)?.showPicker?.()}
+                          onClick={() => (dateInputRef.current as any)?.showPicker?.()}
                           onChange={handleResFormChange}
                           className="w-full bg-gray-700 p-3 rounded-md border border-gray-600 text-white cursor-pointer"
                         />
                       </div>
                       <div>
-                        <label className="text-xs text-gray-400 block mb-1">
-                          Guests
-                        </label>
+                        <label className="text-xs text-gray-400 block mb-1">Guests</label>
                         <select
                           name="guests"
                           value={resForm.guests}
                           onChange={handleResFormChange}
-                          onKeyDown={(e) => {
-                            e.preventDefault();
-                            e.currentTarget.blur();
-                          }}
+                          onKeyDown={(e) => { e.preventDefault(); e.currentTarget.blur(); }}
                           onPaste={(e) => e.preventDefault()}
                           className="w-full bg-gray-700 p-3 rounded-md border border-gray-600 text-white cursor-pointer"
                         >
-                          {Array.from(
-                            { length: maxCapacity },
-                            (_, i) => i + 1,
-                          ).map((n) => (
-                            <option key={n} value={n}>
-                              {n} Guests
-                            </option>
+                          {Array.from({ length: maxCapacity }, (_, i) => i + 1).map((n) => (
+                            <option key={n} value={n}>{n} Guests</option>
                           ))}
                         </select>
                       </div>
                     </div>
 
                     <div>
-                      <label className="text-xs text-gray-400 block mb-1">
-                        Time Slot
-                      </label>
+                      <label className="text-xs text-gray-400 block mb-1">Time Slot</label>
                       <select
                         name="time"
                         required
@@ -1423,13 +1173,9 @@ useEffect(() => {
                       >
                         <option value="">Select Time</option>
                         {availableTimeSlots.map((slot) => {
-                          const hour = Number(slot.split(":")[0]);
+                          const hour    = Number(slot.split(":")[0]);
                           const endSlot = `${String(hour + 2).padStart(2, "0")}:00`;
-                          return (
-                            <option key={slot} value={slot}>
-                              {slot} – {endSlot}
-                            </option>
-                          );
+                          return <option key={slot} value={slot}>{slot} – {endSlot}</option>;
                         })}
                       </select>
                     </div>
@@ -1438,34 +1184,21 @@ useEffect(() => {
                       <div className="p-3 bg-gray-700/50 rounded-md border border-gray-600 text-sm text-gray-300">
                         📅{" "}
                         {new Date(resForm.date).toLocaleDateString("en-IN", {
-                          weekday: "long",
-                          day: "numeric",
-                          month: "long",
+                          weekday: "long", day: "numeric", month: "long",
                         })}{" "}
                         · 🕐 {resForm.time} –{" "}
-                        {String(
-                          Number(resForm.time.split(":")[0]) + 2,
-                        ).padStart(2, "0")}
-                        :00 · 👥 {resForm.guests} Guests
+                        {String(Number(resForm.time.split(":")[0]) + 2).padStart(2, "0")}:00
+                        · 👥 {resForm.guests} Guests
                       </div>
                     )}
 
                     <button
                       onClick={fetchTables}
-                      disabled={
-                        isLoadingTables || !resForm.date || !resForm.time
-                      }
+                      disabled={isLoadingTables || !resForm.date || !resForm.time}
                       className="w-full font-bold py-3 px-4 rounded-md transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-                      style={{
-                        backgroundColor: "var(--primary-color)",
-                        color: "var(--text-on-primary-color)",
-                      }}
+                      style={{ backgroundColor: "var(--primary-color)", color: "var(--text-on-primary-color)" }}
                     >
-                      {isLoadingTables ? (
-                        <Spinner />
-                      ) : (
-                        "Find Available Tables →"
-                      )}
+                      {isLoadingTables ? <Spinner /> : "Find Available Tables →"}
                     </button>
                   </div>
                 )}
@@ -1473,35 +1206,24 @@ useEffect(() => {
                 {resStep === 2 && (
                   <div className="space-y-4 animate-fade-in">
                     <div className="flex justify-between items-center">
-                      <h4 className="text-xl font-semibold text-white">
-                        Step 2: Select a Table
-                      </h4>
-                      <button
-                        onClick={() => setResStep(1)}
-                        className="text-sm text-gray-400 hover:text-white"
-                      >
+                      <h4 className="text-xl font-semibold text-white">Step 2: Select a Table</h4>
+                      <button onClick={() => setResStep(1)} className="text-sm text-gray-400 hover:text-white">
                         Change Details
                       </button>
                     </div>
                     <p className="text-sm text-gray-400">
-                      Found {availableTables.length} tables for {resForm.guests}{" "}
-                      guests at {resForm.time}.
+                      Found {availableTables.length} tables for {resForm.guests} guests at {resForm.time}.
                     </p>
                     <TableMap
                       tables={availableTables}
                       selectedTableId={resForm.tableId}
-                      onSelect={(id) =>
-                        setResForm((prev) => ({ ...prev, tableId: id }))
-                      }
+                      onSelect={(id) => setResForm((prev) => ({ ...prev, tableId: id }))}
                     />
                     <button
                       onClick={() => setResStep(3)}
                       disabled={!resForm.tableId}
                       className="w-full font-bold py-3 px-4 rounded-md transition-opacity disabled:opacity-50 disabled:cursor-not-allowed mt-4"
-                      style={{
-                        backgroundColor: "var(--primary-color)",
-                        color: "var(--text-on-primary-color)",
-                      }}
+                      style={{ backgroundColor: "var(--primary-color)", color: "var(--text-on-primary-color)" }}
                     >
                       Continue to Contact
                     </button>
@@ -1511,25 +1233,13 @@ useEffect(() => {
                 {resStep === 3 && (
                   <div className="space-y-4 animate-fade-in">
                     <div className="flex justify-between items-center">
-                      <h4 className="text-xl font-semibold text-white">
-                        Step 3: Confirm Details
-                      </h4>
-                      <button
-                        onClick={() => setResStep(2)}
-                        className="text-sm text-gray-400 hover:text-white"
-                      >
+                      <h4 className="text-xl font-semibold text-white">Step 3: Confirm Details</h4>
+                      <button onClick={() => setResStep(2)} className="text-sm text-gray-400 hover:text-white">
                         Change Table
                       </button>
                     </div>
                     <form
-                      onSubmit={
-                        otpSent
-                          ? (e) => {
-                            e.preventDefault();
-                            confirmBooking();
-                          }
-                          : sendOtp
-                      }
+                      onSubmit={otpSent ? (e) => { e.preventDefault(); confirmBooking(); } : sendOtp}
                       className="space-y-4"
                     >
                       <input
@@ -1566,10 +1276,7 @@ useEffect(() => {
                         <button
                           type="submit"
                           className="w-full font-bold py-3 px-4 rounded-md transition-opacity"
-                          style={{
-                            backgroundColor: "var(--primary-color)",
-                            color: "var(--text-on-primary-color)",
-                          }}
+                          style={{ backgroundColor: "var(--primary-color)", color: "var(--text-on-primary-color)" }}
                         >
                           Send Verification OTP
                         </button>
@@ -1588,11 +1295,7 @@ useEffect(() => {
                             disabled={isBooking}
                             className="w-full flex items-center justify-center gap-2 font-bold py-3 px-4 rounded-md transition-opacity bg-green-600 text-white hover:bg-green-500 disabled:bg-gray-500"
                           >
-                            {isBooking ? (
-                              <Spinner className="text-white" />
-                            ) : (
-                              "Verify & Book"
-                            )}
+                            {isBooking ? <Spinner className="text-white" /> : "Verify & Book"}
                           </button>
                         </div>
                       )}
@@ -1602,32 +1305,19 @@ useEffect(() => {
 
                 {resStep === 4 && (
                   <div className="animate-fade-in text-center py-8 space-y-4">
-                    <Icon
-                      type="check-circle"
-                      className="w-16 h-16 text-green-400 mx-auto"
-                    />
-                    <h4 className="text-2xl font-bold text-white">
-                      Booking Confirmed!
-                    </h4>
-                    <p className="text-gray-300">
-                      We look forward to seeing you.
-                    </p>
+                    <Icon type="check-circle" className="w-16 h-16 text-green-400 mx-auto" />
+                    <h4 className="text-2xl font-bold text-white">Booking Confirmed!</h4>
+                    <p className="text-gray-300">We look forward to seeing you.</p>
                     <div className="bg-gray-800 p-4 rounded-md inline-block text-left mt-4">
                       <p className="text-sm text-gray-400">
                         Booking ID:{" "}
-                        <span className="text-cyan-400 font-mono">
-                          {lastReservationId}
-                        </span>
+                        <span className="text-cyan-400 font-mono">{lastReservationId}</span>
                       </p>
                       <p className="text-sm text-gray-400">
                         Date:{" "}
-                        <span className="text-white">
-                          {new Date(resForm.date).toLocaleDateString()}
-                        </span>{" "}
+                        <span className="text-white">{new Date(resForm.date).toLocaleDateString()}</span>{" "}
                         at{" "}
-                        <span className="text-white">
-                          {resForm.time} {resForm.end_time}
-                        </span>
+                        <span className="text-white">{resForm.time} {resForm.end_time}</span>
                       </p>
                     </div>
                     <p className="text-xs text-gray-500 mt-4">
@@ -1636,12 +1326,7 @@ useEffect(() => {
                     <button
                       onClick={() => {
                         setResStep(1);
-                        setResForm((prev) => ({
-                          ...prev,
-                          date: "",
-                          time: "",
-                          tableId: "",
-                        }));
+                        setResForm((prev) => ({ ...prev, date: "", time: "", tableId: "" }));
                         setOtpSent(false);
                         setOtp("");
                       }}
@@ -1656,20 +1341,13 @@ useEffect(() => {
               {/* Contact info */}
               <div className="space-y-6 text-gray-300 animate-fade-in">
                 <div>
-                  <h4 className="text-2xl font-serif text-white mb-4">
-                    Contact Us
-                  </h4>
+                  <h4 className="text-2xl font-serif text-white mb-4">Contact Us</h4>
                   <div className="space-y-4">
                     {contactInfo.locations.map((loc, idx) => (
                       <div key={idx} className="flex items-start gap-3">
-                        <Icon
-                          type="map-pin"
-                          className="w-5 h-5 text-[var(--accent-color)] mt-1 shrink-0"
-                        />
+                        <Icon type="map-pin" className="w-5 h-5 text-[var(--accent-color)] mt-1 shrink-0" />
                         <div>
-                          <p className="font-semibold text-white text-sm">
-                            {loc.title}
-                          </p>
+                          <p className="font-semibold text-white text-sm">{loc.title}</p>
                           <p className="text-gray-400 text-sm">{loc.address}</p>
                         </div>
                       </div>
@@ -1679,24 +1357,14 @@ useEffect(() => {
                     href={`tel:${contactInfo.phone}`}
                     className="flex items-center gap-3 mt-4 hover:text-[var(--accent-color)] transition-colors"
                   >
-                    <Icon
-                      type="phone"
-                      className="w-5 h-5 text-[var(--accent-color)] shrink-0"
-                    />
+                    <Icon type="phone" className="w-5 h-5 text-[var(--accent-color)] shrink-0" />
                     <span>{contactInfo.phone}</span>
                   </a>
                   <a
                     href={`mailto:${contactInfo.email}`}
                     className="flex items-center gap-3 mt-3 hover:text-[var(--accent-color)] transition-colors"
                   >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="w-5 h-5 shrink-0 text-[var(--accent-color)]"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                    >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 shrink-0 text-[var(--accent-color)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <rect x="2" y="4" width="20" height="16" rx="2" />
                       <path d="M2 7l10 7 10-7" />
                     </svg>
@@ -1708,17 +1376,10 @@ useEffect(() => {
                     onClick={() => setIsRecommenderOpen(true)}
                     className="w-full flex items-center justify-center gap-3 bg-gray-700 p-4 rounded-md hover:bg-gray-600 transition-colors"
                   >
-                    <Icon
-                      type="chef-hat"
-                      className="w-6 h-6 text-[var(--accent-color)]"
-                    />
+                    <Icon type="chef-hat" className="w-6 h-6 text-[var(--accent-color)]" />
                     <div>
-                      <p className="font-semibold text-white">
-                        Feeling Indecisive?
-                      </p>
-                      <p className="text-sm text-gray-400">
-                        Get an AI-powered recommendation!
-                      </p>
+                      <p className="font-semibold text-white">Feeling Indecisive?</p>
+                      <p className="text-sm text-gray-400">Get an AI-powered recommendation!</p>
                     </div>
                   </button>
                 </div>
@@ -1731,10 +1392,7 @@ useEffect(() => {
       {/* ── Footer ── */}
       <footer className="bg-gray-900 py-12">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center text-gray-500">
-          <p>
-            © {new Date().getFullYear()} {restaurantName}. Part of Bongo
-            Delicacy Group.
-          </p>
+          <p>© {new Date().getFullYear()} {restaurantName}. Part of Bongo Delicacy Group.</p>
         </div>
       </footer>
 
@@ -1755,10 +1413,7 @@ useEffect(() => {
       {isAddonModalOpen && addonItem && (
         <AddonModal
           item={addonItem as ItemData}
-          onClose={() => {
-            setIsAddonModalOpen(false);
-            setAddonItem(null);
-          }}
+          onClose={() => { setIsAddonModalOpen(false); setAddonItem(null); }}
           onConfirm={(finalItem: EnrichedItemData) => {
             handleAddToCart(finalItem);
             setIsAddonModalOpen(false);
@@ -1768,6 +1423,6 @@ useEffect(() => {
       )}
     </div>
   );
-};;
+};
 
 export default BrandPage;
